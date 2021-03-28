@@ -10,15 +10,16 @@
 //---------------------------------------------------------------------------
 
 
+#include "gpos/memory/CCacheFactory.h"
+
 #include "gpos/io/ioutils.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/memory/CCache.h"
-#include "gpos/memory/CCacheFactory.h"
 
 using namespace gpos;
 
 // global instance of cache factory
-CCacheFactory *CCacheFactory::m_factory = NULL;
+CCacheFactory *CCacheFactory::m_factory = nullptr;
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -28,14 +29,8 @@ CCacheFactory *CCacheFactory::m_factory = NULL;
 //		Ctor;
 //
 //---------------------------------------------------------------------------
-CCacheFactory::CCacheFactory
-	(
-		CMemoryPool *mp
-	)
-	:
-	m_mp(mp)
+CCacheFactory::CCacheFactory(CMemoryPool *mp) : m_mp(mp)
 {
-
 }
 
 
@@ -65,13 +60,14 @@ CCacheFactory::Pmp() const
 GPOS_RESULT
 CCacheFactory::Init()
 {
-	GPOS_ASSERT(NULL == GetFactory() &&
-			    "Cache factory was already initialized");
+	GPOS_ASSERT(nullptr == GetFactory() &&
+				"Cache factory was already initialized");
 
 	GPOS_RESULT res = GPOS_OK;
 
 	// create cache factory memory pool
-	CMemoryPool *mp = CMemoryPoolManager::GetMemoryPoolMgr()->CreateMemoryPool();
+	CMemoryPool *mp =
+		CMemoryPoolManager::GetMemoryPoolMgr()->CreateMemoryPool();
 	GPOS_TRY
 	{
 		// create cache factory instance
@@ -82,7 +78,7 @@ CCacheFactory::Init()
 		// destroy memory pool if global instance was not created
 		CMemoryPoolManager::GetMemoryPoolMgr()->Destroy(mp);
 
-		CCacheFactory::m_factory = NULL;
+		CCacheFactory::m_factory = nullptr;
 
 		if (GPOS_MATCH_EX(ex, CException::ExmaSystem, CException::ExmiOOM))
 		{
@@ -111,13 +107,12 @@ CCacheFactory::Shutdown()
 {
 	CCacheFactory *factory = CCacheFactory::GetFactory();
 
-	GPOS_ASSERT(NULL != factory &&
-			    "Cache factory has not been initialized");
+	GPOS_ASSERT(nullptr != factory && "Cache factory has not been initialized");
 
 	CMemoryPool *mp = factory->m_mp;
 
 	// destroy cache factory
-	CCacheFactory::m_factory = NULL;
+	CCacheFactory::m_factory = nullptr;
 	GPOS_DELETE(factory);
 
 	// release allocated memory pool

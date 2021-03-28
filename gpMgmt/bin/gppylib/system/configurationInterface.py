@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright (c) Greenplum Inc 2009. All Rights Reserved.
 #
@@ -26,9 +26,9 @@ class GpConfigurationProvider :
     def __init__(self):
         pass
 
-    def initializeProvider( self, masterPort ) :
+    def initializeProvider( self, coordinatorPort ) :
         """
-        Initialize the provider to get information from the given master db, if it chooses to
+        Initialize the provider to get information from the given coordinator db, if it chooses to
             get its data from the database
 
         returns self

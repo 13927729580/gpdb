@@ -1,14 +1,12 @@
 import shutil, filecmp,re
 import os, fcntl, select, getpass, socket
 import stat
-try:
-    from subprocess32 import *
-except:
-    from subprocess import *
+from subprocess import *
 from sys import *
 from xml.dom import minidom
 from xml.dom import Node
 
+import pgdb
 from gppylib.gplog import *
 
 logger = get_default_logger()
@@ -140,22 +138,22 @@ def openAnything(source):
         return sys.stdin
 
     # try to open with urllib (if source is http, ftp, or file URL)
-    import urllib                         
+    import urllib.request, urllib.parse, urllib.error                         
     try:                                  
-        return urllib.urlopen(source)     
+        return urllib.request.urlopen(source)     
     except (IOError, OSError):            
         pass                              
     
     # try to open with native open function (if source is pathname)
     try:                                  
         return open(source)               
-    except Exception, e: 
-        print ("Exception occurred opening file %s Error: %s"  % (source, str(e)))                             
+    except Exception as e: 
+        print(("Exception occurred opening file %s Error: %s"  % (source, str(e))))                             
         
     
     # treat source as string
-    import StringIO                       
-    return StringIO.StringIO(str(source)) 
+    import io                       
+    return io.StringIO(str(source)) 
 def getOs():
     dist=None
     fdesc = None
@@ -187,7 +185,7 @@ def getOs():
             fdesc.close()
     return dist
 def factory(aClass, *args):
-    return apply(aClass,args)
+    return aClass(*args)
 
 def addDicts(a,b):
     c = dict(a)
@@ -200,7 +198,7 @@ def joinPath(a,b,parm=""):
 
 def debug(varname, o):
     if _debug == 1:
-        print "Debug: %s -> %s" %(varname, o)
+        print("Debug: %s -> %s" %(varname, o))
 
 def loadXmlElement(config,elementName):
     fdesc = openAnything(config)
@@ -221,7 +219,7 @@ def docIter(node):
         #have no set order. The values() call
         #gets a list of actual attribute node objects
         #from the dictionary
-        for attr in node.attributes.values():
+        for attr in list(node.attributes.values()):
             yield attr
     for child in node.childNodes:
         #Create a generator for each child,
@@ -289,17 +287,17 @@ def deleteBlock(fileName,beginPattern, endPattern):
                 fdesc.close()
                 os.rename(fileNameTmp,fileName)
         except IOError:
-            print("IOERROR", IOError)
+            print(("IOERROR", IOError))
             sys.exit()
     else:
-        print "***********%s  file does not exits"%(fileName)
+        print("***********%s  file does not exits"%(fileName))
 
 def make_inf_hosts(hp, hstart, hend, istart, iend, hf=None):
     hfArr = []
     inf_hosts=[]
     if None != hf:
         hfArr=hf.split('-')
-    print hfArr 
+    print(hfArr) 
     for h in range(int(hstart), int(hend)+1):
         host = '%s%d' % (hp, h)
         for i in range(int(istart), int(iend)+1):
@@ -323,7 +321,7 @@ def copyFile(srcDir,srcFile, destDir, destFile):
             result=pipe.read().strip()
             #debug ("result",result)
         else:
-            print "no such file or directory " + filePath
+            print("no such file or directory " + filePath)
     except OSError:
         print ("OS Error occurred")
     return result
@@ -350,50 +348,6 @@ def parseKeyColonValueLines(str):
 
 def sortedDictByKey(di):
     return  [ (k,di[k]) for k in sorted(di.keys())]
-
-def appendNewEntriesToHbaFile(fileName, segments):
-    """
-    Will raise Exception if there is a problem updating the hba file
-    """
-
-    try:
-        #
-        # Get the list of lines that already exist...we won't write those again
-        #
-        # Replace runs of whitespace with single space to improve deduping
-        #
-        def lineToCanonical(s):
-            s = re.sub("\s", " ", s) # first reduce whitespace runs to single space
-            s = re.sub(" $", "", s) # remove trailing space
-            s = re.sub("^ ", "", s) # remove leading space
-            return s
-        existingLineMap = {}
-        for line in readAllLinesFromFile(fileName):
-            existingLineMap[lineToCanonical(line)] = True
-
-        fp = open(fileName, 'a')
-        try:
-            for newSeg in segments:
-                address = newSeg.getSegmentAddress()
-                addrinfo = socket.getaddrinfo(address, None)
-                ipaddrlist = list(set([ (ai[0], ai[4][0]) for ai in addrinfo]))
-                haveWrittenCommentHeader = False
-                for addr in ipaddrlist:
-                    newLine = 'host\tall\tall\t%s/%s\ttrust' % (addr[1], '32' if addr[0] == socket.AF_INET else '128')
-                    newLineCanonical = lineToCanonical(newLine)
-                    if newLineCanonical not in existingLineMap:
-                        if not haveWrittenCommentHeader:
-                            fp.write('# %s\n' % address)
-                            haveWrittenCommentHeader = True
-                        fp.write(newLine)
-                        fp.write('\n')
-                        existingLineMap[newLineCanonical] = True
-        finally:
-            fp.close()
-    except IOError, msg:
-        raise Exception('Failed to open %s' % fileName)
-    except Exception, msg:
-        raise Exception('Failed to add new segments to template %s' % fileName)
 
 class TableLogger:
 
@@ -541,30 +495,6 @@ def normalizeAndValidateInputPath(path, errorMessagePathSource=None, errorMessag
                 ( firstPart, path, secondPart ))
     return os.path.normpath(path)
 
-def canStringBeParsedAsInt(str):
-    """
-    return True if int(str) would produce a value rather than throwing an error,
-          else return False
-    """
-    try:
-        int(str)
-        return True
-    except ValueError:
-        return False
-
-def shellEscape(string):
-    """
-    shellEscape: Returns a string in which the shell-significant quoted-string characters are
-    escaped.
-    This function escapes the following characters: '"', '$', '`', '\', '!'
-    """
-    res = []
-    for ch in string:
-        if ch in ['\\', '`', '$', '!', '"']:
-            res.append('\\')
-        res.append(ch)
-    return ''.join(res)
-
 
 def escapeDoubleQuoteInSQLString(string, forceDoubleQuote=True):
     string = string.replace('"', '""')
@@ -572,3 +502,93 @@ def escapeDoubleQuoteInSQLString(string, forceDoubleQuote=True):
     if forceDoubleQuote:
         string = '"' + string + '"'
     return string
+
+
+def Escape(query_str):
+    return pgdb.escape_string(query_str)
+
+
+# Transform Python list to Postgres array literal (of the form: '{...}')
+def format_array_literal(val):
+    if len(val) == 0:
+        val = "'{}'"
+    elif isinstance(val[0], str):
+        # Convert ['..', '..', ...] to '{"..", "..", ...}'
+        val = ['"%s"' % Escape(e) for e in val]
+        val = ','.join(val)
+        val = "'{%s}'" % val
+    else:
+        # Convert [.., .., ...] to '{.., .., ...}'
+        val = str(val)
+        val = "'{%s}'" % val[1:-1]
+    return val
+
+
+def formatInsertValuesList(row, starelid, inclHLL):
+    """
+    @return rowVals
+    """
+
+    rowVals = ["\t%s" % (starelid)]
+
+    types = ['smallint',  # staattnum
+             'boolean',
+             'real',
+             'integer',
+             'real',
+             'smallint',  # stakind1
+             'smallint',
+             'smallint',
+             'smallint',
+             'smallint',
+             'oid',       # staop1
+             'oid',
+             'oid',
+             'oid',
+             'oid',
+             'oid',       # stacoll1
+             'oid',
+             'oid',
+             'oid',
+             'oid',
+             'real[]',    # stanumbers1
+             'real[]',
+             'real[]',
+             'real[]',
+             'real[]'
+             ]
+    i = 0
+    hll = False
+
+    # Populate types for stavaluesN: infer the type from pg_type.typname
+    if row[3][0] == '_':
+        rowTypes = types + [row[3]] * 5
+    else:
+        rowTypes = types + [row[3] + '[]'] * 5
+
+    for val, typ in zip(row[5:], rowTypes):
+        i = i + 1
+        # Check stakind1 to see if slot is a hll slot or a full hll slot
+        if i == 10 and (val == 98 or val == 99):
+            if inclHLL == False:
+                val = 0
+            hll = True
+        elif val is None:
+            val = 'NULL'
+        # Format stavalues5 for an hll slot
+        elif i == 30 and hll:
+            if inclHLL:
+                val = '\'{"%s"}\'' % pgdb.escape_bytea(val[0])
+                rowVals.append('\t{0}::{1}'.format(val, 'bytea[]'))
+            else:
+                rowVals.append('\t{0}'.format('NULL::int4[]'))
+            continue
+        # Postgres array types are adapted to Python lists by pgdb
+        # We have to transform these lists to Postgres array literals in the
+        # output file.
+        elif isinstance(val, list):
+            val = format_array_literal(val)
+
+        rowVals.append('\t{0}::{1}'.format(val, typ))
+
+    return rowVals

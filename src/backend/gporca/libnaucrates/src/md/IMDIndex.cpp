@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		IMDIndex.cpp
@@ -9,9 +9,10 @@
 //		Implementation of MD index
 //---------------------------------------------------------------------------
 
+#include "naucrates/md/IMDIndex.h"
+
 #include "gpos/string/CWStringDynamic.h"
 
-#include "naucrates/md/IMDIndex.h"
 #include "naucrates/dxl/xml/dxltokens.h"
 
 using namespace gpdxl;
@@ -26,10 +27,7 @@ using namespace gpmd;
 //
 //---------------------------------------------------------------------------
 const CWStringConst *
-IMDIndex::GetDXLStr
-	(
-	EmdindexType index_type
-	)
+IMDIndex::GetDXLStr(EmdindexType index_type)
 {
 	switch (index_type)
 	{
@@ -43,7 +41,7 @@ IMDIndex::GetDXLStr
 			return CDXLTokens::GetDXLTokenStr(EdxltokenIndexTypeGin);
 		default:
 			GPOS_ASSERT(!"Unrecognized index type");
-			return NULL;
+			return nullptr;
 	}
 }
 

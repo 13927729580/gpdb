@@ -9,17 +9,18 @@
 //		Singleton to keep error messages;
 //---------------------------------------------------------------------------
 
-#include "gpos/utils.h"
-#include "gpos/common/CSyncHashtableAccessByKey.h"
 #include "gpos/error/CMessageRepository.h"
+
+#include "gpos/common/CSyncHashtableAccessByKey.h"
 #include "gpos/memory/CAutoMemoryPool.h"
+#include "gpos/utils.h"
 
 
 using namespace gpos;
 //---------------------------------------------------------------------------
 // static singleton
 //---------------------------------------------------------------------------
-CMessageRepository *CMessageRepository::m_repository = NULL;
+CMessageRepository *CMessageRepository::m_repository = nullptr;
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -29,29 +30,9 @@ CMessageRepository *CMessageRepository::m_repository = NULL;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CMessageRepository::CMessageRepository
-	(
-	CMemoryPool *mp
-	)
-	:
-	m_mp(mp)
+CMessageRepository::CMessageRepository(CMemoryPool *mp) : m_mp(mp)
 {
-	GPOS_ASSERT(NULL != mp);
-}
-
-
-//---------------------------------------------------------------------------
-//	@function:
-//		CMessageRepository::CMessageRepository
-//
-//	@doc:
-//		dtor
-//
-//---------------------------------------------------------------------------
-CMessageRepository::~CMessageRepository()
-{
-	// no explicit cleanup;
-	// shutdown routine will reclaim all memory
+	GPOS_ASSERT(nullptr != mp);
 }
 
 
@@ -64,18 +45,14 @@ CMessageRepository::~CMessageRepository()
 //
 //---------------------------------------------------------------------------
 CMessage *
-CMessageRepository::LookupMessage
-	(
-	CException exc,
-	ELocale locale
-	)
+CMessageRepository::LookupMessage(CException exc, ELocale locale)
 {
 	GPOS_ASSERT(exc != CException::m_invalid_exception &&
 				"Cannot lookup invalid exception message");
 
 	if (exc != CException::m_invalid_exception)
 	{
-		CMessage *msg = NULL;
+		CMessage *msg = nullptr;
 		ELocale search_locale = locale;
 
 		for (ULONG i = 0; i < 2; i++)
@@ -83,12 +60,12 @@ CMessageRepository::LookupMessage
 			// try to locate locale-specific message table
 			TMTAccessor tmta(m_hash_table, search_locale);
 			CMessageTable *mt = tmta.Find();
-		
-			if (NULL != mt)
+
+			if (nullptr != mt)
 			{
 				// try to locate specific message
 				msg = mt->LookupMessage(exc);
-				if (NULL != msg)
+				if (nullptr != msg)
 				{
 					return msg;
 				}
@@ -114,20 +91,20 @@ CMessageRepository::LookupMessage
 GPOS_RESULT
 CMessageRepository::Init()
 {
-	GPOS_ASSERT(NULL == m_repository);
-	
+	GPOS_ASSERT(nullptr == m_repository);
+
 	CAutoMemoryPool amp;
 	CMemoryPool *mp = amp.Pmp();
 
 	CMessageRepository *repository = GPOS_NEW(mp) CMessageRepository(mp);
 	repository->InitDirectory(mp);
 	repository->LoadStandardMessages();
-	
+
 	CMessageRepository::m_repository = repository;
 
 	// detach safety
 	(void) amp.Detach();
-	
+
 	return GPOS_OK;
 }
 
@@ -143,7 +120,7 @@ CMessageRepository::Init()
 CMessageRepository *
 CMessageRepository::GetMessageRepository()
 {
-	GPOS_ASSERT(NULL != m_repository);
+	GPOS_ASSERT(nullptr != m_repository);
 	return m_repository;
 }
 
@@ -162,7 +139,7 @@ void
 CMessageRepository::Shutdown()
 {
 	CMemoryPoolManager::GetMemoryPoolMgr()->Destroy(m_mp);
-	CMessageRepository::m_repository = NULL;
+	CMessageRepository::m_repository = nullptr;
 }
 
 
@@ -175,21 +152,12 @@ CMessageRepository::Shutdown()
 //
 //---------------------------------------------------------------------------
 void
-CMessageRepository::InitDirectory
-	(
-	CMemoryPool *mp
-	)
+CMessageRepository::InitDirectory(CMemoryPool *mp)
 {
-	m_hash_table.Init
-		(
-		mp,
-		128,
-		GPOS_OFFSET(CMessageTable, m_link),
-		GPOS_OFFSET(CMessageTable, m_locale),
-		&(CMessageTable::m_invalid_locale),
-		CMessageTable::HashValue,
-		CMessageTable::Equals
-		);
+	m_hash_table.Init(mp, 128, GPOS_OFFSET(CMessageTable, m_link),
+					  GPOS_OFFSET(CMessageTable, m_locale),
+					  &(CMessageTable::m_invalid_locale),
+					  CMessageTable::HashValue, CMessageTable::Equals);
 }
 
 
@@ -203,11 +171,7 @@ CMessageRepository::InitDirectory
 //
 //---------------------------------------------------------------------------
 void
-CMessageRepository::AddMessage
-	(
-	ELocale locale,
-	CMessage *msg
-	)
+CMessageRepository::AddMessage(ELocale locale, CMessage *msg)
 {
 	// retry logic: (1) attempt to insert first (frequent code path)
 	// or (2) create message table after failure and retry (infreq code path)
@@ -217,8 +181,8 @@ CMessageRepository::AddMessage
 		{
 			TMTAccessor tmta(m_hash_table, locale);
 			CMessageTable *mt = tmta.Find();
-			
-			if (NULL != mt)
+
+			if (nullptr != mt)
 			{
 				mt->AddMessage(msg);
 				return;
@@ -228,7 +192,7 @@ CMessageRepository::AddMessage
 		// create message table for this locale on demand
 		AddMessageTable(locale);
 	}
-	
+
 	GPOS_ASSERT(!"Adding message table on demand failed");
 }
 
@@ -242,19 +206,16 @@ CMessageRepository::AddMessage
 //
 //---------------------------------------------------------------------------
 void
-CMessageRepository::AddMessageTable
-	(
-	ELocale locale
-	)
+CMessageRepository::AddMessageTable(ELocale locale)
 {
 	CMessageTable *new_mt =
 		GPOS_NEW(m_mp) CMessageTable(m_mp, GPOS_MSGTAB_SIZE, locale);
-	
+
 	{
 		TMTAccessor tmta(m_hash_table, locale);
 		CMessageTable *mt = tmta.Find();
 
-		if (NULL == mt)
+		if (nullptr == mt)
 		{
 			tmta.Insert(new_mt);
 			return;
@@ -287,4 +248,3 @@ CMessageRepository::LoadStandardMessages()
 }
 
 // EOF
-

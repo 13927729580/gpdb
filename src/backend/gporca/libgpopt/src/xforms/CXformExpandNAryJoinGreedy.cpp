@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2018 Pivotal Software Inc.
+//	Copyright (C) 2018 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformExpandNAryJoinGreedy.cpp
@@ -11,6 +11,8 @@
 //		the end
 //---------------------------------------------------------------------------
 
+#include "gpopt/xforms/CXformExpandNAryJoinGreedy.h"
+
 #include "gpos/base.h"
 
 #include "gpopt/base/CUtils.h"
@@ -18,7 +20,6 @@
 #include "gpopt/operators/CNormalizer.h"
 #include "gpopt/operators/CPatternMultiTree.h"
 #include "gpopt/operators/CPredicateUtils.h"
-#include "gpopt/xforms/CXformExpandNAryJoinGreedy.h"
 #include "gpopt/xforms/CJoinOrderGreedy.h"
 #include "gpopt/xforms/CXformUtils.h"
 
@@ -34,23 +35,16 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformExpandNAryJoinGreedy::CXformExpandNAryJoinGreedy
-	(
-	CMemoryPool *pmp
-	)
-	:
-	CXformExploration
-		(
-		 // pattern
-		GPOS_NEW(pmp) CExpression
-					(
-					pmp,
-					GPOS_NEW(pmp) CLogicalNAryJoin(pmp),
-					GPOS_NEW(pmp) CExpression(pmp, GPOS_NEW(pmp) CPatternMultiTree(pmp)),
-					GPOS_NEW(pmp) CExpression(pmp, GPOS_NEW(pmp) CPatternTree(pmp))
-					)
-		)
-{}
+CXformExpandNAryJoinGreedy::CXformExpandNAryJoinGreedy(CMemoryPool *pmp)
+	: CXformExploration(
+		  // pattern
+		  GPOS_NEW(pmp) CExpression(
+			  pmp, GPOS_NEW(pmp) CLogicalNAryJoin(pmp),
+			  GPOS_NEW(pmp)
+				  CExpression(pmp, GPOS_NEW(pmp) CPatternMultiTree(pmp)),
+			  GPOS_NEW(pmp) CExpression(pmp, GPOS_NEW(pmp) CPatternTree(pmp))))
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -62,13 +56,9 @@ CXformExpandNAryJoinGreedy::CXformExpandNAryJoinGreedy
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformExpandNAryJoinGreedy::Exfp
-	(
-	CExpressionHandle &exprhdl
-	)
-	const
+CXformExpandNAryJoinGreedy::Exfp(CExpressionHandle &exprhdl) const
 {
-	return CXformUtils::ExfpExpandJoinOrder(exprhdl);
+	return CXformUtils::ExfpExpandJoinOrder(exprhdl, this);
 }
 
 
@@ -81,16 +71,12 @@ CXformExpandNAryJoinGreedy::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformExpandNAryJoinGreedy::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformExpandNAryJoinGreedy::Transform(CXformContext *pxfctxt,
+									  CXformResult *pxfres,
+									  CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
-	GPOS_ASSERT(NULL != pxfres);
+	GPOS_ASSERT(nullptr != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfres);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
@@ -108,16 +94,18 @@ CXformExpandNAryJoinGreedy::Transform
 	}
 
 	CExpression *pexprScalar = (*pexpr)[ulArity - 1];
-	CExpressionArray *pdrgpexprPreds = CPredicateUtils::PdrgpexprConjuncts(pmp, pexprScalar);
+	CExpressionArray *pdrgpexprPreds =
+		CPredicateUtils::PdrgpexprConjuncts(pmp, pexprScalar);
 
 	// create a join order based on cardinality of intermediate results
 	CJoinOrderGreedy jomc(pmp, pdrgpexpr, pdrgpexprPreds);
 	CExpression *pexprResult = jomc.PexprExpand();
 
-	if (NULL != pexprResult)
+	if (nullptr != pexprResult)
 	{
 		// normalize resulting expression
-		CExpression *pexprNormalized = CNormalizer::PexprNormalize(pmp, pexprResult);
+		CExpression *pexprNormalized =
+			CNormalizer::PexprNormalize(pmp, pexprResult);
 		pexprResult->Release();
 		pxfres->Add(pexprNormalized);
 	}

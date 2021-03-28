@@ -3,7 +3,7 @@
  * cdbdtxcontextinfo.h
  *
  * Portions Copyright (c) 2007-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -13,14 +13,13 @@
  */
 #ifndef CDBDTXCONTEXTINFO_H
 #define CDBDTXCONTEXTINFO_H
-#include "utils/tqual.h"
 
-#define DtxContextInfo_StaticInit {0,InvalidDistributedTransactionId,false,false,DistributedSnapshot_StaticInit,0,0,0}
+#include "utils/snapshot.h"
+
+#define DtxContextInfo_StaticInit {InvalidDistributedTransactionId,false,false,DistributedSnapshot_StaticInit,0,0,0,0}
 
 typedef struct DtxContextInfo
 {
-	DistributedTransactionTimeStamp	distributedTimeStamp;
-	
 	DistributedTransactionId 		distributedXid;
 	
 	bool							haveDistributedSnapshot;

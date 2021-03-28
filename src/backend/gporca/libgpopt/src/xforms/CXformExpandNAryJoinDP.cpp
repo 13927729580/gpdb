@@ -9,19 +9,21 @@
 //		Implementation of n-ary join expansion using dynamic programming
 //---------------------------------------------------------------------------
 
+#include "gpopt/xforms/CXformExpandNAryJoinDP.h"
+
 #include "gpos/base.h"
 
+#include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/engine/CHint.h"
-#include "gpopt/optimizer/COptimizerConfig.h"
 #include "gpopt/operators/CLogicalNAryJoin.h"
+#include "gpopt/operators/CNormalizer.h"
 #include "gpopt/operators/CPatternMultiLeaf.h"
 #include "gpopt/operators/CPatternMultiTree.h"
-#include "gpopt/operators/CNormalizer.h"
 #include "gpopt/operators/CPredicateUtils.h"
-#include "gpopt/xforms/CXformExpandNAryJoinDP.h"
-#include "gpopt/xforms/CXformUtils.h"
+#include "gpopt/optimizer/COptimizerConfig.h"
 #include "gpopt/xforms/CJoinOrderDP.h"
+#include "gpopt/xforms/CXformUtils.h"
 
 
 
@@ -36,23 +38,15 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformExpandNAryJoinDP::CXformExpandNAryJoinDP
-	(
-	CMemoryPool *mp
-	)
-	:
-	CXformExploration
-		(
-		 // pattern
-		GPOS_NEW(mp) CExpression
-					(
-					mp,
-					GPOS_NEW(mp) CLogicalNAryJoin(mp),
-					GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternMultiLeaf(mp)),
-					GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))
-					)
-		)
-{}
+CXformExpandNAryJoinDP::CXformExpandNAryJoinDP(CMemoryPool *mp)
+	: CXformExploration(
+		  // pattern
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CLogicalNAryJoin(mp),
+			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternMultiLeaf(mp)),
+			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))))
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -64,13 +58,10 @@ CXformExpandNAryJoinDP::CXformExpandNAryJoinDP
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformExpandNAryJoinDP::Exfp
-	(
-	CExpressionHandle &exprhdl
-	)
-	const
+CXformExpandNAryJoinDP::Exfp(CExpressionHandle &exprhdl) const
 {
-	COptimizerConfig *optimizer_config = COptCtxt::PoctxtFromTLS()->GetOptimizerConfig();
+	COptimizerConfig *optimizer_config =
+		COptCtxt::PoctxtFromTLS()->GetOptimizerConfig();
 	const CHint *phint = optimizer_config->GetHint();
 
 	const ULONG arity = exprhdl.Arity();
@@ -84,7 +75,7 @@ CXformExpandNAryJoinDP::Exfp
 		return CXform::ExfpNone;
 	}
 
-	return CXformUtils::ExfpExpandJoinOrder(exprhdl);
+	return CXformUtils::ExfpExpandJoinOrder(exprhdl, this);
 }
 
 
@@ -98,16 +89,11 @@ CXformExpandNAryJoinDP::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformExpandNAryJoinDP::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformExpandNAryJoinDP::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+								  CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
-	GPOS_ASSERT(NULL != pxfres);
+	GPOS_ASSERT(nullptr != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfres);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
@@ -125,16 +111,18 @@ CXformExpandNAryJoinDP::Transform
 	}
 
 	CExpression *pexprScalar = (*pexpr)[arity - 1];
-	CExpressionArray *pdrgpexprPreds = CPredicateUtils::PdrgpexprConjuncts(mp, pexprScalar);
+	CExpressionArray *pdrgpexprPreds =
+		CPredicateUtils::PdrgpexprConjuncts(mp, pexprScalar);
 
 	// create join order using dynamic programming
 	CJoinOrderDP jodp(mp, pdrgpexpr, pdrgpexprPreds);
 	CExpression *pexprResult = jodp.PexprExpand();
 
-	if (NULL != pexprResult)
+	if (nullptr != pexprResult)
 	{
 		// normalize resulting expression
-		CExpression *pexprNormalized = CNormalizer::PexprNormalize(mp, pexprResult);
+		CExpression *pexprNormalized =
+			CNormalizer::PexprNormalize(mp, pexprResult);
 		pexprResult->Release();
 		pxfres->Add(pexprNormalized);
 

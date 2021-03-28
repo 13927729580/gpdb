@@ -9,14 +9,15 @@
 //		Implementation of motion operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CPhysicalMotion.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CDistributionSpecAny.h"
-#include "gpopt/operators/CExpressionHandle.h"
-#include "gpopt/operators/CPhysicalMotion.h"
-#include "gpopt/search/CMemo.h"
 #include "gpopt/base/CDistributionSpecRandom.h"
+#include "gpopt/base/COptCtxt.h"
+#include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/search/CMemo.h"
 
 using namespace gpopt;
 
@@ -30,26 +31,24 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 BOOL
-CPhysicalMotion::FValidContext
-	(
-	CMemoryPool *,
-	COptimizationContext *poc,
-	COptimizationContextArray *pdrgpocChild
-	)
-	const
+CPhysicalMotion::FValidContext(CMemoryPool *, COptimizationContext *poc,
+							   COptimizationContextArray *pdrgpocChild) const
 {
-	GPOS_ASSERT(NULL != pdrgpocChild);
+	GPOS_ASSERT(nullptr != pdrgpocChild);
 	GPOS_ASSERT(1 == pdrgpocChild->Size());
 
 	COptimizationContext *pocChild = (*pdrgpocChild)[0];
 	CCostContext *pccBest = pocChild->PccBest();
-	GPOS_ASSERT(NULL != pccBest);
+	GPOS_ASSERT(nullptr != pccBest);
 
 	CDrvdPropPlan *pdpplanChild = pccBest->Pdpplan();
+	// GPDB_12_MERGE_FIXME: Check partition propagation spec
+#if 0
 	if (pdpplanChild->Ppim()->FContainsUnresolved())
 	{
 		return false;
 	}
+#endif
 
 	CEnfdDistribution *ped = poc->Prpp()->Ped();
 	if (ped->FCompatible(this->Pds()) && ped->FCompatible(pdpplanChild->Pds()))
@@ -72,20 +71,17 @@ CPhysicalMotion::FValidContext
 //
 //---------------------------------------------------------------------------
 CDistributionSpec *
-CPhysicalMotion::PdsRequired
-	(
-	CMemoryPool *mp,
-	CExpressionHandle &, // exprhdl
-	CDistributionSpec *pdsRequired,
-	ULONG
+CPhysicalMotion::PdsRequired(CMemoryPool *mp,
+							 CExpressionHandle &,  // exprhdl
+							 CDistributionSpec *pdsRequired,
+							 ULONG
 #ifdef GPOS_DEBUG
-	child_index
-#endif // GPOS_DEBUG
-	,
-	CDrvdPropArray *, // pdrgpdpCtxt
-	ULONG // ulOptReq
-	)
-	const
+								 child_index
+#endif	// GPOS_DEBUG
+							 ,
+							 CDrvdPropArray *,	// pdrgpdpCtxt
+							 ULONG				// ulOptReq
+) const
 {
 	GPOS_ASSERT(0 == child_index);
 
@@ -159,86 +155,25 @@ CPhysicalMotion::PdsRequired
 //
 //---------------------------------------------------------------------------
 CRewindabilitySpec *
-CPhysicalMotion::PrsRequired
-	(
-	CMemoryPool *mp,
-	CExpressionHandle &, // exprhdl
-	CRewindabilitySpec *, // prsRequired
-	ULONG
+CPhysicalMotion::PrsRequired(CMemoryPool *mp,
+							 CExpressionHandle &,	// exprhdl
+							 CRewindabilitySpec *,	// prsRequired
+							 ULONG
 #ifdef GPOS_DEBUG
-	child_index
-#endif // GPOS_DEBUG
-	,
-	CDrvdPropArray *, // pdrgpdpCtxt
-	ULONG // ulOptReq
-	)
-	const
+								 child_index
+#endif	// GPOS_DEBUG
+							 ,
+							 CDrvdPropArray *,	// pdrgpdpCtxt
+							 ULONG				// ulOptReq
+) const
 {
 	GPOS_ASSERT(0 == child_index);
 
 	// A motion is a hard barrier for rewindability since it executes in a
 	// different slice; and thus it cannot require any rewindability property
 	// from its child
-	return GPOS_NEW(mp) CRewindabilitySpec(CRewindabilitySpec::ErtNone, CRewindabilitySpec::EmhtNoMotion);
-}
-
-//---------------------------------------------------------------------------
-//	@function:
-//		CPhysicalMotion::PppsRequired
-//
-//	@doc:
-//		Compute required partition propagation of the n-th child
-//
-//---------------------------------------------------------------------------
-CPartitionPropagationSpec *
-CPhysicalMotion::PppsRequired
-	(
-	CMemoryPool *mp,
-	CExpressionHandle &exprhdl,
-	CPartitionPropagationSpec *pppsRequired,
-	ULONG 
-#ifdef GPOS_DEBUG
-	child_index
-#endif // GPOS_DEBUG
-	,
-	CDrvdPropArray *, //pdrgpdpCtxt,
-	ULONG //ulOptReq
-	)
-{
-	GPOS_ASSERT(0 == child_index);
-	GPOS_ASSERT(NULL != pppsRequired);
-	
-	CPartIndexMap *ppimReqd = pppsRequired->Ppim();
-	CPartFilterMap *ppfmReqd = pppsRequired->Ppfm();
-	
-	ULongPtrArray *pdrgpul = ppimReqd->PdrgpulScanIds(mp);
-	
-	CPartIndexMap *ppimResult = GPOS_NEW(mp) CPartIndexMap(mp);
-	CPartFilterMap *ppfmResult = GPOS_NEW(mp) CPartFilterMap(mp);
-	
-	/// get derived part consumers
-	CPartInfo *ppartinfo = exprhdl.DerivePartitionInfo(0);
-	
-	const ULONG ulPartIndexSize = pdrgpul->Size();
-	
-	for (ULONG ul = 0; ul < ulPartIndexSize; ul++)
-	{
-		ULONG part_idx_id = *((*pdrgpul)[ul]);
-
-		if (!ppartinfo->FContainsScanId(part_idx_id))
-		{
-			// part index id does not exist in child nodes: do not push it below 
-			// the motion
-			continue;
-		}
-
-		ppimResult->AddRequiredPartPropagation(ppimReqd, part_idx_id, CPartIndexMap::EppraPreservePropagators);
-		(void) ppfmResult->FCopyPartFilter(m_mp, part_idx_id, ppfmReqd, NULL);
-	}
-		
-	pdrgpul->Release();
-
-	return GPOS_NEW(mp) CPartitionPropagationSpec(ppimResult, ppfmResult);
+	return GPOS_NEW(mp) CRewindabilitySpec(CRewindabilitySpec::ErtNone,
+										   CRewindabilitySpec::EmhtNoMotion);
 }
 
 //---------------------------------------------------------------------------
@@ -250,20 +185,17 @@ CPhysicalMotion::PppsRequired
 //
 //---------------------------------------------------------------------------
 CCTEReq *
-CPhysicalMotion::PcteRequired
-	(
-	CMemoryPool *, //mp,
-	CExpressionHandle &, //exprhdl,
-	CCTEReq *pcter,
-	ULONG
+CPhysicalMotion::PcteRequired(CMemoryPool *,		//mp,
+							  CExpressionHandle &,	//exprhdl,
+							  CCTEReq *pcter,
+							  ULONG
 #ifdef GPOS_DEBUG
-	child_index
+								  child_index
 #endif
-	,
-	CDrvdPropArray *, //pdrgpdpCtxt,
-	ULONG //ulOptReq
-	)
-	const
+							  ,
+							  CDrvdPropArray *,	 //pdrgpdpCtxt,
+							  ULONG				 //ulOptReq
+) const
 {
 	GPOS_ASSERT(0 == child_index);
 	return PcterPushThru(pcter);
@@ -278,12 +210,8 @@ CPhysicalMotion::PcteRequired
 //
 //---------------------------------------------------------------------------
 CDistributionSpec *
-CPhysicalMotion::PdsDerive
-	(
-	CMemoryPool */*mp*/,
-	CExpressionHandle &/*exprhdl*/
-	)
-	const
+CPhysicalMotion::PdsDerive(CMemoryPool * /*mp*/, CExpressionHandle & /*exprhdl*/
+) const
 {
 	CDistributionSpec *pds = Pds();
 	pds->AddRef();
@@ -301,15 +229,13 @@ CPhysicalMotion::PdsDerive
 //
 //---------------------------------------------------------------------------
 CRewindabilitySpec *
-CPhysicalMotion::PrsDerive
-	(
-	CMemoryPool *mp,
-	CExpressionHandle & // exprhdl
-	)
-	const
+CPhysicalMotion::PrsDerive(CMemoryPool *mp,
+						   CExpressionHandle &	// exprhdl
+) const
 {
 	// A motion does not preserve rewindability and is also not rescannable.
-	return GPOS_NEW(mp) CRewindabilitySpec(CRewindabilitySpec::ErtNone, CRewindabilitySpec::EmhtMotion);
+	return GPOS_NEW(mp) CRewindabilitySpec(CRewindabilitySpec::ErtNone,
+										   CRewindabilitySpec::EmhtMotion);
 }
 
 
@@ -322,14 +248,10 @@ CPhysicalMotion::PrsDerive
 //
 //---------------------------------------------------------------------------
 CEnfdProp::EPropEnforcingType
-CPhysicalMotion::EpetDistribution
-	(
-	CExpressionHandle &, // exprhdl
-	const CEnfdDistribution *ped
-	)
-	const
+CPhysicalMotion::EpetDistribution(CExpressionHandle &,	// exprhdl
+								  const CEnfdDistribution *ped) const
 {
-	GPOS_ASSERT(NULL != ped);
+	GPOS_ASSERT(nullptr != ped);
 
 	if (ped->FCompatible(Pds()))
 	{
@@ -349,16 +271,13 @@ CPhysicalMotion::EpetDistribution
 //
 //---------------------------------------------------------------------------
 CEnfdProp::EPropEnforcingType
-CPhysicalMotion::EpetRewindability
-	(
-	CExpressionHandle &exprhdl,
-	const CEnfdRewindability * // per
-	)
-	const
+CPhysicalMotion::EpetRewindability(CExpressionHandle &exprhdl,
+								   const CEnfdRewindability *  // per
+) const
 {
 	if (exprhdl.HasOuterRefs())
 	{
-		// motion has outer references: prohibit this plan 
+		// motion has outer references: prohibit this plan
 		// Note: this is a GPDB restriction as Motion operators are push-based
 		return CEnfdProp::EpetProhibited;
 	}

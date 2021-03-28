@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CMinidumpWithConstExprEvaluatorTest.cpp
@@ -9,27 +9,28 @@
 //		Tests minidumps with constant expression evaluator turned on
 //
 //	@owner:
-//		
+//
 //
 //	@test:
 //
 //---------------------------------------------------------------------------
 
+#include "unittest/gpopt/minidump/CMinidumpWithConstExprEvaluatorTest.h"
+
 #include "gpos/task/CAutoTraceFlag.h"
 
 #include "gpopt/base/CAutoOptCtxt.h"
-#include "gpopt/exception.h"
-#include "gpopt/engine/CEnumeratorConfig.h"
-#include "gpopt/optimizer/COptimizerConfig.h"
-#include "gpopt/engine/CStatisticsConfig.h"
 #include "gpopt/engine/CCTEConfig.h"
+#include "gpopt/engine/CEnumeratorConfig.h"
+#include "gpopt/engine/CStatisticsConfig.h"
+#include "gpopt/exception.h"
 #include "gpopt/mdcache/CMDCache.h"
 #include "gpopt/minidump/CMinidumperUtils.h"
+#include "gpopt/optimizer/COptimizerConfig.h"
 
 #include "unittest/base.h"
 #include "unittest/gpopt/CConstExprEvaluatorForDates.h"
 #include "unittest/gpopt/CTestUtils.h"
-#include "unittest/gpopt/minidump/CMinidumpWithConstExprEvaluatorTest.h"
 
 using namespace gpopt;
 using namespace gpos;
@@ -38,12 +39,10 @@ using namespace gpos;
 ULONG CMinidumpWithConstExprEvaluatorTest::m_ulTestCounter = 0;
 
 // minidump files we run with constant expression evaluator on
-const CHAR *rgszConstExprEvaluatorOnFileNames[] =
-	{
-	 	"../data/dxl/minidump/DynamicIndexScan-Homogenous-EnabledDateConstraint.mdp",
-	 	"../data/dxl/minidump/DynamicIndexScan-Heterogenous-EnabledDateConstraint.mdp",
-		"../data/dxl/minidump/RemoveImpliedPredOnBCCPredicates.mdp"
-	};
+const CHAR *rgszConstExprEvaluatorOnFileNames[] = {
+	"../data/dxl/minidump/DynamicIndexScan-Homogenous-EnabledDateConstraint.mdp",
+	"../data/dxl/minidump/DynamicIndexScan-Heterogenous-EnabledDateConstraint.mdp",
+	"../data/dxl/minidump/RemoveImpliedPredOnBCCPredicates.mdp"};
 
 
 //---------------------------------------------------------------------------
@@ -57,13 +56,13 @@ const CHAR *rgszConstExprEvaluatorOnFileNames[] =
 GPOS_RESULT
 CMinidumpWithConstExprEvaluatorTest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
+	CUnittest rgut[] = {
 		GPOS_UNITTEST_FUNC(
-			CMinidumpWithConstExprEvaluatorTest::EresUnittest_RunMinidumpTestsWithConstExprEvaluatorOn),
-		};
+			CMinidumpWithConstExprEvaluatorTest::
+				EresUnittest_RunMinidumpTestsWithConstExprEvaluatorOn),
+	};
 
-	GPOS_RESULT eres =  CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
+	GPOS_RESULT eres = CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 
 	return eres;
 }
@@ -78,9 +77,11 @@ CMinidumpWithConstExprEvaluatorTest::EresUnittest()
 //
 //---------------------------------------------------------------------------
 GPOS_RESULT
-CMinidumpWithConstExprEvaluatorTest::EresUnittest_RunMinidumpTestsWithConstExprEvaluatorOn()
+CMinidumpWithConstExprEvaluatorTest::
+	EresUnittest_RunMinidumpTestsWithConstExprEvaluatorOn()
 {
-	CAutoTraceFlag atf(EopttraceEnableConstantExpressionEvaluation, true /*value*/);
+	CAutoTraceFlag atf(EopttraceEnableConstantExpressionEvaluation,
+					   true /*value*/);
 
 	CAutoMemoryPool amp;
 	CMemoryPool *mp = amp.Pmp();
@@ -97,20 +98,14 @@ CMinidumpWithConstExprEvaluatorTest::EresUnittest_RunMinidumpTestsWithConstExprE
 
 	const ULONG ulTests = GPOS_ARRAY_SIZE(rgszConstExprEvaluatorOnFileNames);
 
-	GPOS_RESULT eres =
-			CTestUtils::EresRunMinidumps
-						(
-						mp,
-						rgszConstExprEvaluatorOnFileNames,
-						ulTests,
-						&m_ulTestCounter,
-						1, // ulSessionId
-						1,  // ulCmdId
-						fMatchPlans,
-						false, // fTestSpacePruning
-						NULL,  // szMDFilePath
-						pceeval
-						);
+	GPOS_RESULT eres = CTestUtils::EresRunMinidumps(
+		mp, rgszConstExprEvaluatorOnFileNames, ulTests, &m_ulTestCounter,
+		1,	// ulSessionId
+		1,	// ulCmdId
+		fMatchPlans,
+		false,	  // fTestSpacePruning
+		nullptr,  // szMDFilePath
+		pceeval);
 	pceeval->Release();
 
 	return eres;

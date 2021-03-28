@@ -9,13 +9,14 @@
 //		Implementation of pushing group by below join transform
 //---------------------------------------------------------------------------
 
+#include "gpopt/xforms/CXformPushGbWithHavingBelowJoin.h"
+
 #include "gpos/base.h"
 
 #include "gpopt/operators/CLogicalGbAgg.h"
 #include "gpopt/operators/CLogicalInnerJoin.h"
 #include "gpopt/operators/CLogicalSelect.h"
 #include "gpopt/operators/CPatternLeaf.h"
-#include "gpopt/xforms/CXformPushGbWithHavingBelowJoin.h"
 #include "gpopt/xforms/CXformUtils.h"
 
 
@@ -30,36 +31,30 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformPushGbWithHavingBelowJoin::CXformPushGbWithHavingBelowJoin
-	(
-	CMemoryPool *mp
-	)
-	:
-	// pattern
-	CXformExploration
-		(
-		GPOS_NEW(mp) CExpression
-			(
-			mp,
-			GPOS_NEW(mp) CLogicalSelect(mp),
-			GPOS_NEW(mp) CExpression
-				(
-				mp,
-				GPOS_NEW(mp) CLogicalGbAgg(mp),
-				GPOS_NEW(mp) CExpression
-					(
-					mp,
-					GPOS_NEW(mp) CLogicalInnerJoin(mp),
-					GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp)),  // join outer child
-					GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp)), // join inner child
-					GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp)) // join predicate
-					),
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))	// scalar project list
-				),
-			GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))	// Having clause
-			)
-		)
-{}
+CXformPushGbWithHavingBelowJoin::CXformPushGbWithHavingBelowJoin(
+	CMemoryPool *mp)
+	:  // pattern
+	  CXformExploration(GPOS_NEW(mp) CExpression(
+		  mp, GPOS_NEW(mp) CLogicalSelect(mp),
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CLogicalGbAgg(mp),
+			  GPOS_NEW(mp) CExpression(
+				  mp, GPOS_NEW(mp) CLogicalInnerJoin(mp),
+				  GPOS_NEW(mp) CExpression(
+					  mp, GPOS_NEW(mp) CPatternLeaf(mp)),  // join outer child
+				  GPOS_NEW(mp) CExpression(
+					  mp, GPOS_NEW(mp) CPatternLeaf(mp)),  // join inner child
+				  GPOS_NEW(mp) CExpression(
+					  mp, GPOS_NEW(mp) CPatternTree(mp))  // join predicate
+				  ),
+			  GPOS_NEW(mp) CExpression(
+				  mp, GPOS_NEW(mp) CPatternTree(mp))  // scalar project list
+			  ),
+		  GPOS_NEW(mp)
+			  CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))  // Having clause
+		  ))
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -72,11 +67,8 @@ CXformPushGbWithHavingBelowJoin::CXformPushGbWithHavingBelowJoin
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformPushGbWithHavingBelowJoin::Exfp
-	(
-	CExpressionHandle & // exprhdl
-	)
-	const
+CXformPushGbWithHavingBelowJoin::Exfp(CExpressionHandle &  // exprhdl
+) const
 {
 	return CXform::ExfpHigh;
 }
@@ -91,15 +83,11 @@ CXformPushGbWithHavingBelowJoin::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformPushGbWithHavingBelowJoin::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformPushGbWithHavingBelowJoin::Transform(CXformContext *pxfctxt,
+										   CXformResult *pxfres,
+										   CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
@@ -115,7 +103,7 @@ CXformPushGbWithHavingBelowJoin::Transform
 
 	CExpression *pexprResult = CXformUtils::PexprPushGbBelowJoin(mp, pexpr);
 
-	if (NULL != pexprResult)
+	if (nullptr != pexprResult)
 	{
 		// add alternative to results
 		pxfres->Add(pexprResult);
@@ -124,4 +112,3 @@ CXformPushGbWithHavingBelowJoin::Transform
 
 
 // EOF
-

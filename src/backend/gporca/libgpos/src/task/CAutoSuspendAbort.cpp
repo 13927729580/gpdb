@@ -9,10 +9,11 @@
 //		Auto suspend abort object
 //---------------------------------------------------------------------------
 
+#include "gpos/task/CAutoSuspendAbort.h"
+
 #include <stddef.h>
 
 #include "gpos/base.h"
-#include "gpos/task/CAutoSuspendAbort.h"
 #include "gpos/task/CTask.h"
 
 using namespace gpos;
@@ -28,8 +29,8 @@ using namespace gpos;
 CAutoSuspendAbort::CAutoSuspendAbort()
 {
 	m_task = CTask::Self();
-	
-	if (NULL != m_task)
+
+	if (nullptr != m_task)
 	{
 		m_task->SuspendAbort();
 	}
@@ -46,7 +47,7 @@ CAutoSuspendAbort::CAutoSuspendAbort()
 //---------------------------------------------------------------------------
 CAutoSuspendAbort::~CAutoSuspendAbort()
 {
-	if (NULL != m_task)
+	if (nullptr != m_task)
 	{
 		m_task->ResumeAbort();
 	}

@@ -11,6 +11,7 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/parser/CParseHandlerBase.h"
+
 #include "naucrates/dxl/parser/CParseHandlerManager.h"
 #include "naucrates/dxl/xml/CDXLMemoryManager.h"
 
@@ -28,20 +29,16 @@ XERCES_CPP_NAMESPACE_USE
 //		Constructor
 //
 //---------------------------------------------------------------------------
-CParseHandlerBase::CParseHandlerBase
-	(
-	CMemoryPool *mp, 
-	CParseHandlerManager *parse_handler_mgr,
-	CParseHandlerBase *parse_handler_root
-	)
-	:
-	m_mp(mp),
-	m_parse_handler_mgr(parse_handler_mgr),
-	m_parse_handler_root(parse_handler_root)
+CParseHandlerBase::CParseHandlerBase(CMemoryPool *mp,
+									 CParseHandlerManager *parse_handler_mgr,
+									 CParseHandlerBase *parse_handler_root)
+	: m_mp(mp),
+	  m_parse_handler_mgr(parse_handler_mgr),
+	  m_parse_handler_root(parse_handler_root)
 {
-	GPOS_ASSERT(NULL != mp);
-	GPOS_ASSERT(NULL != parse_handler_mgr);
-	
+	GPOS_ASSERT(nullptr != mp);
+	GPOS_ASSERT(nullptr != parse_handler_mgr);
+
 	m_parse_handler_base_array = GPOS_NEW(m_mp) CParseHandlerBaseArray(m_mp);
 }
 
@@ -64,7 +61,7 @@ CParseHandlerBase::~CParseHandlerBase()
 //		CParseHandlerBase::GetParseHandlerType
 //
 //	@doc:
-//		Return the type of the parse handler. Currently we overload this method to 
+//		Return the type of the parse handler. Currently we overload this method to
 //		return a specific type for the plan, query, metadata and traceflags parse handlers.
 //
 //---------------------------------------------------------------------------
@@ -83,16 +80,14 @@ CParseHandlerBase::GetParseHandlerType() const
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerBase::ReplaceParseHandler
-	(
+CParseHandlerBase::ReplaceParseHandler(
 	CParseHandlerBase *parse_handler_base_old,
-	CParseHandlerBase *parse_handler_base_new
-	)
+	CParseHandlerBase *parse_handler_base_new)
 {
 	ULONG idx = 0;
-	
-	GPOS_ASSERT(NULL != m_parse_handler_base_array);
-	
+
+	GPOS_ASSERT(nullptr != m_parse_handler_base_array);
+
 	for (idx = 0; idx < m_parse_handler_base_array->Size(); idx++)
 	{
 		if ((*m_parse_handler_base_array)[idx] == parse_handler_base_old)
@@ -100,10 +95,10 @@ CParseHandlerBase::ReplaceParseHandler
 			break;
 		}
 	}
-	
+
 	// assert old parse handler was found in array
 	GPOS_ASSERT(idx < m_parse_handler_base_array->Size());
-	
+
 	m_parse_handler_base_array->Replace(idx, parse_handler_base_new);
 }
 
@@ -116,13 +111,10 @@ CParseHandlerBase::ReplaceParseHandler
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerBase::startElement
-	(
-		const XMLCh* const element_uri,
-		const XMLCh* const element_local_name,
-		const XMLCh* const element_qname,
-		const Attributes& attrs
-	)
+CParseHandlerBase::startElement(const XMLCh *const element_uri,
+								const XMLCh *const element_local_name,
+								const XMLCh *const element_qname,
+								const Attributes &attrs)
 {
 	StartElement(element_uri, element_local_name, element_qname, attrs);
 }
@@ -136,12 +128,9 @@ CParseHandlerBase::startElement
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerBase::endElement
-	(
-		const XMLCh* const element_uri,
-		const XMLCh* const element_local_name,
-		const XMLCh* const element_qname
-	)
+CParseHandlerBase::endElement(const XMLCh *const element_uri,
+							  const XMLCh *const element_local_name,
+							  const XMLCh *const element_qname)
 {
 	EndElement(element_uri, element_local_name, element_qname);
 }
@@ -155,14 +144,11 @@ CParseHandlerBase::endElement
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerBase::error
-	(
-	const SAXParseException& to_catch
-	)
+CParseHandlerBase::error(const SAXParseException &to_catch)
 {
-	CHAR* message = XMLString::transcode(to_catch.getMessage(), m_parse_handler_mgr->GetDXLMemoryManager());
+	CHAR *message = XMLString::transcode(
+		to_catch.getMessage(), m_parse_handler_mgr->GetDXLMemoryManager());
 	GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiDXLValidationError, message);
 }
 
 // EOF
-

@@ -1,9 +1,12 @@
 from os import path
+from contextlib import closing
+
+from gppylib.commands.gp import get_coordinatordatadir
 
 from behave import given, when, then
 from test.behave_utils.utils import *
 
-from mgmt_utils import *
+from test.behave.mgmt_utils.steps.mgmt_utils import *
 
 # This file contains steps for gpaddmirrors and gpmovemirrors tests
 
@@ -77,19 +80,18 @@ def add_mirrors(context, options):
 
 
 def make_data_directory_called(data_directory_name):
-    mdd_parent_parent = os.path.realpath(
-        os.getenv("MASTER_DATA_DIRECTORY") + "../../../")
-    mirror_data_dir = os.path.join(mdd_parent_parent, data_directory_name)
+    cdd_parent_parent = os.path.realpath(
+        get_coordinatordatadir()+ "../../../")
+    mirror_data_dir = os.path.join(cdd_parent_parent, data_directory_name)
     if not os.path.exists(mirror_data_dir):
         os.mkdir(mirror_data_dir)
     return mirror_data_dir
 
 
 def _get_mirror_count():
-    with dbconn.connect(dbconn.DbURL(dbname='template1'), unsetSearchPath=False) as conn:
+    with closing(dbconn.connect(dbconn.DbURL(dbname='template1'), unsetSearchPath=False)) as conn:
         sql = """SELECT count(*) FROM gp_segment_configuration WHERE role='m'"""
         count_row = dbconn.query(conn, sql).fetchone()
-    conn.close()
     return count_row[0]
 
 # take the item in search_item_list, search pg_hba if it contains atleast one entry
@@ -162,13 +164,13 @@ def impl(context, options=" "):
 @given('gpaddmirrors adds mirrors with temporary data dir')
 def impl(context):
     context.mirror_config = _generate_input_config()
-    mdd = os.getenv('MASTER_DATA_DIRECTORY', "")
-    del os.environ['MASTER_DATA_DIRECTORY']
+    cdd = get_coordinatordatadir()
+    del os.environ['COORDINATOR_DATA_DIRECTORY']
     try:
-        cmd = Command('gpaddmirrors ', 'gpaddmirrors -a -i %s -d %s' % (context.mirror_config, mdd))
+        cmd = Command('gpaddmirrors ', 'gpaddmirrors -a -i %s -d %s' % (context.mirror_config, cdd))
         cmd.run(validateAfter=True)
     finally:
-        os.environ['MASTER_DATA_DIRECTORY'] = mdd
+        os.environ['COORDINATOR_DATA_DIRECTORY'] = cdd
 
 
 @given('gpaddmirrors adds mirrors in spread configuration')
@@ -193,14 +195,14 @@ def impl(context):
     # Map content IDs to hostnames for every mirror, for both the saved GpArray
     # and the current one.
     for (array, hostMap) in [(context.gparray, old_content_to_host), (gparray, curr_content_to_host)]:
-        for host in array.get_hostlist(includeMaster=False):
+        for host in array.get_hostlist(includeCoordinator=False):
             for mirror in array.get_list_of_mirror_segments_on_host(host):
                 hostMap[mirror.getSegmentContentId()] = host
 
     if len(curr_content_to_host) != len(old_content_to_host):
         raise Exception("Number of mirrors doesn't match between old and new clusters")
 
-    for key in old_content_to_host.keys():
+    for key in list(old_content_to_host.keys()):
         if curr_content_to_host[key] != old_content_to_host[key]:
             raise Exception("Mirror host doesn't match for content %s (old host=%s) (new host=%s)"
             % (key, old_content_to_host[key], curr_content_to_host[key]))
@@ -242,7 +244,7 @@ def impl(context, mirror_config):
         raise Exception('"%s" is not a valid mirror configuration for this step; options are "group" and "spread".')
 
     gparray = GpArray.initFromCatalog(dbconn.DbURL())
-    host_list = gparray.get_hostlist(includeMaster=False)
+    host_list = gparray.get_hostlist(includeCoordinator=False)
 
     primary_to_mirror_host_map = {}
     primary_content_map = {}
@@ -360,7 +362,7 @@ def run_gpmovemirrors(context, extra_args=''):
 
 @then('verify that mirrors are recognized after a restart')
 def impl(context):
-    context.execute_steps( u'''
+    context.execute_steps( '''
     When an FTS probe is triggered
     And the user runs "gpstop -a"
     And wait until the process "gpstop" goes down
@@ -410,8 +412,8 @@ def impl(context, mirror_config):
                 new_port = group_port_map[content]
                 new_address = group_address_map[content]
 
-            mirrors = map(lambda segmentPair: segmentPair.mirrorDB, gparray.getSegmentList())
-            mirror = next(iter(filter(lambda mirror: mirror.getSegmentContentId() == content, mirrors)), None)
+            mirrors = [segmentPair.mirrorDB for segmentPair in gparray.getSegmentList()]
+            mirror = next(iter([mirror for mirror in mirrors if mirror.getSegmentContentId() == content]), None)
 
             old_directory = mirror.getSegmentDataDirectory()
             new_directory = '%s_moved' % old_directory

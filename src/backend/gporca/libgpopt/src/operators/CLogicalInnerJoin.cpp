@@ -9,13 +9,14 @@
 //		Implementation of inner join operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CLogicalInnerJoin.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/operators/CLogicalInnerJoin.h"
-#include "gpopt/operators/CExpression.h"
-#include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/base/CColRefSet.h"
 #include "gpopt/base/CColRefSetIter.h"
+#include "gpopt/operators/CExpression.h"
+#include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/operators/CPredicateUtils.h"
 
 using namespace gpopt;
@@ -31,14 +32,9 @@ using namespace gpopt;
 //			members, hence, no need for a separate pattern ctor
 //
 //---------------------------------------------------------------------------
-CLogicalInnerJoin::CLogicalInnerJoin
-	(
-	CMemoryPool *mp
-	)
-	:
-	CLogicalJoin(mp)
+CLogicalInnerJoin::CLogicalInnerJoin(CMemoryPool *mp) : CLogicalJoin(mp)
 {
-	GPOS_ASSERT(NULL != mp);
+	GPOS_ASSERT(nullptr != mp);
 }
 
 
@@ -51,12 +47,8 @@ CLogicalInnerJoin::CLogicalInnerJoin
 //
 //---------------------------------------------------------------------------
 CMaxCard
-CLogicalInnerJoin::DeriveMaxCard
-	(
-	CMemoryPool *, // mp
-	CExpressionHandle &exprhdl
-	)
-	const
+CLogicalInnerJoin::DeriveMaxCard(CMemoryPool *,	 // mp
+								 CExpressionHandle &exprhdl) const
 {
 	return CLogical::Maxcard(exprhdl, 2 /*ulScalarIndex*/, MaxcardDef(exprhdl));
 }
@@ -70,34 +62,22 @@ CLogicalInnerJoin::DeriveMaxCard
 //
 //---------------------------------------------------------------------------
 CXformSet *
-CLogicalInnerJoin::PxfsCandidates
-	(
-	CMemoryPool *mp
-	) 
-	const
+CLogicalInnerJoin::PxfsCandidates(CMemoryPool *mp) const
 {
 	CXformSet *xform_set = GPOS_NEW(mp) CXformSet(mp);
-	
+
 	(void) xform_set->ExchangeSet(CXform::ExfInnerJoin2NLJoin);
 	(void) xform_set->ExchangeSet(CXform::ExfInnerJoin2HashJoin);
 	(void) xform_set->ExchangeSet(CXform::ExfSubqJoin2Apply);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerJoin2IndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerJoin2DynamicIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerJoin2PartialDynamicIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerJoin2BitmapIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerJoinWithInnerSelect2IndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerJoinWithInnerSelect2DynamicIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerJoinWithInnerSelect2PartialDynamicIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerJoin2DynamicBitmapIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerJoinWithInnerSelect2BitmapIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerJoinWithInnerSelect2DynamicBitmapIndexGetApply);
+	(void) xform_set->ExchangeSet(CXform::ExfJoin2BitmapIndexGetApply);
+	(void) xform_set->ExchangeSet(CXform::ExfJoin2IndexGetApply);
 
 	(void) xform_set->ExchangeSet(CXform::ExfJoinCommutativity);
 	(void) xform_set->ExchangeSet(CXform::ExfJoinAssociativity);
 	(void) xform_set->ExchangeSet(CXform::ExfInnerJoinSemiJoinSwap);
 	(void) xform_set->ExchangeSet(CXform::ExfInnerJoinAntiSemiJoinSwap);
 	(void) xform_set->ExchangeSet(CXform::ExfInnerJoinAntiSemiJoinNotInSwap);
-	
+
 	return xform_set;
 }
 
@@ -113,14 +93,10 @@ CLogicalInnerJoin::PxfsCandidates
 //
 //---------------------------------------------------------------------------
 BOOL
-CLogicalInnerJoin::FFewerConj
-	(
-	CMemoryPool *mp,
-	CGroupExpression *pgexprFst,
-	CGroupExpression *pgexprSnd
-	)
+CLogicalInnerJoin::FFewerConj(CMemoryPool *mp, CGroupExpression *pgexprFst,
+							  CGroupExpression *pgexprSnd)
 {
-	if (NULL == pgexprFst || NULL == pgexprSnd)
+	if (nullptr == pgexprFst || nullptr == pgexprSnd)
 	{
 		return false;
 	}
@@ -137,8 +113,10 @@ CLogicalInnerJoin::FFewerConj
 	GPOS_ASSERT(pgroupScalarFst->FScalar());
 	GPOS_ASSERT(pgroupScalarSnd->FScalar());
 
-	CExpressionArray *pdrgpexprConjFst = CPredicateUtils::PdrgpexprConjuncts(mp, pgroupScalarFst->PexprScalar());
-	CExpressionArray *pdrgpexprConjSnd = CPredicateUtils::PdrgpexprConjuncts(mp, pgroupScalarSnd->PexprScalar());
+	CExpressionArray *pdrgpexprConjFst = CPredicateUtils::PdrgpexprConjuncts(
+		mp, pgroupScalarFst->PexprScalarRep());
+	CExpressionArray *pdrgpexprConjSnd = CPredicateUtils::PdrgpexprConjuncts(
+		mp, pgroupScalarSnd->PexprScalarRep());
 
 	ULONG ulConjFst = pdrgpexprConjFst->Size();
 	ULONG ulConjSnd = pdrgpexprConjSnd->Size();
@@ -150,4 +128,3 @@ CLogicalInnerJoin::FFewerConj
 }
 
 // EOF
-

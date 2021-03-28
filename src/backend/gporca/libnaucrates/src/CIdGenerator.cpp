@@ -10,15 +10,15 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/CIdGenerator.h"
+
 #include "gpos/base.h"
 
 using namespace gpdxl;
 using namespace gpos;
 
-CIdGenerator::CIdGenerator(ULONG start_id)
-	:id(start_id)
-	{
-	}
+CIdGenerator::CIdGenerator(ULONG start_id) : id(start_id)
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -43,7 +43,7 @@ CIdGenerator::next_id()
 //
 //---------------------------------------------------------------------------
 ULONG
-CIdGenerator::current_id()
+CIdGenerator::current_id() const
 {
 	return id;
 }

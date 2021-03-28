@@ -39,6 +39,7 @@ Feature: Tests for gpaddmirrors
         And gpaddmirrors adds mirrors
         And pg_hba file "/tmp/gpaddmirrors/data/primary/gpseg0/pg_hba.conf" on host "sdw1" contains only cidr addresses
         And pg_hba file "/tmp/gpaddmirrors/data/primary/gpseg0/pg_hba.conf" on host "sdw1" contains entries for "samehost"
+        And verify that the file "pg_hba.conf" in each segment data directory has "no" line starting with "host.*replication.*\(127.0.0\|::1\).*trust"
         Then verify the database has mirrors
         And the information of a "mirror" segment on a remote host is saved
         When user kills a "mirror" process with the saved information
@@ -112,7 +113,7 @@ Feature: Tests for gpaddmirrors
 
     @concourse_cluster
 
-    Scenario: gpaddmirrors with a default master data directory
+    Scenario: gpaddmirrors with a default coordinator data directory
         Given a working directory of the test as '/tmp/gpaddmirrors'
         And the database is not running
         And a cluster is created with no mirrors on "mdw" and "sdw1"
@@ -121,7 +122,7 @@ Feature: Tests for gpaddmirrors
         And the user runs "gpstop -aqM fast"
 
     @concourse_cluster
-    Scenario: gpaddmirrors with a given master data directory [-d <master datadir>]
+    Scenario: gpaddmirrors with a given coordinator data directory [-d <coordinator datadir>]
         Given a working directory of the test as '/tmp/gpaddmirrors'
         And the database is not running
         And a cluster is created with no mirrors on "mdw" and "sdw1"
@@ -159,9 +160,9 @@ Feature: Tests for gpaddmirrors
         And the segments are synchronized
         When user stops all primary processes
         And user can start transactions
-        Then verify that there is a "heap" table "public.heap_table" in "gptest" with "100" rows
-        Then verify that there is a "ao" table "public.ao_table" in "gptest" with "100" rows
-        Then verify that there is a "co" table "public.co_table" in "gptest" with "100" rows
+        Then verify that there is a "heap" table "public.heap_table" in "gptest" with "202" rows
+        Then verify that there is a "ao" table "public.ao_table" in "gptest" with "202" rows
+        Then verify that there is a "co" table "public.co_table" in "gptest" with "202" rows
         And the user runs "gpstop -aqM fast"
 
     @concourse_cluster

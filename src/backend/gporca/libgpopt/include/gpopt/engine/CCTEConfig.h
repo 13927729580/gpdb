@@ -12,60 +12,54 @@
 #define GPOPT_CCTEConfig_H
 
 #include "gpos/base.h"
-#include "gpos/memory/CMemoryPool.h"
-#include "gpos/common/CRefCount.h"
 #include "gpos/common/CDouble.h"
+#include "gpos/common/CRefCount.h"
+#include "gpos/memory/CMemoryPool.h"
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CCTEConfig
-	//
-	//	@doc:
-	//		CTE configurations
-	//
-	//---------------------------------------------------------------------------
-	class CCTEConfig : public CRefCount
+//---------------------------------------------------------------------------
+//	@class:
+//		CCTEConfig
+//
+//	@doc:
+//		CTE configurations
+//
+//---------------------------------------------------------------------------
+class CCTEConfig : public CRefCount
+{
+private:
+	// CTE inlining cut-off
+	ULONG m_ulCTEInliningCutoff;
+
+public:
+	CCTEConfig(const CCTEConfig &) = delete;
+
+	// ctor
+	CCTEConfig(ULONG cte_inlining_cut_off)
+		: m_ulCTEInliningCutoff(cte_inlining_cut_off)
 	{
+	}
 
-		private:
+	// CTE inlining cut-off
+	ULONG
+	UlCTEInliningCutoff() const
+	{
+		return m_ulCTEInliningCutoff;
+	}
 
-			// CTE inlining cut-off
-			ULONG m_ulCTEInliningCutoff;
+	// generate default optimizer configurations
+	static CCTEConfig *
+	PcteconfDefault(CMemoryPool *mp)
+	{
+		return GPOS_NEW(mp) CCTEConfig(0 /* cte_inlining_cut_off */);
+	}
 
-			// private copy ctor
-			CCTEConfig(const CCTEConfig &);
+};	// class CCTEConfig
+}  // namespace gpopt
 
-		public:
-
-			// ctor
-			CCTEConfig
-				(
-				ULONG cte_inlining_cut_off
-				)
-				:
-				m_ulCTEInliningCutoff(cte_inlining_cut_off)
-			{}
-
-			// CTE inlining cut-off
-			ULONG UlCTEInliningCutoff() const
-			{
-				return m_ulCTEInliningCutoff;
-			}
-
-			// generate default optimizer configurations
-			static
-			CCTEConfig *PcteconfDefault(CMemoryPool *mp)
-			{
-				return GPOS_NEW(mp) CCTEConfig(0 /* cte_inlining_cut_off */);
-			}
-
-	}; // class CCTEConfig
-}
-
-#endif // !GPOPT_CCTEConfig_H
+#endif	// !GPOPT_CCTEConfig_H
 
 // EOF

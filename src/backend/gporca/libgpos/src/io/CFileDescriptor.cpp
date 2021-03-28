@@ -10,9 +10,10 @@
 //---------------------------------------------------------------------------
 
 
+#include "gpos/io/CFileDescriptor.h"
+
 #include "gpos/base.h"
 #include "gpos/io/ioutils.h"
-#include "gpos/io/CFileDescriptor.h"
 #include "gpos/string/CStringStatic.h"
 #include "gpos/task/IWorker.h"
 
@@ -27,10 +28,7 @@ using namespace gpos;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CFileDescriptor::CFileDescriptor()
-	:
-	m_file_descriptor(GPOS_FILE_DESCR_INVALID)
-{}
+CFileDescriptor::CFileDescriptor() = default;
 
 
 //---------------------------------------------------------------------------
@@ -42,12 +40,8 @@ CFileDescriptor::CFileDescriptor()
 //
 //---------------------------------------------------------------------------
 void
-CFileDescriptor::OpenFile
-	(
-	const CHAR *file_path,
-	ULONG mode,
-	ULONG permission_bits
-	)
+CFileDescriptor::OpenFile(const CHAR *file_path, ULONG mode,
+						  ULONG permission_bits)
 {
 	GPOS_ASSERT(!IsFileOpen());
 
@@ -57,8 +51,8 @@ CFileDescriptor::OpenFile
 	{
 		m_file_descriptor = GPOS_FILE_DESCR_INVALID;
 
-		// create file with given mode and permissions and check to simulate I/O error
-		GPOS_CHECK_SIM_IO_ERR(&m_file_descriptor, ioutils::OpenFile(file_path, mode, permission_bits));
+		// create file with given mode and permissions.
+		m_file_descriptor = ioutils::OpenFile(file_path, mode, permission_bits);
 
 		// check for error
 		if (GPOS_FILE_DESCR_INVALID == m_file_descriptor)
@@ -134,4 +128,3 @@ CFileDescriptor::CloseFile()
 }
 
 // EOF
-

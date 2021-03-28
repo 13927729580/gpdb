@@ -1,24 +1,25 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformSelect2DynamicBitmapBoolOp.cpp
 //
 //	@doc:
-//		Transform select over partitioned table into a dynamic bitmap table get 
+//		Transform select over partitioned table into a dynamic bitmap table get
 //		over bitmap bool op
 //
 //	@owner:
-//		
+//
 //
 //	@test:
 //
 //---------------------------------------------------------------------------
 
+#include "gpopt/xforms/CXformSelect2DynamicBitmapBoolOp.h"
+
 #include "gpopt/operators/CLogicalDynamicGet.h"
 #include "gpopt/operators/CLogicalSelect.h"
-#include "gpopt/xforms/CXformSelect2DynamicBitmapBoolOp.h"
 #include "gpopt/xforms/CXformUtils.h"
 
 using namespace gpmd;
@@ -32,22 +33,17 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformSelect2DynamicBitmapBoolOp::CXformSelect2DynamicBitmapBoolOp
-	(
-	CMemoryPool *mp
-	)
-	:
-	CXformExploration
-		(
-		GPOS_NEW(mp) CExpression
-				(
-				mp,
-				GPOS_NEW(mp) CLogicalSelect(mp),
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalDynamicGet(mp)),  // logical child
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))  		// predicate tree
-				)
-		)
-{}
+CXformSelect2DynamicBitmapBoolOp::CXformSelect2DynamicBitmapBoolOp(
+	CMemoryPool *mp)
+	: CXformExploration(GPOS_NEW(mp) CExpression(
+		  mp, GPOS_NEW(mp) CLogicalSelect(mp),
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CLogicalDynamicGet(mp)),	 // logical child
+		  GPOS_NEW(mp)
+			  CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))  // predicate tree
+		  ))
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -58,11 +54,8 @@ CXformSelect2DynamicBitmapBoolOp::CXformSelect2DynamicBitmapBoolOp
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformSelect2DynamicBitmapBoolOp::Exfp
-	(
-	CExpressionHandle &  // exprhdl
-	)
-	const
+CXformSelect2DynamicBitmapBoolOp::Exfp(CExpressionHandle &	// exprhdl
+) const
 {
 	return CXform::ExfpHigh;
 }
@@ -76,25 +69,22 @@ CXformSelect2DynamicBitmapBoolOp::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformSelect2DynamicBitmapBoolOp::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformSelect2DynamicBitmapBoolOp::Transform(CXformContext *pxfctxt,
+											CXformResult *pxfres,
+											CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
 	CMemoryPool *mp = pxfctxt->Pmp();
 	CExpression *pexprResult = CXformUtils::PexprSelect2BitmapBoolOp(mp, pexpr);
 
-	if (NULL != pexprResult)
+	if (nullptr != pexprResult)
 	{
 		// create a redundant SELECT on top of DynamicIndexGet to be able to use predicate in partition elimination
-		CExpression *pexprRedundantSelect = CXformUtils::PexprRedundantSelectForDynamicIndex(mp, pexprResult);
+		CExpression *pexprRedundantSelect =
+			CXformUtils::PexprRedundantSelectForDynamicIndex(mp, pexprResult);
 		pexprResult->Release();
 
 		pxfres->Add(pexprRedundantSelect);

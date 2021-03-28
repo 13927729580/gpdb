@@ -4,7 +4,7 @@
  *	  definitions for cdbmutate.c utilities
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -16,8 +16,8 @@
 #define CDBMUTATE_H
 
 #include "nodes/execnodes.h"
+#include "nodes/pathnodes.h"
 #include "nodes/plannodes.h"
-#include "nodes/relation.h"
 #include "optimizer/walkers.h"
 
 extern Motion *make_union_motion(Plan *lefttree);

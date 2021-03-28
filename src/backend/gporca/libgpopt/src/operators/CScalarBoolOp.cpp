@@ -9,26 +9,22 @@
 //		Implementation of scalar boolean operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CScalarBoolOp.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/base/CDrvdPropScalar.h"
 #include "gpopt/base/CColRefSet.h"
+#include "gpopt/base/CDrvdPropScalar.h"
 #include "gpopt/base/COptCtxt.h"
-
-#include "gpopt/operators/CScalarBoolOp.h"
 #include "gpopt/operators/CExpressionHandle.h"
-
 #include "naucrates/md/IMDTypeBool.h"
 
 using namespace gpopt;
 using namespace gpmd;
 
-const WCHAR CScalarBoolOp::m_rgwszBool[EboolopSentinel][30] =
-{
-	GPOS_WSZ_LIT("EboolopAnd"),
-	GPOS_WSZ_LIT("EboolopOr"),
-	GPOS_WSZ_LIT("EboolopNot")
-};
+const WCHAR CScalarBoolOp::m_rgwszBool[EboolopSentinel][30] = {
+	GPOS_WSZ_LIT("EboolopAnd"), GPOS_WSZ_LIT("EboolopOr"),
+	GPOS_WSZ_LIT("EboolopNot")};
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -44,7 +40,7 @@ CScalarBoolOp::HashValue() const
 {
 	ULONG ulBoolop = (ULONG) Eboolop();
 	return gpos::CombineHashes(COperator::HashValue(),
-							    gpos::HashValue<ULONG>(&ulBoolop));
+							   gpos::HashValue<ULONG>(&ulBoolop));
 }
 
 
@@ -57,11 +53,7 @@ CScalarBoolOp::HashValue() const
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarBoolOp::Matches
-	(
-	COperator *pop
-	)
-	const
+CScalarBoolOp::Matches(COperator *pop) const
 {
 	if (pop->Eopid() == Eopid())
 	{
@@ -84,12 +76,9 @@ CScalarBoolOp::Matches
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarBoolOp::FCommutative
-	(
-	EBoolOperator eboolop
-	)
+CScalarBoolOp::FCommutative(EBoolOperator eboolop)
 {
-	switch(eboolop)
+	switch (eboolop)
 	{
 		case EboolopAnd:
 		case EboolopOr:
@@ -127,11 +116,7 @@ CScalarBoolOp::MdidType() const
 //
 //---------------------------------------------------------------------------
 CScalar::EBoolEvalResult
-CScalarBoolOp::Eber
-	(
-	ULongPtrArray *pdrgpulChildren
-	)
-	const
+CScalarBoolOp::Eber(ULongPtrArray *pdrgpulChildren) const
 {
 	if (EboolopAnd == m_eboolop)
 	{
@@ -144,10 +129,10 @@ CScalarBoolOp::Eber
 	}
 
 	GPOS_ASSERT(EboolopNot == m_eboolop);
-	GPOS_ASSERT(NULL != pdrgpulChildren);
+	GPOS_ASSERT(nullptr != pdrgpulChildren);
 	GPOS_ASSERT(1 == pdrgpulChildren->Size());
 
-	EBoolEvalResult eber = (EBoolEvalResult) *((*pdrgpulChildren)[0]);
+	EBoolEvalResult eber = (EBoolEvalResult) * ((*pdrgpulChildren)[0]);
 	switch (eber)
 	{
 		case EberTrue:
@@ -175,11 +160,7 @@ CScalarBoolOp::Eber
 //
 //---------------------------------------------------------------------------
 IOstream &
-CScalarBoolOp::OsPrint
-	(
-	IOstream &os
-	)
-	const
+CScalarBoolOp::OsPrint(IOstream &os) const
 {
 	os << SzId() << " (";
 	os << m_rgwszBool[m_eboolop];
@@ -190,4 +171,3 @@ CScalarBoolOp::OsPrint
 
 
 // EOF
-

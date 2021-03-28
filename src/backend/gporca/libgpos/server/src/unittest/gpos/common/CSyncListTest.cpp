@@ -9,14 +9,14 @@
 //		Tests for CSyncList
 //---------------------------------------------------------------------------
 
+#include "unittest/gpos/common/CSyncListTest.h"
+
 #include "gpos/base.h"
 #include "gpos/error/CAutoTrace.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/task/CAutoTaskProxy.h"
 #include "gpos/task/CWorkerPoolManager.h"
 #include "gpos/test/CUnittest.h"
-
-#include "unittest/gpos/common/CSyncListTest.h"
 
 #define GPOS_SLIST_SIZE 10
 
@@ -33,10 +33,7 @@ using namespace gpos;
 GPOS_RESULT
 CSyncListTest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
-		GPOS_UNITTEST_FUNC(CSyncListTest::EresUnittest_Basics)
-		};
+	CUnittest rgut[] = {GPOS_UNITTEST_FUNC(CSyncListTest::EresUnittest_Basics)};
 
 	return CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 }
@@ -78,19 +75,16 @@ CSyncListTest::EresUnittest_Basics()
 		os << GPOS_WSZ_LIT("Sync list contents:") << std::endl;
 		list.OsPrint(os);
 	}
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 	// pop elements until empty
 	for (ULONG i = 0; i < GPOS_ARRAY_SIZE(rgelem); i++)
 	{
-#ifdef GPOS_DEBUG
-		SElem *pe =
-#endif // GPOS_DEBUG
-			list.Pop();
+		SElem *pe GPOS_ASSERTS_ONLY = list.Pop();
 
 		GPOS_ASSERT(pe == &rgelem[GPOS_ARRAY_SIZE(rgelem) - i - 1]);
 	}
-	GPOS_ASSERT(NULL == list.Pop());
+	GPOS_ASSERT(nullptr == list.Pop());
 
 	// insert all elements in reverse order
 	for (ULONG i = GPOS_ARRAY_SIZE(rgelem); i > 0; i--)
@@ -103,14 +97,11 @@ CSyncListTest::EresUnittest_Basics()
 	// pop elements until empty
 	for (ULONG i = 0; i < GPOS_ARRAY_SIZE(rgelem); i++)
 	{
-#ifdef GPOS_DEBUG
-		SElem *pe =
-#endif // GPOS_DEBUG
-			list.Pop();
+		SElem *pe GPOS_ASSERTS_ONLY = list.Pop();
 
 		GPOS_ASSERT(pe == &rgelem[i]);
 	}
-	GPOS_ASSERT(NULL == list.Pop());
+	GPOS_ASSERT(nullptr == list.Pop());
 
 	return GPOS_OK;
 }

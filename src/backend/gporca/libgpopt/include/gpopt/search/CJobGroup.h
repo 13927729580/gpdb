@@ -17,82 +17,68 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	// prototypes
-	class CGroup;
-	class CGroupExpression;
+// prototypes
+class CGroup;
+class CGroupExpression;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CJobGroup
-	//
-	//	@doc:
-	//		Abstract superclass of all group optimization jobs
-	//
-	//---------------------------------------------------------------------------
-	class CJobGroup : public CJob
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CJobGroup
+//
+//	@doc:
+//		Abstract superclass of all group optimization jobs
+//
+//---------------------------------------------------------------------------
+class CJobGroup : public CJob
+{
+private:
+protected:
+	// target group
+	CGroup *m_pgroup{nullptr};
 
-			// private copy ctor
-			CJobGroup(const CJobGroup&);
+	// last scheduled group expression
+	CGroupExpression *m_pgexprLastScheduled;
 
-		protected:
+	// ctor
+	CJobGroup() = default;
 
-			// target group
-			CGroup *m_pgroup;
+	// dtor
+	~CJobGroup() override = default;
 
-			// last scheduled group expression
-			CGroupExpression *m_pgexprLastScheduled;
+	// initialize job
+	void Init(CGroup *pgroup);
 
-			// ctor
-			CJobGroup()
-				:
-				m_pgroup(NULL)
-			{}
+	// get first unscheduled logical expression
+	virtual CGroupExpression *PgexprFirstUnschedLogical();
 
-			// dtor
-			virtual
-			~CJobGroup()
-			{};
+	// get first unscheduled non-logical expression
+	virtual CGroupExpression *PgexprFirstUnschedNonLogical();
 
-			// initialize job
-			void Init(CGroup *pgroup);
+	// get first unscheduled expression
+	virtual CGroupExpression *PgexprFirstUnsched() = 0;
 
-			// get first unscheduled logical expression
-			virtual
-			CGroupExpression *PgexprFirstUnschedLogical();
+	// schedule jobs for of all new group expressions
+	virtual BOOL FScheduleGroupExpressions(CSchedulerContext *psc) = 0;
 
-			// get first unscheduled non-logical expression
-			virtual
-			CGroupExpression *PgexprFirstUnschedNonLogical();
-
-			// get first unscheduled expression
-			virtual
-			CGroupExpression *PgexprFirstUnsched() = 0;
-
-			// schedule jobs for of all new group expressions
-			virtual
-			BOOL FScheduleGroupExpressions(CSchedulerContext *psc) = 0;
-
-			// job's function
-			virtual
-			BOOL FExecute(CSchedulerContext *psc) = 0;
+	// job's function
+	BOOL FExecute(CSchedulerContext *psc) override = 0;
 
 #ifdef GPOS_DEBUG
 
-			// print function
-			virtual
-			IOstream &OsPrint(IOstream &os) = 0;
+	// print function
+	IOstream &OsPrint(IOstream &os) const override = 0;
 
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
+public:
+	CJobGroup(const CJobGroup &) = delete;
 
-	}; // class CJobGroup
+};	// class CJobGroup
 
-}
+}  // namespace gpopt
 
-#endif // !GPOPT_CJobGroup_H
+#endif	// !GPOPT_CJobGroup_H
 
 
 // EOF

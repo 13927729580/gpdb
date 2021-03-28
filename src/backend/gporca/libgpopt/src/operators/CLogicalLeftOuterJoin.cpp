@@ -9,13 +9,13 @@
 //		Implementation of left outer join operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CLogicalLeftOuterJoin.h"
+
 #include "gpos/base.h"
 
 #include "gpopt/base/CColRefSet.h"
 #include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CExpressionHandle.h"
-
-#include "gpopt/operators/CLogicalLeftOuterJoin.h"
 
 using namespace gpopt;
 
@@ -28,14 +28,9 @@ using namespace gpopt;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CLogicalLeftOuterJoin::CLogicalLeftOuterJoin
-	(
-	CMemoryPool *mp
-	)
-	:
-	CLogicalJoin(mp)
+CLogicalLeftOuterJoin::CLogicalLeftOuterJoin(CMemoryPool *mp) : CLogicalJoin(mp)
 {
-	GPOS_ASSERT(NULL != mp);
+	GPOS_ASSERT(nullptr != mp);
 }
 
 
@@ -48,12 +43,8 @@ CLogicalLeftOuterJoin::CLogicalLeftOuterJoin
 //
 //---------------------------------------------------------------------------
 CMaxCard
-CLogicalLeftOuterJoin::DeriveMaxCard
-	(
-	CMemoryPool *, // mp
-	CExpressionHandle &exprhdl
-	)
-	const
+CLogicalLeftOuterJoin::DeriveMaxCard(CMemoryPool *,	 // mp
+									 CExpressionHandle &exprhdl) const
 {
 	CMaxCard maxCard = exprhdl.DeriveMaxCard(0);
 	CMaxCard maxCardInner = exprhdl.DeriveMaxCard(1);
@@ -77,27 +68,19 @@ CLogicalLeftOuterJoin::DeriveMaxCard
 //
 //---------------------------------------------------------------------------
 CXformSet *
-CLogicalLeftOuterJoin::PxfsCandidates
-	(
-	CMemoryPool *mp
-	) 
-	const
+CLogicalLeftOuterJoin::PxfsCandidates(CMemoryPool *mp) const
 {
 	CXformSet *xform_set = GPOS_NEW(mp) CXformSet(mp);
 
 	(void) xform_set->ExchangeSet(CXform::ExfPushDownLeftOuterJoin);
 	(void) xform_set->ExchangeSet(CXform::ExfSimplifyLeftOuterJoin);
-	(void) xform_set->ExchangeSet(CXform::ExfLeftOuterJoin2BitmapIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfLeftOuterJoin2IndexGetApply);
 	(void) xform_set->ExchangeSet(CXform::ExfLeftOuterJoin2NLJoin);
 	(void) xform_set->ExchangeSet(CXform::ExfLeftOuterJoin2HashJoin);
-	(void) xform_set->ExchangeSet(CXform::ExfLeftOuter2InnerUnionAllLeftAntiSemiJoin);
-	(void) xform_set->ExchangeSet(CXform::ExfLeftOuterJoinWithInnerSelect2BitmapIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfLeftOuterJoinWithInnerSelect2IndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfLeftOuterJoin2DynamicBitmapIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfLeftOuterJoin2DynamicIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfLeftOuterJoinWithInnerSelect2DynamicBitmapIndexGetApply);
-	(void) xform_set->ExchangeSet(CXform::ExfLeftOuterJoinWithInnerSelect2DynamicIndexGetApply);
+	(void) xform_set->ExchangeSet(
+		CXform::ExfLeftOuter2InnerUnionAllLeftAntiSemiJoin);
+	(void) xform_set->ExchangeSet(CXform::ExfJoin2BitmapIndexGetApply);
+	(void) xform_set->ExchangeSet(CXform::ExfJoin2IndexGetApply);
+	(void) xform_set->ExchangeSet(CXform::ExfLeftJoin2RightJoin);
 
 	return xform_set;
 }
@@ -105,4 +88,3 @@ CLogicalLeftOuterJoin::PxfsCandidates
 
 
 // EOF
-

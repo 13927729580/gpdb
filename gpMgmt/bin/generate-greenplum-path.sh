@@ -1,14 +1,30 @@
 #!/usr/bin/env bash
 
-if [ -z "$1" ]; then
-  printf "Must specify a value for GPHOME"
-  exit 1
+cat <<"EOF"
+if test -n "${ZSH_VERSION:-}"; then
+    # zsh
+    SCRIPT_PATH="${(%):-%x}"
+elif test -n "${BASH_VERSION:-}"; then
+    # bash
+    SCRIPT_PATH="${BASH_SOURCE[0]}"
+else
+    # Unknown shell, hope below works.
+    # Tested with dash
+    result=$(lsof -p $$ -Fn | tail --lines=1 | xargs --max-args=2 | cut --delimiter=' ' --fields=2)
+    SCRIPT_PATH=${result#n}
 fi
 
-GPHOME_PATH="$1"
-cat <<EOF
-GPHOME="${GPHOME_PATH}"
+if test -z "$SCRIPT_PATH"; then
+    echo "The shell cannot be identified. \$GPHOME may not be set correctly." >&2
+fi
+SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" >/dev/null 2>&1 && pwd)"
 
+if [ ! -L "${SCRIPT_DIR}" ]; then
+	GPDB_DIR=$(basename "${SCRIPT_DIR}")
+else
+	GPDB_DIR=$(basename "$(readlink "${SCRIPT_DIR}")")
+fi
+GPHOME=$(dirname "${SCRIPT_DIR}")/"${GPDB_DIR}"
 EOF
 
 cat <<"EOF"

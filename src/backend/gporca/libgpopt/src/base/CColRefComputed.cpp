@@ -9,8 +9,9 @@
 //		Implementation of column reference class for computed columns
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
 #include "gpopt/base/CColRefComputed.h"
+
+#include "gpos/base.h"
 
 using namespace gpopt;
 
@@ -24,19 +25,13 @@ using namespace gpopt;
 //		takes ownership of string; verify string is properly formatted
 //
 //---------------------------------------------------------------------------
-CColRefComputed::CColRefComputed
-	(
-	const IMDType *pmdtype,
-	INT type_modifier,
-	ULONG id,
-	const CName *pname
-	)
-	:
-	CColRef(pmdtype, type_modifier, id, pname)
+CColRefComputed::CColRefComputed(const IMDType *pmdtype, INT type_modifier,
+								 ULONG id, const CName *pname)
+	: CColRef(pmdtype, type_modifier, id, pname)
 {
-	GPOS_ASSERT(NULL != pmdtype);
+	GPOS_ASSERT(nullptr != pmdtype);
 	GPOS_ASSERT(pmdtype->MDId()->IsValid());
-	GPOS_ASSERT(NULL != pname);
+	GPOS_ASSERT(nullptr != pname);
 }
 
 
@@ -48,9 +43,7 @@ CColRefComputed::CColRefComputed
 //		ctor
 //
 //---------------------------------------------------------------------------
-CColRefComputed::~CColRefComputed()
-{}
+CColRefComputed::~CColRefComputed() = default;
 
 
 // EOF
-

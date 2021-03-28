@@ -10,10 +10,11 @@
 //		with dynamic buffer allocation.
 //---------------------------------------------------------------------------
 
+#include "gpos/string/CWStringDynamic.h"
+
+#include "gpos/common/CAutoRg.h"
 #include "gpos/common/clibwrapper.h"
 #include "gpos/string/CStringStatic.h"
-#include "gpos/string/CWStringDynamic.h"
-#include "gpos/common/CAutoRg.h"
 using namespace gpos;
 
 
@@ -25,17 +26,11 @@ using namespace gpos;
 //		Constructs an empty string
 //
 //---------------------------------------------------------------------------
-CWStringDynamic::CWStringDynamic
-	(
-	CMemoryPool *mp
-	)
-	:
-	CWString
-		(
-		0 // length
-		),
-	m_mp(mp),
-	m_capacity(0)
+CWStringDynamic::CWStringDynamic(CMemoryPool *mp)
+	: CWString(0  // length
+			   ),
+	  m_mp(mp),
+	  m_capacity(0)
 {
 	Reset();
 }
@@ -48,20 +43,10 @@ CWStringDynamic::CWStringDynamic
 //		Constructs a new string and initializes it with the given buffer
 //
 //---------------------------------------------------------------------------
-CWStringDynamic::CWStringDynamic
-	(
-	CMemoryPool *mp,
-	const WCHAR *w_str_buffer
-	)
-	:
-	CWString
-		(
-		GPOS_WSZ_LENGTH(w_str_buffer)
-		),
-	m_mp(mp),
-	m_capacity(0)
+CWStringDynamic::CWStringDynamic(CMemoryPool *mp, const WCHAR *w_str_buffer)
+	: CWString(GPOS_WSZ_LENGTH(w_str_buffer)), m_mp(mp), m_capacity(0)
 {
-	GPOS_ASSERT(NULL != w_str_buffer);
+	GPOS_ASSERT(nullptr != w_str_buffer);
 
 	Reset();
 	AppendBuffer(w_str_buffer);
@@ -93,7 +78,7 @@ CWStringDynamic::~CWStringDynamic()
 void
 CWStringDynamic::Reset()
 {
-	if (NULL != m_w_str_buffer && &m_empty_wcstr != m_w_str_buffer)
+	if (nullptr != m_w_str_buffer && &m_empty_wcstr != m_w_str_buffer)
 	{
 		GPOS_DELETE_ARRAY(m_w_str_buffer);
 	}
@@ -113,12 +98,9 @@ CWStringDynamic::Reset()
 //
 //---------------------------------------------------------------------------
 void
-CWStringDynamic::AppendBuffer
-	(
-	const WCHAR *w_str
-	)
+CWStringDynamic::AppendBuffer(const WCHAR *w_str)
 {
-	GPOS_ASSERT(NULL != w_str);
+	GPOS_ASSERT(nullptr != w_str);
 	ULONG length = GPOS_WSZ_LENGTH(w_str);
 	if (0 == length)
 	{
@@ -148,10 +130,7 @@ CWStringDynamic::AppendBuffer
 //
 //---------------------------------------------------------------------------
 void
-CWStringDynamic::AppendWideCharArray
-	(
-	const WCHAR *w_str
-	)
+CWStringDynamic::AppendWideCharArray(const WCHAR *w_str)
 {
 	AppendBuffer(w_str);
 }
@@ -166,12 +145,9 @@ CWStringDynamic::AppendWideCharArray
 //
 //---------------------------------------------------------------------------
 void
-CWStringDynamic::AppendCharArray
-	(
-	const CHAR *sz
-	)
+CWStringDynamic::AppendCharArray(const CHAR *sz)
 {
-	GPOS_ASSERT(NULL != sz);
+	GPOS_ASSERT(nullptr != sz);
 
 	// expand buffer if needed
 	const ULONG length = GPOS_SZ_LENGTH(sz);
@@ -183,9 +159,7 @@ CWStringDynamic::AppendCharArray
 	WCHAR *w_str_buffer = GPOS_NEW_ARRAY(m_mp, WCHAR, length + 1);
 
 	// convert input string to wide character buffer
-#ifdef GPOS_DEBUG
-	ULONG wide_length =
-#endif // GPOS_DEBUG
+	ULONG wide_length GPOS_ASSERTS_ONLY =
 		clib::Mbstowcs(w_str_buffer, sz, length);
 	GPOS_ASSERT(wide_length == length);
 
@@ -209,16 +183,12 @@ CWStringDynamic::AppendCharArray
 //
 //---------------------------------------------------------------------------
 void
-CWStringDynamic::AppendFormat
-	(
-	const WCHAR *format,
-	...
-	)
+CWStringDynamic::AppendFormat(const WCHAR *format, ...)
 {
-	GPOS_ASSERT(NULL != format);
+	GPOS_ASSERT(nullptr != format);
 	using clib::Vswprintf;
 
-	VA_LIST	va_args;
+	VA_LIST va_args;
 
 	// determine length of format string after expansion
 	INT res = -1;
@@ -230,14 +200,16 @@ CWStringDynamic::AppendFormat
 	VA_START(va_args, format);
 
 	// try expanding the formatted string in the buffer
-	res = Vswprintf(w_str_buf_static, GPOS_ARRAY_SIZE(w_str_buf_static), format, va_args);
+	res = Vswprintf(w_str_buf_static, GPOS_ARRAY_SIZE(w_str_buf_static), format,
+					va_args);
 
 	// reset arguments
 	VA_END(va_args);
 	GPOS_ASSERT(-1 <= res);
 
 	// estimated number of characters in expanded format string
-	ULONG size = std::max(GPOS_WSZ_LENGTH(format), GPOS_ARRAY_SIZE(w_str_buf_static));
+	ULONG size =
+		std::max(GPOS_WSZ_LENGTH(format), GPOS_ARRAY_SIZE(w_str_buf_static));
 
 	// if the static buffer is too small, find the formatted string
 	// length by trying to store it in a buffer of increasing size
@@ -292,14 +264,10 @@ CWStringDynamic::AppendFormat
 //
 //---------------------------------------------------------------------------
 void
-CWStringDynamic::AppendEscape
-	(
-	const CWStringBase *str,
-	WCHAR wc,
-	const WCHAR *w_str_replace
-	)
+CWStringDynamic::AppendEscape(const CWStringBase *str, WCHAR wc,
+							  const WCHAR *w_str_replace)
 {
-	GPOS_ASSERT(NULL != str);
+	GPOS_ASSERT(nullptr != str);
 
 	if (str->IsEmpty())
 	{
@@ -315,9 +283,9 @@ CWStringDynamic::AppendEscape
 	}
 
 	ULONG length = str->Length();
-	const WCHAR * w_str = str->GetBuffer();
+	const WCHAR *w_str = str->GetBuffer();
 
-	ULONG length_replace =  GPOS_WSZ_LENGTH(w_str_replace);
+	ULONG length_replace = GPOS_WSZ_LENGTH(w_str_replace);
 	ULONG new_length = m_length + length + (length_replace - 1) * occurrences;
 	if (new_length + 1 > m_capacity)
 	{
@@ -355,10 +323,7 @@ CWStringDynamic::AppendEscape
 //
 //---------------------------------------------------------------------------
 void
-CWStringDynamic::IncreaseCapacity
-	(
-	ULONG requested
-	)
+CWStringDynamic::IncreaseCapacity(ULONG requested)
 {
 	GPOS_ASSERT(requested + 1 > m_capacity);
 
@@ -371,7 +336,8 @@ CWStringDynamic::IncreaseCapacity
 	if (0 < m_length)
 	{
 		// current string is not empty: copy it to the resulting string
-		a_w_str_new_buff = clib::WcStrNCpy(a_w_str_new_buff.Rgt(), m_w_str_buffer, m_length);
+		a_w_str_new_buff =
+			clib::WcStrNCpy(a_w_str_new_buff.Rgt(), m_w_str_buffer, m_length);
 	}
 
 	// release old buffer
@@ -393,10 +359,7 @@ CWStringDynamic::IncreaseCapacity
 //
 //---------------------------------------------------------------------------
 ULONG
-CWStringDynamic::Capacity
-	(
-	ULONG requested
-	)
+CWStringDynamic::Capacity(ULONG requested)
 {
 	ULONG capacity = GPOS_WSTR_DYNAMIC_CAPACITY_INIT;
 	while (capacity <= requested + 1)
@@ -409,4 +372,3 @@ CWStringDynamic::Capacity
 
 
 // EOF
-

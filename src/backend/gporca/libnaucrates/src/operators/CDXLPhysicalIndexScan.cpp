@@ -26,21 +26,16 @@ using namespace gpdxl;
 //		index descriptor and filter conditions on the index
 //
 //---------------------------------------------------------------------------
-CDXLPhysicalIndexScan::CDXLPhysicalIndexScan
-	(
-	CMemoryPool *mp,
-	CDXLTableDescr *table_descr,
-	CDXLIndexDescr *dxl_index_descr,
-	EdxlIndexScanDirection idx_scan_direction
-	)
-	:
-	CDXLPhysical(mp),
-	m_dxl_table_descr(table_descr),
-	m_dxl_index_descr(dxl_index_descr),
-	m_index_scan_dir(idx_scan_direction)
+CDXLPhysicalIndexScan::CDXLPhysicalIndexScan(
+	CMemoryPool *mp, CDXLTableDescr *table_descr,
+	CDXLIndexDescr *dxl_index_descr, EdxlIndexScanDirection idx_scan_direction)
+	: CDXLPhysical(mp),
+	  m_dxl_table_descr(table_descr),
+	  m_dxl_index_descr(dxl_index_descr),
+	  m_index_scan_dir(idx_scan_direction)
 {
-	GPOS_ASSERT(NULL != m_dxl_table_descr);
-	GPOS_ASSERT(NULL != m_dxl_index_descr);
+	GPOS_ASSERT(nullptr != m_dxl_table_descr);
+	GPOS_ASSERT(nullptr != m_dxl_index_descr);
 }
 
 //---------------------------------------------------------------------------
@@ -136,21 +131,16 @@ CDXLPhysicalIndexScan::GetDXLTableDescr() const
 //
 //---------------------------------------------------------------------------
 void
-CDXLPhysicalIndexScan::SerializeToDXL
-	(
-	CXMLSerializer *xml_serializer,
-	const CDXLNode *node
-	)
-	const
+CDXLPhysicalIndexScan::SerializeToDXL(CXMLSerializer *xml_serializer,
+									  const CDXLNode *node) const
 {
 	const CWStringConst *element_name = GetOpNameStr();
 
-	xml_serializer->OpenElement(CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
-	xml_serializer->AddAttribute
-				(
-				CDXLTokens::GetDXLTokenStr(EdxltokenIndexScanDirection),
-				CDXLOperator::GetIdxScanDirectionStr(m_index_scan_dir)
-				);
+	xml_serializer->OpenElement(
+		CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
+	xml_serializer->AddAttribute(
+		CDXLTokens::GetDXLTokenStr(EdxltokenIndexScanDirection),
+		CDXLOperator::GetIdxScanDirectionStr(m_index_scan_dir));
 
 	// serialize properties
 	node->SerializePropertiesToDXL(xml_serializer);
@@ -164,7 +154,8 @@ CDXLPhysicalIndexScan::SerializeToDXL
 	// serialize table descriptor
 	m_dxl_table_descr->SerializeToDXL(xml_serializer);
 
-	xml_serializer->CloseElement(CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
+	xml_serializer->CloseElement(
+		CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
 }
 
 #ifdef GPOS_DEBUG
@@ -177,12 +168,8 @@ CDXLPhysicalIndexScan::SerializeToDXL
 //
 //---------------------------------------------------------------------------
 void
-CDXLPhysicalIndexScan::AssertValid
-	(
-	const CDXLNode *node,
-	BOOL validate_children
-	)
-	const
+CDXLPhysicalIndexScan::AssertValid(const CDXLNode *node,
+								   BOOL validate_children) const
 {
 	// assert proj list and filter are valid
 	CDXLPhysical::AssertValid(node, validate_children);
@@ -191,25 +178,27 @@ CDXLPhysicalIndexScan::AssertValid
 	GPOS_ASSERT(3 == node->Arity());
 
 	// assert validity of the index descriptor
-	GPOS_ASSERT(NULL != m_dxl_index_descr);
-	GPOS_ASSERT(NULL != m_dxl_index_descr->MdName());
+	GPOS_ASSERT(nullptr != m_dxl_index_descr);
+	GPOS_ASSERT(nullptr != m_dxl_index_descr->MdName());
 	GPOS_ASSERT(m_dxl_index_descr->MdName()->GetMDName()->IsValid());
 
 	// assert validity of the table descriptor
-	GPOS_ASSERT(NULL != m_dxl_table_descr);
-	GPOS_ASSERT(NULL != m_dxl_table_descr->MdName());
+	GPOS_ASSERT(nullptr != m_dxl_table_descr);
+	GPOS_ASSERT(nullptr != m_dxl_table_descr->MdName());
 	GPOS_ASSERT(m_dxl_table_descr->MdName()->GetMDName()->IsValid());
 
 	CDXLNode *index_cond_dxlnode = (*node)[EdxlisIndexCondition];
 
 	// assert children are of right type (physical/scalar)
-	GPOS_ASSERT(EdxlopScalarIndexCondList == index_cond_dxlnode->GetOperator()->GetDXLOperator());
+	GPOS_ASSERT(EdxlopScalarIndexCondList ==
+				index_cond_dxlnode->GetOperator()->GetDXLOperator());
 
 	if (validate_children)
 	{
-		index_cond_dxlnode->GetOperator()->AssertValid(index_cond_dxlnode, validate_children);
+		index_cond_dxlnode->GetOperator()->AssertValid(index_cond_dxlnode,
+													   validate_children);
 	}
 }
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 // EOF

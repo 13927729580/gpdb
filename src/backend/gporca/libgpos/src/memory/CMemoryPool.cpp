@@ -7,17 +7,15 @@
 //		CMemoryPool.cpp
 //
 //	@doc:
-//		Implementation of abstract interface; 
+//		Implementation of abstract interface;
 //		implements helper functions for extraction of allocation
 //		header from memory block;
 //---------------------------------------------------------------------------
 
-#ifdef GPOS_DEBUG
-#include "gpos/error/CFSimulator.h"
-#endif // GPOS_DEBUG
 #include "gpos/memory/CMemoryPool.h"
-#include "gpos/memory/CMemoryPoolTracker.h"
+
 #include "gpos/memory/CMemoryPoolManager.h"
+#include "gpos/memory/CMemoryPoolTracker.h"
 #include "gpos/memory/CMemoryVisitorPrint.h"
 #include "gpos/task/ITask.h"
 
@@ -31,7 +29,7 @@ const ULONG_PTR CMemoryPool::m_invalid = ULONG_PTR_MAX;
 ULONG
 CMemoryPool::UserSizeOfAlloc(const void *ptr)
 {
-	GPOS_ASSERT(NULL != ptr);
+	GPOS_ASSERT(nullptr != ptr);
 
 	return CMemoryPoolManager::GetMemoryPoolMgr()->UserSizeOfAlloc(ptr);
 }
@@ -54,15 +52,12 @@ CMemoryPool::DeleteImpl(void *ptr, EAllocationType eat)
 //
 //---------------------------------------------------------------------------
 IOstream &
-CMemoryPool::OsPrint
-	(
-	IOstream &os
-	)
+CMemoryPool::OsPrint(IOstream &os)
 {
 	os << "Memory pool: " << this;
 
 	ITask *task = ITask::Self();
-	if (NULL != task && task->IsTraceSet(EtracePrintMemoryLeakStackTrace))
+	if (nullptr != task && task->IsTraceSet(EtracePrintMemoryLeakStackTrace))
 	{
 		os << ", stack trace: " << std::endl;
 		m_stack_desc.AppendTrace(os, 8 /*ulDepth*/);
@@ -92,30 +87,22 @@ CMemoryPool::OsPrint
 //
 //---------------------------------------------------------------------------
 void
-CMemoryPool::AssertEmpty
-	(
-	IOstream &os
-	)
+CMemoryPool::AssertEmpty(IOstream &os)
 {
-	if (SupportsLiveObjectWalk() && NULL != ITask::Self() &&
-	    !GPOS_FTRACE(EtraceDisablePrintMemoryLeak))
+	if (SupportsLiveObjectWalk() && nullptr != ITask::Self() &&
+		!GPOS_FTRACE(EtraceDisablePrintMemoryLeak))
 	{
 		CMemoryVisitorPrint visitor(os);
 		WalkLiveObjects(&visitor);
 
 		if (0 != visitor.GetNumVisits())
 		{
-			os
-				<< "Unfreed memory in memory pool "
-				<< (void*)this
-				<< ": "
-				<< visitor.GetNumVisits()
-				<< " objects leaked"
-				<< std::endl;
+			os << "Unfreed memory in memory pool " << (void *) this << ": "
+			   << visitor.GetNumVisits() << " objects leaked" << std::endl;
 
 			GPOS_ASSERT(!"leak detected");
 		}
 	}
 }
 
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG

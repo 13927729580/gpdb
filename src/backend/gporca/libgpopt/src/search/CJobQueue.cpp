@@ -10,15 +10,16 @@
 //		that is potentially assigned to many jobs.
 
 //	@owner:
-//		
+//
 //
 //	@test:
 //
 //
 //---------------------------------------------------------------------------
 
-#include "gpopt/search/CJobFactory.h"
 #include "gpopt/search/CJobQueue.h"
+
+#include "gpopt/search/CJobFactory.h"
 #include "gpopt/search/CScheduler.h"
 #include "gpopt/search/CSchedulerContext.h"
 
@@ -35,12 +36,9 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CJobQueue::EJobQueueResult
-CJobQueue::EjqrAdd
-	(
-	CJob *pj
-	)
+CJobQueue::EjqrAdd(CJob *pj)
 {
-	GPOS_ASSERT(NULL != pj);
+	GPOS_ASSERT(nullptr != pj);
 
 	EJobQueueResult ejer = EjqrCompleted;
 
@@ -65,7 +63,7 @@ CJobQueue::EjqrAdd
 				// first caller becomes the owner
 				if (fOwner)
 				{
-					GPOS_ASSERT(NULL == m_pj);
+					GPOS_ASSERT(nullptr == m_pj);
 
 					m_pj = pj;
 					ejer = EjqrMain;
@@ -93,10 +91,7 @@ CJobQueue::EjqrAdd
 //
 //---------------------------------------------------------------------------
 void
-CJobQueue::NotifyCompleted
-	(
-	CSchedulerContext *psc
-	)
+CJobQueue::NotifyCompleted(CSchedulerContext *psc)
 {
 	GPOS_ASSERT(!m_fCompleted);
 	m_fCompleted = true;
@@ -129,15 +124,12 @@ CJobQueue::NotifyCompleted
 //
 //---------------------------------------------------------------------------
 IOstream &
-CJobQueue::OsPrintQueuedJobs
-	(
-	IOstream &os
-	)
+CJobQueue::OsPrintQueuedJobs(IOstream &os)
 {
 	os << "Job queue: " << std::endl;
 
 	CJob *pj = m_listjQueued.First();
-	while (NULL != pj)
+	while (nullptr != pj)
 	{
 		pj->OsPrint(os);
 		pj = m_listjQueued.Next(pj);
@@ -146,7 +138,6 @@ CJobQueue::OsPrintQueuedJobs
 	return os;
 }
 
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 // EOF
-

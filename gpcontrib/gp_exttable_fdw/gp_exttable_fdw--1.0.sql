@@ -8,14 +8,14 @@ RETURNS fdw_handler
 AS 'MODULE_PATHNAME'
 LANGUAGE C STRICT;
 
-CREATE FUNCTION gp_exttable_validator(text[], oid)
+CREATE FUNCTION gp_exttable_permission_check(text[], oid)
 RETURNS void
 AS 'MODULE_PATHNAME'
 LANGUAGE C STRICT;
 
 CREATE FOREIGN DATA WRAPPER gp_exttable_fdw
     HANDLER gp_exttable_fdw_handler
-    VALIDATOR gp_exttable_validator;
+    VALIDATOR gp_exttable_permission_check;
 
 CREATE SERVER gp_exttable_server FOREIGN DATA WRAPPER gp_exttable_fdw;
 
@@ -34,6 +34,6 @@ CREATE FUNCTION pg_exttable(OUT reloid oid,
                             OUT writable bool)
 RETURNS SETOF record
 AS 'MODULE_PATHNAME'
-LANGUAGE C VOLATILE EXECUTE ON MASTER;
+LANGUAGE C VOLATILE EXECUTE ON COORDINATOR;
 
 CREATE VIEW pg_exttable AS SELECT * FROM pg_exttable();

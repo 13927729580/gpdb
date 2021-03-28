@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CPhysicalPartitionSelectorDML.h
@@ -12,174 +12,121 @@
 #define GPOPT_CPhysicalPartitionSelectorDML_H
 
 #include "gpos/base.h"
+
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CPhysicalPartitionSelector.h"
 
 namespace gpopt
 {
+//---------------------------------------------------------------------------
+//	@class:
+//		CPhysicalPartitionSelectorDML
+//
+//	@doc:
+//		Physical partition selector operator used for DML on partitioned tables
+//
+//---------------------------------------------------------------------------
+class CPhysicalPartitionSelectorDML : public CPhysicalPartitionSelector
+{
+private:
+	// oid column - holds the OIDs for leaf parts
+	CColRef *m_pcrOid;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CPhysicalPartitionSelectorDML
-	//
-	//	@doc:
-	//		Physical partition selector operator used for DML on partitioned tables
-	//
-	//---------------------------------------------------------------------------
-	class CPhysicalPartitionSelectorDML : public CPhysicalPartitionSelector
+public:
+	CPhysicalPartitionSelectorDML(const CPhysicalPartitionSelectorDML &) =
+		delete;
+
+	// ctor
+	CPhysicalPartitionSelectorDML(CMemoryPool *mp, IMDId *mdid,
+								  UlongToExprMap *phmulexprEqPredicates,
+								  CColRef *pcrOid);
+
+	// ident accessors
+	EOperatorId
+	Eopid() const override
 	{
-		private:
+		return EopPhysicalPartitionSelectorDML;
+	}
 
-			// oid column - holds the OIDs for leaf parts
-			CColRef *m_pcrOid;
+	// operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CPhysicalPartitionSelectorDML";
+	}
 
-			// private copy ctor
-			CPhysicalPartitionSelectorDML(const CPhysicalPartitionSelectorDML &);
+	// oid column
+	CColRef *
+	PcrOid() const
+	{
+		return m_pcrOid;
+	}
 
-		public:
+	// match function
+	BOOL Matches(COperator *pop) const override;
 
-			// ctor
-			CPhysicalPartitionSelectorDML
-				(
-				CMemoryPool *mp,
-				IMDId *mdid,
-				UlongToExprMap *phmulexprEqPredicates,
-				CColRef *pcrOid
-				);
+	// hash function
+	ULONG HashValue() const override;
 
-			// ident accessors
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopPhysicalPartitionSelectorDML;
-			}
+	//-------------------------------------------------------------------------------------
+	// Required Plan Properties
+	//-------------------------------------------------------------------------------------
 
-			// operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CPhysicalPartitionSelectorDML";
-			}
+	// compute required distribution of the n-th child
+	CDistributionSpec *PdsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
+								   CDistributionSpec *pdsRequired,
+								   ULONG child_index,
+								   CDrvdPropArray *pdrgpdpCtxt,
+								   ULONG ulOptReq) const override;
 
-			// oid column
-			CColRef *PcrOid() const
-			{
-				return m_pcrOid;
-			}
+	// compute required sort order of the n-th child
+	COrderSpec *PosRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
+							COrderSpec *posRequired, ULONG child_index,
+							CDrvdPropArray *pdrgpdpCtxt,
+							ULONG ulOptReq) const override;
 
-			// match function
-			virtual
-			BOOL Matches(COperator *pop) const;
+	// check if required columns are included in output columns
+	BOOL FProvidesReqdCols(CExpressionHandle &exprhdl, CColRefSet *pcrsRequired,
+						   ULONG ulOptReq) const override;
 
-			// hash function
-			virtual
-			ULONG HashValue() const;
+	//-------------------------------------------------------------------------------------
+	// Derived Plan Properties
+	//-------------------------------------------------------------------------------------
 
-			//-------------------------------------------------------------------------------------
-			// Required Plan Properties
-			//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	// Enforced Properties
+	//-------------------------------------------------------------------------------------
 
-			// compute required distribution of the n-th child
-			virtual
-			CDistributionSpec *PdsRequired
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl,
-				CDistributionSpec *pdsRequired,
-				ULONG child_index,
-				CDrvdPropArray *pdrgpdpCtxt,
-				ULONG ulOptReq
-				)
-				const;
+	// return order property enforcing type for this operator
+	CEnfdProp::EPropEnforcingType EpetOrder(
+		CExpressionHandle &exprhdl, const CEnfdOrder *peo) const override;
 
-			// compute required sort order of the n-th child
-			virtual
-			COrderSpec *PosRequired
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl,
-				COrderSpec *posRequired,
-				ULONG child_index,
-				CDrvdPropArray *pdrgpdpCtxt,
-				ULONG ulOptReq
-				)
-				const;
+	// return distribution property enforcing type for this operator
+	CEnfdProp::EPropEnforcingType EpetDistribution(
+		CExpressionHandle &exprhdl,
+		const CEnfdDistribution *ped) const override;
 
-			// compute required partition propagation of the n-th child
-			virtual
-			CPartitionPropagationSpec *PppsRequired
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl,
-				CPartitionPropagationSpec *pppsRequired,
-				ULONG child_index,
-				CDrvdPropArray *pdrgpdpCtxt,
-				ULONG ulOptReq
-				);
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
 
-			// check if required columns are included in output columns
-			virtual
-			BOOL FProvidesReqdCols(CExpressionHandle &exprhdl, CColRefSet *pcrsRequired, ULONG ulOptReq) const;
+	// conversion function
+	static CPhysicalPartitionSelectorDML *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(nullptr != pop);
+		GPOS_ASSERT(EopPhysicalPartitionSelectorDML == pop->Eopid());
 
-			//-------------------------------------------------------------------------------------
-			// Derived Plan Properties
-			//-------------------------------------------------------------------------------------
+		return dynamic_cast<CPhysicalPartitionSelectorDML *>(pop);
+	}
 
-			// derive partition index map
-			virtual
-			CPartIndexMap *PpimDerive(CMemoryPool *mp, CExpressionHandle &exprhdl, CDrvdPropCtxt *pdpctxt) const;
+	// debug print
+	IOstream &OsPrint(IOstream &os) const override;
 
-			// derive partition filter map
-			virtual
-			CPartFilterMap *PpfmDerive(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+};	// class CPhysicalPartitionSelectorDML
 
-			//-------------------------------------------------------------------------------------
-			// Enforced Properties
-			//-------------------------------------------------------------------------------------
+}  // namespace gpopt
 
-			// return order property enforcing type for this operator
-			virtual
-			CEnfdProp::EPropEnforcingType EpetOrder
-				(
-				CExpressionHandle &exprhdl,
-				const CEnfdOrder *peo
-				)
-				const;
-
-			// return distribution property enforcing type for this operator
-			virtual
-			CEnfdProp::EPropEnforcingType EpetDistribution
-				(
-				CExpressionHandle &exprhdl,
-				const CEnfdDistribution *ped
-				)
-				const;
-
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-
-			// conversion function
-			static
-			CPhysicalPartitionSelectorDML *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopPhysicalPartitionSelectorDML == pop->Eopid());
-
-				return dynamic_cast<CPhysicalPartitionSelectorDML*>(pop);
-			}
-
-			// debug print
-			virtual
-			IOstream &OsPrint(IOstream &os) const;
-
-	}; // class CPhysicalPartitionSelectorDML
-
-}
-
-#endif // !GPOPT_CPhysicalPartitionSelectorDML_H
+#endif	// !GPOPT_CPhysicalPartitionSelectorDML_H
 
 // EOF

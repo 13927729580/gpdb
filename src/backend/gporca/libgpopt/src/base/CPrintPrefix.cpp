@@ -9,10 +9,10 @@
 //		Implementation of print prefix class
 //---------------------------------------------------------------------------
 
+#include "gpopt/base/CPrintPrefix.h"
+
 #include "gpos/base.h"
 #include "gpos/task/IWorker.h"
-
-#include "gpopt/base/CPrintPrefix.h"
 
 using namespace gpopt;
 
@@ -24,16 +24,10 @@ using namespace gpopt;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CPrintPrefix::CPrintPrefix
-	(
-	const CPrintPrefix *ppfx,
-	const CHAR *sz
-	)
-	:
-	m_ppfx(ppfx),
-	m_sz(sz)
+CPrintPrefix::CPrintPrefix(const CPrintPrefix *ppfx, const CHAR *sz)
+	: m_ppfx(ppfx), m_sz(sz)
 {
-	GPOS_ASSERT(NULL != sz);
+	GPOS_ASSERT(nullptr != sz);
 }
 
 
@@ -43,20 +37,16 @@ CPrintPrefix::CPrintPrefix
 //
 //	@doc:
 //		print function;
-//		recursively traverse the linked list of prefixes and print them 
+//		recursively traverse the linked list of prefixes and print them
 //		in reverse order
 //
 //---------------------------------------------------------------------------
 IOstream &
-CPrintPrefix::OsPrint
-	(
-	IOstream &os
-	)
-	const
+CPrintPrefix::OsPrint(IOstream &os) const
 {
 	GPOS_CHECK_STACK_SIZE;
-	
-	if (NULL != m_ppfx)
+
+	if (nullptr != m_ppfx)
 	{
 		(void) m_ppfx->OsPrint(os);
 	}
@@ -67,4 +57,3 @@ CPrintPrefix::OsPrint
 
 
 // EOF
-

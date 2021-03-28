@@ -10,10 +10,11 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLScalarNullIf.h"
-#include "naucrates/dxl/operators/CDXLNode.h"
-#include "naucrates/dxl/CDXLUtils.h"
-#include "naucrates/dxl/xml/CXMLSerializer.h"
+
 #include "gpopt/mdcache/CMDAccessor.h"
+#include "naucrates/dxl/CDXLUtils.h"
+#include "naucrates/dxl/operators/CDXLNode.h"
+#include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpos;
 using namespace gpdxl;
@@ -26,16 +27,9 @@ using namespace gpdxl;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CDXLScalarNullIf::CDXLScalarNullIf
-	(
-	CMemoryPool *mp,
-	IMDId *mdid_op,
-	IMDId *mdid_type
-	)
-	:
-	CDXLScalar(mp),
-	m_mdid_op(mdid_op),
-	m_mdid_type(mdid_type)
+CDXLScalarNullIf::CDXLScalarNullIf(CMemoryPool *mp, IMDId *mdid_op,
+								   IMDId *mdid_type)
+	: CDXLScalar(mp), m_mdid_op(mdid_op), m_mdid_type(mdid_type)
 {
 	GPOS_ASSERT(mdid_op->IsValid());
 	GPOS_ASSERT(mdid_type->IsValid());
@@ -108,7 +102,8 @@ CDXLScalarNullIf::MdidType() const
 const CWStringConst *
 CDXLScalarNullIf::GetOpNameStr() const
 {
-	return CDXLTokens::GetDXLTokenStr(EdxltokenScalarNullIf);;
+	return CDXLTokens::GetDXLTokenStr(EdxltokenScalarNullIf);
+	;
 }
 
 //---------------------------------------------------------------------------
@@ -120,13 +115,10 @@ CDXLScalarNullIf::GetOpNameStr() const
 //
 //---------------------------------------------------------------------------
 BOOL
-CDXLScalarNullIf::HasBoolResult
-	(
-	CMDAccessor *md_accessor
-	)
-	const
+CDXLScalarNullIf::HasBoolResult(CMDAccessor *md_accessor) const
 {
-	return (IMDType::EtiBool == md_accessor->RetrieveType(m_mdid_type)->GetDatumType());
+	return (IMDType::EtiBool ==
+			md_accessor->RetrieveType(m_mdid_type)->GetDatumType());
 }
 
 //---------------------------------------------------------------------------
@@ -138,22 +130,22 @@ CDXLScalarNullIf::HasBoolResult
 //
 //---------------------------------------------------------------------------
 void
-CDXLScalarNullIf::SerializeToDXL
-	(
-	CXMLSerializer *xml_serializer,
-	const CDXLNode *dxlnode
-	)
-	const
+CDXLScalarNullIf::SerializeToDXL(CXMLSerializer *xml_serializer,
+								 const CDXLNode *dxlnode) const
 {
 	const CWStringConst *element_name = GetOpNameStr();
 
-	xml_serializer->OpenElement(CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
+	xml_serializer->OpenElement(
+		CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
 
-	m_mdid_op->Serialize(xml_serializer, CDXLTokens::GetDXLTokenStr(EdxltokenOpNo));
-	m_mdid_type->Serialize(xml_serializer, CDXLTokens::GetDXLTokenStr(EdxltokenTypeId));
+	m_mdid_op->Serialize(xml_serializer,
+						 CDXLTokens::GetDXLTokenStr(EdxltokenOpNo));
+	m_mdid_type->Serialize(xml_serializer,
+						   CDXLTokens::GetDXLTokenStr(EdxltokenTypeId));
 
 	dxlnode->SerializeChildrenToDXL(xml_serializer);
-	xml_serializer->CloseElement(CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
+	xml_serializer->CloseElement(
+		CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
 }
 
 #ifdef GPOS_DEBUG
@@ -166,12 +158,8 @@ CDXLScalarNullIf::SerializeToDXL
 //
 //---------------------------------------------------------------------------
 void
-CDXLScalarNullIf::AssertValid
-	(
-	const CDXLNode *dxlnode,
-	BOOL validate_children
-	)
-	const
+CDXLScalarNullIf::AssertValid(const CDXLNode *dxlnode,
+							  BOOL validate_children) const
 {
 	const ULONG arity = dxlnode->Arity();
 	GPOS_ASSERT(2 == arity);
@@ -179,14 +167,16 @@ CDXLScalarNullIf::AssertValid
 	for (ULONG idx = 0; idx < arity; ++idx)
 	{
 		CDXLNode *child_dxlnode = (*dxlnode)[idx];
-		GPOS_ASSERT(EdxloptypeScalar == child_dxlnode->GetOperator()->GetDXLOperatorType());
+		GPOS_ASSERT(EdxloptypeScalar ==
+					child_dxlnode->GetOperator()->GetDXLOperatorType());
 
 		if (validate_children)
 		{
-			child_dxlnode->GetOperator()->AssertValid(child_dxlnode, validate_children);
+			child_dxlnode->GetOperator()->AssertValid(child_dxlnode,
+													  validate_children);
 		}
 	}
 }
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 // EOF

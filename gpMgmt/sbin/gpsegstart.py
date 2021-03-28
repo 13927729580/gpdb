@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Line too long - pylint: disable=C0301
 # Invalid name  - pylint: disable=C0103
 #
@@ -103,7 +103,7 @@ class OverallStatus:
         """
         Add results for all remaining items in our datadir->segment map.
         """
-        for datadir in self.dirmap.keys():
+        for datadir in list(self.dirmap.keys()):
             self.results.append( StartResult(datadir=datadir, started=True, reason="Start Succeeded", reasoncode=gp.SEGSTART_SUCCESS ) )
 
 
@@ -132,11 +132,11 @@ class GpSegStart:
 
     def __init__(self, dblist, gpversion, mirroringMode, num_cids, era,
                  timeout, pickledTransitionData, specialMode, wrapper, wrapper_args,
-                 master_checksum_version, parallel, logfileDirectory=False):
+                 coordinator_checksum_version, parallel, logfileDirectory=False):
 
         # validate/store arguments
         #
-        self.dblist                = map(gparray.Segment.initFromString, dblist)
+        self.dblist                = list(map(gparray.Segment.initFromString, dblist))
 
         expected_gpversion         = gpversion
         actual_gpversion           = gp.GpVersion.local('local GP software version check', os.path.abspath(os.pardir))
@@ -165,10 +165,10 @@ class GpSegStart:
         self.overall_status        = None
 
         self.logfileDirectory      = logfileDirectory
-        self.master_checksum_version = master_checksum_version
+        self.coordinator_checksum_version = coordinator_checksum_version
 
     def getOverallStatusKeys(self):
-        return self.overall_status.dirmap.keys()
+        return list(self.overall_status.dirmap.keys())
 
     # return True if all running
     # return False if not all running
@@ -202,7 +202,7 @@ class GpSegStart:
         """
         self.logger.info("Validating directories...")
 
-        for datadir in self.overall_status.dirmap.keys():
+        for datadir in list(self.overall_status.dirmap.keys()):
             self.logger.info("Validating directory: %s" % datadir)
 
             if os.path.isdir(datadir):
@@ -235,9 +235,9 @@ class GpSegStart:
         """
         self.logger.info("Starting segments... (mirroringMode %s)" % self.mirroringMode)
 
-        for datadir, seg in self.overall_status.dirmap.items():
+        for datadir, seg in list(self.overall_status.dirmap.items()):
 
-            if self.master_checksum_version != None:
+            if self.coordinator_checksum_version != None:
                 cmd = PgControlData(name='run pg_controldata', datadir=datadir)
                 cmd.run(validateAfter=True)
                 res = cmd.get_results()
@@ -249,9 +249,9 @@ class GpSegStart:
                     continue
 
                 segment_heap_checksum_version = cmd.get_value('Data page checksum version')
-                if segment_heap_checksum_version != self.master_checksum_version:
-                    msg = "Segment checksum %s does not match master checksum %s.\n" % (segment_heap_checksum_version,
-                                                                                        self.master_checksum_version)
+                if segment_heap_checksum_version != self.coordinator_checksum_version:
+                    msg = "Segment checksum %s does not match coordinator checksum %s.\n" % (segment_heap_checksum_version,
+                                                                                        self.coordinator_checksum_version)
                     reasoncode = gp.SEGSTART_ERROR_CHECKSUM_MISMATCH
                     self.overall_status.mark_failed(datadir, msg, reasoncode)
                     continue
@@ -344,7 +344,7 @@ class GpSegStart:
         parser.add_option("-p", "--pickledTransitionData", dest="pickledTransitionData", type="string")
         parser.add_option("-V", "--gp-version", dest="gpversion", metavar="GP_VERSION", help="expected software version")
         parser.add_option("-n", "--numsegments", dest="num_cids", help="number of distinct content ids in cluster")
-        parser.add_option("", "--era", dest="era", help="master era")
+        parser.add_option("", "--era", dest="era", help="coordinator era")
         parser.add_option("-t", "--timeout", dest="timeout", type="int", default=gp.SEGMENT_TIMEOUT_DEFAULT,
                           help="seconds to wait")
         parser.add_option('-U', '--specialMode', type='choice', choices=['upgrade', 'maintenance'],
@@ -352,7 +352,7 @@ class GpSegStart:
                            help='start the instance in upgrade or maintenance mode')
         parser.add_option('', '--wrapper', dest="wrapper", default=None, type='string')
         parser.add_option('', '--wrapper-args', dest="wrapper_args", default=None, type='string')
-        parser.add_option('', '--master-checksum-version', dest="master_checksum_version", default=None, type='string', action="store")
+        parser.add_option('', '--coordinator-checksum-version', dest="coordinator_checksum_version", default=None, type='string', action="store")
         parser.add_option('-B', '--parallel', type="int", dest="parallel", default=gp.DEFAULT_GPSTART_NUM_WORKERS, help='maximum size of a threadpool to start segments')
 
         return parser
@@ -374,7 +374,7 @@ class GpSegStart:
                           options.specialMode,
                           options.wrapper,
                           options.wrapper_args,
-                          options.master_checksum_version,
+                          options.coordinator_checksum_version,
                           options.parallel,
                           logfileDirectory=logfileDirectory)
 

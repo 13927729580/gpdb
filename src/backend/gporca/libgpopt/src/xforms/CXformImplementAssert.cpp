@@ -9,8 +9,9 @@
 //		Implementation of transform
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
 #include "gpopt/xforms/CXformImplementAssert.h"
+
+#include "gpos/base.h"
 
 #include "gpopt/operators/CLogicalAssert.h"
 #include "gpopt/operators/CPatternLeaf.h"
@@ -27,23 +28,17 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformImplementAssert::CXformImplementAssert
-	(
-	CMemoryPool *mp
-	)
-	:
-	// pattern
-	CXformImplementation
-		(
-		GPOS_NEW(mp) CExpression
-						(
-						mp, 
-						GPOS_NEW(mp) CLogicalAssert(mp),
-						GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp)), // relational child
-						GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))	// predicate
-						)
-		)
-{}
+CXformImplementAssert::CXformImplementAssert(CMemoryPool *mp)
+	:  // pattern
+	  CXformImplementation(GPOS_NEW(mp) CExpression(
+		  mp, GPOS_NEW(mp) CLogicalAssert(mp),
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CPatternLeaf(mp)),  // relational child
+		  GPOS_NEW(mp)
+			  CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))  // predicate
+		  ))
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -55,14 +50,10 @@ CXformImplementAssert::CXformImplementAssert
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformImplementAssert::Exfp
-	(
-	CExpressionHandle &exprhdl
-	)
-	const
+CXformImplementAssert::Exfp(CExpressionHandle &exprhdl) const
 {
-	if(exprhdl.DeriveHasSubquery(1))
-	{		
+	if (exprhdl.DeriveHasSubquery(1))
+	{
 		return CXform::ExfpNone;
 	}
 
@@ -79,15 +70,10 @@ CXformImplementAssert::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformImplementAssert::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformImplementAssert::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+								 CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
@@ -98,32 +84,22 @@ CXformImplementAssert::Transform
 	CExpression *pexprRelational = (*pexpr)[0];
 	CExpression *pexprScalar = (*pexpr)[1];
 	CException *pexc = popAssert->Pexc();
-	
+
 	// addref all children
 	pexprRelational->AddRef();
 	pexprScalar->AddRef();
-	
+
 	// assemble physical operator
-	CPhysicalAssert *popPhysicalAssert = 
-			GPOS_NEW(mp) CPhysicalAssert
-						(
-						mp, 
-						GPOS_NEW(mp) CException(pexc->Major(), pexc->Minor(), pexc->Filename(), pexc->Line())
-						);
-	
-	CExpression *pexprAssert = 
-		GPOS_NEW(mp) CExpression
-					(
-					mp, 
-					popPhysicalAssert,
-					pexprRelational,
-					pexprScalar
-					);
-	
+	CPhysicalAssert *popPhysicalAssert = GPOS_NEW(mp) CPhysicalAssert(
+		mp, GPOS_NEW(mp) CException(pexc->Major(), pexc->Minor(),
+									pexc->Filename(), pexc->Line()));
+
+	CExpression *pexprAssert = GPOS_NEW(mp)
+		CExpression(mp, popPhysicalAssert, pexprRelational, pexprScalar);
+
 	// add alternative to results
 	pxfres->Add(pexprAssert);
 }
-	
+
 
 // EOF
-

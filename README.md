@@ -21,12 +21,12 @@ no contribution is too small, we encourage all types of contributions.
 
 ## Overview
 
-A Greenplum cluster consists of a __master__ server, and multiple
-__segment__ servers. All user data resides in the segments, the master
-contains only metadata. The master server, and all the segments, share
+A Greenplum cluster consists of a __coordinator__ server, and multiple
+__segment__ servers. All user data resides in the segments, the coordinator
+contains only metadata. The coordinator server, and all the segments, share
 the same schema.
 
-Users always connect to the master server, which divides up the query
+Users always connect to the coordinator server, which divides up the query
 into fragments that are executed in the segments, and collects the results.
 
 More information can be found on the [project website](https://greenplum.org/).
@@ -41,7 +41,7 @@ automatically by default.
 Follow [these macOS steps](README.macOS.md) for getting your system ready for GPDB
 
 ### Installing dependencies (for Linux developers)
-Follow [appropriate linux steps](README.linux.md) for getting your system ready for GPDB
+Follow [appropriate linux steps](README.Linux.md) for getting your system ready for GPDB
 
 ### Build the database
 
@@ -146,11 +146,11 @@ See [how to enable Python3](src/pl/plpython/README.md) for details.
 
 ### Building GPDB client tools on Windows
 
-See [Building GPDB client tools on Windows](README.windows.md) for details.
+See [Building GPDB client tools on Windows](README.Windows.md) for details.
 
 ## Development with Docker
 
-See [README.docker.md](README.docker.md).
+See [README.Docker.md](README.Docker.md).
 
 We provide a docker image with all dependencies required to compile and test
 GPDB [(See Usage)](src/tools/docker/README.md). You can view the dependency dockerfile at `./src/tools/docker/centos6-admin/Dockerfile`.
@@ -225,7 +225,7 @@ throughout the codebase, but a few larger additions worth noting:
   unit-test GPORCA.
 * __src/backend/fts/__
 
-  FTS is a process that runs in the master node, and periodically
+  FTS is a process that runs in the coordinator node, and periodically
   polls the segments to maintain the status of each segment.
 
 ## Contributing

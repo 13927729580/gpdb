@@ -12,51 +12,46 @@
 #define GPOPT_CXformImplementation_H
 
 #include "gpos/base.h"
+
 #include "gpopt/xforms/CXform.h"
 
 namespace gpopt
 {
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementation
-	//
-	//	@doc:
-	//		base class for all implementations
-	//
-	//---------------------------------------------------------------------------
-	class CXformImplementation : public CXform
+using namespace gpos;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformImplementation
+//
+//	@doc:
+//		base class for all implementations
+//
+//---------------------------------------------------------------------------
+class CXformImplementation : public CXform
+{
+private:
+public:
+	CXformImplementation(const CXformImplementation &) = delete;
+
+	// ctor
+	explicit CXformImplementation(CExpression *);
+
+	// dtor
+	~CXformImplementation() override;
+
+	// type of operator
+	BOOL
+	FImplementation() const override
 	{
+		GPOS_ASSERT(!FSubstitution() && !FExploration());
+		return true;
+	}
 
-		private:
+};	// class CXformImplementation
 
-			// private copy ctor
-			CXformImplementation(const CXformImplementation &);
-
-		public:
-		
-			// ctor
-			explicit
-			CXformImplementation(CExpression *);
-
-			// dtor
-			virtual 
-			~CXformImplementation();
-
-			// type of operator
-			virtual
-			BOOL FImplementation() const
-			{
-				GPOS_ASSERT(!FSubstitution() && !FExploration());
-				return true;
-			}
-
-	}; // class CXformImplementation
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CXformImplementation_H
+#endif	// !GPOPT_CXformImplementation_H
 
 // EOF

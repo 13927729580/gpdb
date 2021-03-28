@@ -8,22 +8,21 @@
 //	@doc:
 //		Test for CIndexDescriptor
 //---------------------------------------------------------------------------
+#include "unittest/gpopt/metadata/CIndexDescriptorTest.h"
+
 #include "gpos/io/COstreamString.h"
 #include "gpos/string/CWStringDynamic.h"
 
-#include "gpopt/base/CUtils.h"
-#include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/base/CQueryContext.h"
+#include "gpopt/base/CUtils.h"
 #include "gpopt/eval/CConstExprEvaluatorDefault.h"
+#include "gpopt/metadata/CTableDescriptor.h"
+#include "naucrates/md/CMDIdGPDB.h"
+#include "naucrates/md/CMDProviderMemory.h"
+#include "naucrates/md/IMDIndex.h"
 
 #include "unittest/base.h"
 #include "unittest/gpopt/CTestUtils.h"
-#include "unittest/gpopt/metadata/CIndexDescriptorTest.h"
-#include "unittest/gpopt/CTestUtils.h"
-
-#include "naucrates/md/CMDIdGPDB.h"
-#include "naucrates/md/IMDIndex.h"
-#include "naucrates/md/CMDProviderMemory.h"
 
 
 //---------------------------------------------------------------------------
@@ -37,10 +36,8 @@
 GPOS_RESULT
 CIndexDescriptorTest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
-		GPOS_UNITTEST_FUNC(CIndexDescriptorTest::EresUnittest_Basic)
-		};
+	CUnittest rgut[] = {
+		GPOS_UNITTEST_FUNC(CIndexDescriptorTest::EresUnittest_Basic)};
 
 	return CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 }
@@ -65,26 +62,23 @@ CIndexDescriptorTest::EresUnittest_Basic()
 	CMDAccessor mda(mp, CMDCache::Pcache(), CTestUtils::m_sysidDefault, pmdp);
 
 	// install opt context in TLS
-	CAutoOptCtxt aoc
-					(
-					mp,
-					&mda,
-					NULL,  /* pceeval */
-					CTestUtils::GetCostModel(mp)
-					);
+	CAutoOptCtxt aoc(mp, &mda, nullptr, /* pceeval */
+					 CTestUtils::GetCostModel(mp));
 
 	CWStringConst strName(GPOS_WSZ_LIT("MyTable"));
 	CMDIdGPDB *mdid = GPOS_NEW(mp) CMDIdGPDB(GPOPT_MDCACHE_TEST_OID, 1, 1);
-	CTableDescriptor *ptabdesc = CTestUtils::PtabdescCreate(mp, 10, mdid, CName(&strName));
+	CTableDescriptor *ptabdesc =
+		CTestUtils::PtabdescCreate(mp, 10, mdid, CName(&strName));
 
 	// get the index associated with the table
 	const IMDRelation *pmdrel = mda.RetrieveRel(ptabdesc->MDId());
 	GPOS_ASSERT(0 < pmdrel->IndexCount());
 
 	// create an index descriptor
-	IMDId *pmdidIndex = pmdrel->IndexMDidAt(0); // get the first index
+	IMDId *pmdidIndex = pmdrel->IndexMDidAt(0);	 // get the first index
 	const IMDIndex *pmdindex = mda.RetrieveIndex(pmdidIndex);
-	CIndexDescriptor *pindexdesc  = CIndexDescriptor::Pindexdesc(mp, ptabdesc, pmdindex);
+	CIndexDescriptor *pindexdesc =
+		CIndexDescriptor::Pindexdesc(mp, ptabdesc, pmdindex);
 
 #ifdef GPOS_DEBUG
 	CWStringDynamic str(mp);
@@ -92,7 +86,7 @@ CIndexDescriptorTest::EresUnittest_Basic()
 	pindexdesc->OsPrint(oss);
 
 	GPOS_TRACE(str.GetBuffer());
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 	// clean up
 	ptabdesc->Release();

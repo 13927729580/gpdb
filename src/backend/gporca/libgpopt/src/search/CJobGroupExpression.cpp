@@ -9,10 +9,11 @@
 //		Implementation of group expression job superclass
 //---------------------------------------------------------------------------
 
-#include "gpopt/search/CGroupExpression.h"
-#include "gpopt/operators/CLogical.h"
-#include "gpopt/search/CJobFactory.h"
 #include "gpopt/search/CJobGroupExpression.h"
+
+#include "gpopt/operators/CLogical.h"
+#include "gpopt/search/CGroupExpression.h"
+#include "gpopt/search/CJobFactory.h"
 #include "gpopt/search/CJobGroupExpressionExploration.h"
 #include "gpopt/search/CJobGroupExpressionImplementation.h"
 #include "gpopt/search/CScheduler.h"
@@ -31,15 +32,12 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 void
-CJobGroupExpression::Init
-	(
-	CGroupExpression *pgexpr
-	)
+CJobGroupExpression::Init(CGroupExpression *pgexpr)
 {
 	GPOS_ASSERT(!FInit());
-	GPOS_ASSERT(NULL != pgexpr);
-	GPOS_ASSERT(NULL != pgexpr->Pgroup());
-	GPOS_ASSERT(NULL != pgexpr->Pop());
+	GPOS_ASSERT(nullptr != pgexpr);
+	GPOS_ASSERT(nullptr != pgexpr->Pgroup());
+	GPOS_ASSERT(nullptr != pgexpr->Pop());
 
 	m_fChildrenScheduled = false;
 	m_fXformsScheduled = false;
@@ -56,11 +54,8 @@ CJobGroupExpression::Init
 //
 //---------------------------------------------------------------------------
 void
-CJobGroupExpression::ScheduleTransformations
-	(
-	CSchedulerContext *psc,
-	CXformSet *xform_set
-	)
+CJobGroupExpression::ScheduleTransformations(CSchedulerContext *psc,
+											 CXformSet *xform_set)
 {
 	// iterate on xforms
 	CXformSetIter xsi(*(xform_set));
@@ -73,5 +68,3 @@ CJobGroupExpression::ScheduleTransformations
 
 
 // EOF
-
-

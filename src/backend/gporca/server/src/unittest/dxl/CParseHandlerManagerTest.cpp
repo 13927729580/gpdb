@@ -9,24 +9,24 @@
 //		Tests parsing DXL documents into DXL trees.
 //---------------------------------------------------------------------------
 
+#include "unittest/dxl/CParseHandlerManagerTest.h"
+
+#include <xercesc/sax2/XMLReaderFactory.hpp>
+
 #include "gpos/base.h"
 #include "gpos/io/COstreamString.h"
-#include "gpos/string/CWStringDynamic.h"
 #include "gpos/memory/CAutoMemoryPool.h"
+#include "gpos/string/CWStringDynamic.h"
 #include "gpos/task/CAutoTraceFlag.h"
 #include "gpos/test/CUnittest.h"
 
 #include "naucrates/dxl/operators/CDXLNode.h"
-#include "naucrates/dxl/parser/CParseHandlerHashJoin.h"
 #include "naucrates/dxl/operators/CDXLPhysicalTableScan.h"
-#include "naucrates/dxl/parser/CParseHandlerPlan.h"
 #include "naucrates/dxl/parser/CParseHandlerFactory.h"
+#include "naucrates/dxl/parser/CParseHandlerHashJoin.h"
 #include "naucrates/dxl/parser/CParseHandlerManager.h"
+#include "naucrates/dxl/parser/CParseHandlerPlan.h"
 #include "naucrates/dxl/xml/CDXLMemoryManager.h"
-
-#include <xercesc/sax2/XMLReaderFactory.hpp>
-
-#include "unittest/dxl/CParseHandlerManagerTest.h"
 
 using namespace gpos;
 using namespace gpdxl;
@@ -42,10 +42,8 @@ using namespace gpdxl;
 GPOS_RESULT
 CParseHandlerManagerTest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
-		GPOS_UNITTEST_FUNC(CParseHandlerManagerTest::EresUnittest_Basic)
-		};
+	CUnittest rgut[] = {
+		GPOS_UNITTEST_FUNC(CParseHandlerManagerTest::EresUnittest_Basic)};
 
 	return CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 }
@@ -64,22 +62,23 @@ CParseHandlerManagerTest::EresUnittest_Basic()
 	// create memory pool
 	CAutoMemoryPool amp(CAutoMemoryPool::ElcNone);
 	CMemoryPool *mp = amp.Pmp();
-		
+
 	// create XML reader and a parse handler manager for it
 	CDXLMemoryManager *dxl_memory_manager = GPOS_NEW(mp) CDXLMemoryManager(mp);
 
-	SAX2XMLReader* parser = NULL;
-	{
-		CAutoTraceFlag atf(EtraceSimulateOOM, false);
-		parser = XMLReaderFactory::createXMLReader(dxl_memory_manager);
-	}
+	SAX2XMLReader *parser;
 
-	CParseHandlerManager *parse_handler_mgr = GPOS_NEW(mp) CParseHandlerManager(dxl_memory_manager, parser);
-	
+	parser = XMLReaderFactory::createXMLReader(dxl_memory_manager);
+
+	CParseHandlerManager *parse_handler_mgr =
+		GPOS_NEW(mp) CParseHandlerManager(dxl_memory_manager, parser);
+
 	// create some parse handlers
-	CParseHandlerPlan *pphPlan = GPOS_NEW(mp) CParseHandlerPlan(mp, parse_handler_mgr, NULL);
-	CParseHandlerHashJoin *pphHJ = GPOS_NEW(mp) CParseHandlerHashJoin(mp, parse_handler_mgr, pphPlan);
-	
+	CParseHandlerPlan *pphPlan =
+		GPOS_NEW(mp) CParseHandlerPlan(mp, parse_handler_mgr, nullptr);
+	CParseHandlerHashJoin *pphHJ =
+		GPOS_NEW(mp) CParseHandlerHashJoin(mp, parse_handler_mgr, pphPlan);
+
 	parse_handler_mgr->ActivateParseHandler(pphPlan);
 	GPOS_ASSERT(pphPlan == parse_handler_mgr->GetCurrentParseHandler());
 	GPOS_ASSERT(pphPlan == parser->getContentHandler());
@@ -92,11 +91,11 @@ CParseHandlerManagerTest::EresUnittest_Basic()
 	parse_handler_mgr->DeactivateHandler();
 	GPOS_ASSERT(pphPlan == parse_handler_mgr->GetCurrentParseHandler());
 	GPOS_ASSERT(pphPlan == parser->getContentHandler());
-	
+
 	parse_handler_mgr->DeactivateHandler();
 	// no more parse handlers
-	GPOS_ASSERT(NULL == parse_handler_mgr->GetCurrentParseHandler());
-	GPOS_ASSERT(NULL == parser->getContentHandler());
+	GPOS_ASSERT(nullptr == parse_handler_mgr->GetCurrentParseHandler());
+	GPOS_ASSERT(nullptr == parser->getContentHandler());
 
 	// cleanup
 	GPOS_DELETE(parse_handler_mgr);
@@ -107,8 +106,6 @@ CParseHandlerManagerTest::EresUnittest_Basic()
 
 	return GPOS_OK;
 }
-
-
 
 
 

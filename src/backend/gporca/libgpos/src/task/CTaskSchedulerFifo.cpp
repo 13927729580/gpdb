@@ -23,10 +23,7 @@ using namespace gpos;
 //
 //---------------------------------------------------------------------------
 void
-CTaskSchedulerFifo::Enqueue
-	(
-	CTask *task
-	)
+CTaskSchedulerFifo::Enqueue(CTask *task)
 {
 	m_task_queue.Append(task);
 	task->SetStatus(CTask::EtsQueued);
@@ -61,14 +58,11 @@ CTaskSchedulerFifo::Dequeue()
 //
 //---------------------------------------------------------------------------
 GPOS_RESULT
-CTaskSchedulerFifo::Cancel
-	(
-	 CTask *task
-	)
+CTaskSchedulerFifo::Cancel(CTask *task)
 {
 	// iterate until found
 	CTask *task_it = m_task_queue.First();
-	while (NULL != task_it)
+	while (nullptr != task_it)
 	{
 		if (task_it == task)
 		{
@@ -85,7 +79,4 @@ CTaskSchedulerFifo::Cancel
 
 
 
-
-
 // EOF
-

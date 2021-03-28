@@ -3,7 +3,7 @@
  * xlogdesc.c
  *	  rmgr descriptor routines for access/transam/xlog.c
  *
- * Portions Copyright (c) 1996-2016, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1996-2019, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
  *
@@ -14,13 +14,14 @@
  */
 #include "postgres.h"
 
+#include "access/transam.h"
 #include "access/xlog.h"
 #include "access/xlog_internal.h"
 #include "catalog/pg_control.h"
 #include "utils/guc.h"
 #include "utils/timestamp.h"
 
-#include "access/twophase.h"
+#include "access/twophase_xlog.h"
 #include "cdb/cdbpublic.h"
 
 /*
@@ -29,7 +30,7 @@
 const struct config_enum_entry wal_level_options[] = {
 	{"minimal", WAL_LEVEL_MINIMAL, false},
 	{"replica", WAL_LEVEL_REPLICA, false},
-	{"archive", WAL_LEVEL_REPLICA, true},		/* deprecated */
+	{"archive", WAL_LEVEL_REPLICA, true},	/* deprecated */
 	{"hot_standby", WAL_LEVEL_REPLICA, true},	/* deprecated */
 	{"logical", WAL_LEVEL_LOGICAL, false},
 	{NULL, 0, false}
@@ -82,15 +83,17 @@ xlog_desc(StringInfo buf, XLogReaderState *record)
 		CheckpointExtendedRecord ckptExtended;
 
 		appendStringInfo(buf, "redo %X/%X; "
-						 "tli %u; prev tli %u; fpw %s; xid %u:%u; oid %u; relfilenode %u; multi %u; offset %u; "
+						 "tli %u; prev tli %u; fpw %s; xid %u:%u; gxid "UINT64_FORMAT"; oid %u; relfilenode %u; multi %u; offset %u; "
 						 "oldest xid %u in DB %u; oldest multi %u in DB %u; "
 						 "oldest/newest commit timestamp xid: %u/%u; "
 						 "oldest running xid %u; %s",
-				(uint32) (checkpoint->redo >> 32), (uint32) checkpoint->redo,
+						 (uint32) (checkpoint->redo >> 32), (uint32) checkpoint->redo,
 						 checkpoint->ThisTimeLineID,
 						 checkpoint->PrevTimeLineID,
 						 checkpoint->fullPageWrites ? "true" : "false",
-						 checkpoint->nextXidEpoch, checkpoint->nextXid,
+						 EpochFromFullTransactionId(checkpoint->nextFullXid),
+						 XidFromFullTransactionId(checkpoint->nextFullXid),
+						 checkpoint->nextGxid,
 						 checkpoint->nextOid,
 						 checkpoint->nextRelfilenode,
 						 checkpoint->nextMulti,
@@ -102,7 +105,7 @@ xlog_desc(StringInfo buf, XLogReaderState *record)
 						 checkpoint->oldestCommitTsXid,
 						 checkpoint->newestCommitTsXid,
 						 checkpoint->oldestActiveXid,
-				 (info == XLOG_CHECKPOINT_SHUTDOWN) ? "shutdown" : "online");
+						 (info == XLOG_CHECKPOINT_SHUTDOWN) ? "shutdown" : "online");
 
 		UnpackCheckPointRecord(record, &ckptExtended);
 
@@ -121,6 +124,13 @@ xlog_desc(StringInfo buf, XLogReaderState *record)
 
 		memcpy(&nextOid, rec, sizeof(Oid));
 		appendStringInfo(buf, "%u", nextOid);
+	}
+	else if (info == XLOG_NEXTGXID)
+	{
+		DistributedTransactionId nextGxid;
+
+		nextGxid = *((DistributedTransactionId *) rec);
+		appendStringInfo(buf, UINT64_FORMAT, nextGxid);
 	}
 	else if (info == XLOG_NEXTRELFILENODE)
 	{
@@ -167,11 +177,12 @@ xlog_desc(StringInfo buf, XLogReaderState *record)
 		}
 
 		appendStringInfo(buf, "max_connections=%d max_worker_processes=%d "
-						 "max_prepared_xacts=%d max_locks_per_xact=%d "
-						 "wal_level=%s wal_log_hints=%s "
-						 "track_commit_timestamp=%s",
+						 "max_wal_senders=%d max_prepared_xacts=%d "
+						 "max_locks_per_xact=%d wal_level=%s "
+						 "wal_log_hints=%s track_commit_timestamp=%s",
 						 xlrec.MaxConnections,
 						 xlrec.max_worker_processes,
+						 xlrec.max_wal_senders,
 						 xlrec.max_prepared_xacts,
 						 xlrec.max_locks_per_xact,
 						 wal_level_str,
@@ -214,6 +225,9 @@ xlog_identify(uint8 info)
 			break;
 		case XLOG_NEXTOID:
 			id = "NEXTOID";
+			break;
+		case XLOG_NEXTGXID:
+			id = "NEXTGXID";
 			break;
 		case XLOG_NEXTRELFILENODE:
 			id = "NEXTRELFILENODE";

@@ -9,15 +9,18 @@
 //		Implementation of operator base class
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/COperator.h"
+
 #include "gpos/base.h"
 
 #include "gpopt/base/CDrvdPropRelational.h"
 #include "gpopt/base/CReqdPropRelational.h"
 #include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CExpressionHandle.h"
-#include "gpopt/operators/COperator.h"
 
 using namespace gpopt;
+
+FORCE_GENERATE_DBGSTR(COperator);
 
 // generate unique operator ids
 ULONG COperator::m_aulOpIdCounter(0);
@@ -30,16 +33,10 @@ ULONG COperator::m_aulOpIdCounter(0);
 //		ctor
 //
 //---------------------------------------------------------------------------
-COperator::COperator
-	(
-	CMemoryPool *mp
-	)
-	:
-	m_ulOpId(m_aulOpIdCounter++),
-	m_mp(mp),
-	m_fPattern(false)
+COperator::COperator(CMemoryPool *mp)
+	: m_ulOpId(m_aulOpIdCounter++), m_mp(mp), m_fPattern(false)
 {
-	GPOS_ASSERT(NULL != mp);
+	GPOS_ASSERT(nullptr != mp);
 }
 
 
@@ -55,7 +52,7 @@ ULONG
 COperator::HashValue() const
 {
 	ULONG ulEopid = (ULONG) Eopid();
-	
+
 	return gpos::HashValue<ULONG>(&ulEopid);
 }
 
@@ -69,11 +66,7 @@ COperator::HashValue() const
 //
 //---------------------------------------------------------------------------
 IOstream &
-COperator::OsPrint
-	(
-	IOstream &os
-	) 
-	const
+COperator::OsPrint(IOstream &os) const
 {
 	os << this->SzId();
 	return os;
@@ -88,11 +81,8 @@ COperator::OsPrint
 //
 //---------------------------------------------------------------------------
 IMDFunction::EFuncDataAcc
-COperator::EfdaDeriveFromChildren
-	(
-	CExpressionHandle &exprhdl,
-	IMDFunction::EFuncDataAcc efdaDefault
-	)
+COperator::EfdaDeriveFromChildren(CExpressionHandle &exprhdl,
+								  IMDFunction::EFuncDataAcc efdaDefault)
 {
 	IMDFunction::EFuncDataAcc efda = efdaDefault;
 
@@ -118,11 +108,8 @@ COperator::EfdaDeriveFromChildren
 //
 //---------------------------------------------------------------------------
 IMDFunction::EFuncStbl
-COperator::EfsDeriveFromChildren
-	(
-	CExpressionHandle &exprhdl,
-	IMDFunction::EFuncStbl efsDefault
-	)
+COperator::EfsDeriveFromChildren(CExpressionHandle &exprhdl,
+								 IMDFunction::EFuncStbl efsDefault)
 {
 	IMDFunction::EFuncStbl efs = efsDefault;
 
@@ -148,26 +135,19 @@ COperator::EfsDeriveFromChildren
 //
 //---------------------------------------------------------------------------
 CFunctionProp *
-COperator::PfpDeriveFromChildren
-	(
-	CMemoryPool *mp,
-	CExpressionHandle &exprhdl,
-	IMDFunction::EFuncStbl efsDefault,
-	IMDFunction::EFuncDataAcc efdaDefault,
-	BOOL fHasVolatileFunctionScan,
-	BOOL fScan
-	)
+COperator::PfpDeriveFromChildren(CMemoryPool *mp, CExpressionHandle &exprhdl,
+								 IMDFunction::EFuncStbl efsDefault,
+								 IMDFunction::EFuncDataAcc efdaDefault,
+								 BOOL fHasVolatileFunctionScan, BOOL fScan)
 {
 	IMDFunction::EFuncStbl efs = EfsDeriveFromChildren(exprhdl, efsDefault);
-	IMDFunction::EFuncDataAcc efda = EfdaDeriveFromChildren(exprhdl, efdaDefault);
+	IMDFunction::EFuncDataAcc efda =
+		EfdaDeriveFromChildren(exprhdl, efdaDefault);
 
-	return GPOS_NEW(mp) CFunctionProp
-						(
-						efs,
-						efda,
-						fHasVolatileFunctionScan || exprhdl.FChildrenHaveVolatileFuncScan(),
-						fScan
-						);
+	return GPOS_NEW(mp) CFunctionProp(
+		efs, efda,
+		fHasVolatileFunctionScan || exprhdl.FChildrenHaveVolatileFuncScan(),
+		fScan);
 }
 
 //---------------------------------------------------------------------------
@@ -186,4 +166,3 @@ COperator::PopCopyDefault()
 }
 
 // EOF
-

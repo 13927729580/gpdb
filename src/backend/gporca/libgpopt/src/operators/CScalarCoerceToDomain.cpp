@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CScalarCoerceToDomain.cpp
@@ -9,8 +9,9 @@
 //		Implementation of scalar CoerceToDomain operators
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
 #include "gpopt/operators/CScalarCoerceToDomain.h"
+
+#include "gpos/base.h"
 
 using namespace gpopt;
 using namespace gpmd;
@@ -24,17 +25,11 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CScalarCoerceToDomain::CScalarCoerceToDomain
-	(
-	CMemoryPool *mp,
-	IMDId *mdid_type,
-	INT type_modifier,
-	ECoercionForm ecf,
-	INT location
-	)
-	:
-	CScalarCoerceBase(mp, mdid_type, type_modifier, ecf, location),
-	m_returns_null_on_null_input(false)
+CScalarCoerceToDomain::CScalarCoerceToDomain(CMemoryPool *mp, IMDId *mdid_type,
+											 INT type_modifier,
+											 ECoercionForm ecf, INT location)
+	: CScalarCoerceBase(mp, mdid_type, type_modifier, ecf, location),
+	  m_returns_null_on_null_input(false)
 {
 }
 
@@ -48,20 +43,16 @@ CScalarCoerceToDomain::CScalarCoerceToDomain
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarCoerceToDomain::Matches
-	(
-	COperator *pop
-	)
-	const
+CScalarCoerceToDomain::Matches(COperator *pop) const
 {
 	if (pop->Eopid() == Eopid())
 	{
-		CScalarCoerceToDomain *popCoerce = CScalarCoerceToDomain::PopConvert(pop);
+		CScalarCoerceToDomain *popCoerce =
+			CScalarCoerceToDomain::PopConvert(pop);
 
 		return popCoerce->MdidType()->Equals(MdidType()) &&
-				popCoerce->TypeModifier() == TypeModifier() &&
-				popCoerce->Ecf() == Ecf() &&
-				popCoerce->Location() == Location();
+			   popCoerce->TypeModifier() == TypeModifier() &&
+			   popCoerce->Ecf() == Ecf() && popCoerce->Location() == Location();
 	}
 
 	return false;
@@ -77,11 +68,7 @@ CScalarCoerceToDomain::Matches
 //
 //---------------------------------------------------------------------------
 CScalar::EBoolEvalResult
-CScalarCoerceToDomain::Eber
-	(
-	ULongPtrArray *pdrgpulChildren
-	)
-	const
+CScalarCoerceToDomain::Eber(ULongPtrArray *pdrgpulChildren) const
 {
 	if (m_returns_null_on_null_input)
 	{
@@ -93,4 +80,3 @@ CScalarCoerceToDomain::Eber
 
 
 // EOF
-

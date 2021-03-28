@@ -8,8 +8,9 @@
       enabled).</p>
     <section id="section2">
       <title>Synopsis</title>
-      <codeblock><b>gprecoverseg</b> [<b>-p</b> <varname>new_recover_host</varname>[,...]] | <b>-i</b> <varname>recover_config_file</varname>] [<b>-d</b> <varname>master_data_directory</varname>] 
+      <codeblock><b>gprecoverseg</b> [[<b>-p</b> <varname>new_recover_host</varname>[,...]] | <b>-i</b> <varname>recover_config_file</varname>] [<b>-d</b> <varname>coordinator_data_directory</varname>] 
              [<b>-B</b> <varname>parallel_processes</varname>] [<b>-F</b> [<b>-s</b>]] [<b>-a</b>] [<b>-q</b>] 
+	      [<b>--hba-hostnames</b> <varname>boolean</varname>] 
              [<b>--no-progress</b>] [<b>-l</b> <varname>logfile_directory</varname>]
 
 <b>gprecoverseg</b> <b>-r</b> 
@@ -26,8 +27,8 @@
       <p>In a system with mirrors enabled, the <codeph>gprecoverseg</codeph> utility reactivates a
         failed segment instance and identifies the changed database files that require
         resynchronization. Once <codeph>gprecoverseg</codeph> completes this process, the system
-        goes into <i>resyncronizing</i> mode until the recovered segment is brought up to date. The
-        system is online and fully operational during resyncronization.</p>
+        goes into <i>resynchronizing</i> mode until the recovered segment is brought up to date. The
+        system is online and fully operational during resynchronization.</p>
       <p>During an incremental recovery (the <codeph>-F</codeph> option is not specified), if
           <codeph>gprecoverseg</codeph> detects a segment instance with mirroring disabled in a
         system with mirrors enabled, the utility reports that mirroring is disabled for the segment,
@@ -39,7 +40,7 @@
         first correct the problem that made it fail in the first place, and then recover the segment
         instance in Greenplum Database using <codeph>gprecoverseg</codeph>.</p>
       <note otherprops="pivotal"> If incremental recovery was not successful and the down segment
-        instance data is not corrupted, contact Pivotal Support. </note>
+        instance data is not corrupted, contact VMware Support. </note>
       <p>Segment recovery using <codeph>gprecoverseg</codeph> requires that you have an active
         mirror to recover from. For systems that do not have mirroring enabled, or in the event of a
         double fault (a primary and mirror pair both down at the same time) — you must take manual
@@ -74,10 +75,9 @@
         location must exist on all currently configured segment hosts and have enough disk space to
         accommodate the failed segments.</p>
       <p>The recovery process marks the segment as up again in the Greenplum Database system
-        catalog, and then initiates the resyncronization process to bring the transactional state of
-        the segment up-to-date with the latest changes. The system is online and available during
-        resyncronization. To check the status of the resyncronization process run:</p>
-      <codeblock>gpstate -m</codeblock>
+        catalog, and then initiates the resynchronization process to bring the transactional state
+        of the segment up-to-date with the latest changes. The system is online and available during
+        resynchronization. </p>
     </section>
     <section id="section4">
       <title>Options</title>
@@ -93,9 +93,9 @@
             recover.</pd>
         </plentry>
         <plentry>
-          <pt>-d <varname>master_data_directory</varname></pt>
-          <pd>Optional. The master host data directory. If not specified, the value set for
-              <codeph>$MASTER_DATA_DIRECTORY</codeph> will be used.</pd>
+          <pt>-d <varname>coordinator_data_directory</varname></pt>
+          <pd>Optional. The coordinator host data directory. If not specified, the value set for
+              <codeph>$COORDINATOR_DATA_DIRECTORY</codeph> will be used.</pd>
         </plentry>
         <plentry>
           <pt>-F (full recovery)</pt>
@@ -124,6 +124,18 @@
             option on the command line to omit the ANSI escape codes. This outputs a new line once
             per second for each segment. Include the <codeph>--no-progress</codeph> option to
             completely disable the progress reports.</pd>
+        </plentry>
+        <plentry>
+          <pt>--hba-hostnames <varname>boolean</varname></pt>
+          <pd>Optional. Controls whether this utility uses IP addresses or host names in the
+              <codeph>pg_hba.conf</codeph> file when updating this file with addresses that can
+            connect to Greenplum Database. When set to 0 -- the default value -- this utility uses
+            IP addresses when updating this file. When set to 1, this utility uses host names when
+            updating this file. For consistency, use the same value that was specified for
+              <codeph>HBA_HOSTNAMES</codeph> when the Greenplum Database system was initialized. For
+            information about how Greenplum Database resolves host names in the
+              <codeph>pg_hba.conf</codeph> file, see <xref href="../../admin_guide/client_auth.xml"
+            />.</pd>
         </plentry>
         <plentry>
           <pt>-i <varname>recover_config_file</varname></pt>
@@ -161,7 +173,9 @@ newPort|newDataDirectory</codeblock>
             output file lists the currently invalid segments and their default recovery location in
             the format that is required by the <codeph>-i</codeph> option. Use together with the
               <codeph>-p</codeph> option to output a sample file for recovering on a different host.
-            This file can be edited to supply alternate recovery locations if needed.</pd>
+            This file can be edited to supply alternate recovery locations if needed. The following
+            example outputs the default recovery configuration file:
+            <codeblock>$ gprecoverseg -o /home/gpadmin/recover_config_file</codeblock></pd>
         </plentry>
         <plentry>
           <pt>-p <varname>new_recover_host</varname>[,...]</pt>
@@ -213,18 +227,19 @@ newPort|newDataDirectory</codeblock>
         </plentry>
       </parml>
     </section>
-    <section id="section5">
-      <title>Examples</title>
+    <section id="section5"><title>Examples</title>
+      <p><b>Example 1: Recover Failed Segments in Place</b></p>
       <p>Recover any failed segment instances in place:</p>
       <codeblock>$ gprecoverseg</codeblock>
-      <p>Rebalance your Greenplum Database system after a recovery by resetting all segments to
-        their preferred role. First check that all segments are up and synchronized.</p>
-      <codeblock>$ gpstate -m
-$ gprecoverseg -r</codeblock>
+      <p><b>Example 2: Rebalance Failed Segments If Not in Preferred Roles</b></p>
+      <p>First, verify that all segments are up and running,
+        reysynchronization has completed, and there are segments <b>not</b> in preferred
+        roles:</p>
+      <codeblock>$ gpstate -e</codeblock>
+      <p>Then, if necessary, rebalance the segments:</p><codeblock>$ gprecoverseg -r</codeblock>
+      <p><b>Example 3: Recover Failed Segments to a Separate Host</b></p>
       <p>Recover any failed segment instances to a newly configured spare segment host:</p>
-      <codeblock>$ gprecoverseg -i <varname>recover_config_file</varname></codeblock>
-      <p>Output the default recovery configuration file:</p>
-      <codeblock>$ gprecoverseg -o /home/gpadmin/recover_config_file</codeblock>
+        <codeblock>$ gprecoverseg -i <varname>recover_config_file</varname></codeblock>
     </section>
     <section id="section6">
       <title>See Also</title>

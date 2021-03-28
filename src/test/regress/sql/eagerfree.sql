@@ -4,14 +4,17 @@ set search_path=eagerfree;
 create table smallt (i int, t text, d date) distributed by (i);
 insert into smallt select i%10, 'text ' || (i%15), '2011-01-01'::date + ((i%20) || ' days')::interval
 from generate_series(0, 99) i;
+analyze smallt;
 
 create table bigt (i int, t text, d date) distributed by (i);
 insert into bigt select i/10, 'text ' || (i/15), '2011-01-01'::date + ((i/20) || ' days')::interval
 from generate_series(0, 999999) i;
+analyze bigt;
 
 create table smallt2 (i int, t text, d date) distributed by (i);
 insert into smallt2 select i%5, 'text ' || (i%10), '2011-01-01'::date + ((i%15) || ' days')::interval
 from generate_series(0, 49) i;
+analyze smallt2;
 
 set optimizer_segments = 3;
 set gp_motion_cost_per_row = 0.1;
@@ -160,9 +163,9 @@ and i = 0 order by 1,2,3; --order 1,2,3
 create table eager_free_r (r1 int, r2 int, r3 int);
 create table eager_free_s (s1 int, s2 int, s3 int);
 create table eager_free_t (t1 int, t2 int, t3 int);
-insert into eager_free_r select generate_series(1, 20), generate_series(1, 5), generate_series(1, 8);
-insert into eager_free_s select generate_series(1, 20), generate_series(6, 10), generate_series(1, 4);
-insert into eager_free_t select generate_series(1, 30), generate_series(1, 6), generate_series(1, 5);
+insert into eager_free_r select 1 + g % 20, 1 + g % 5, 1 + g % 8 from generate_series(0, 39) g;
+insert into eager_free_s select 1 + g % 20, 6 + g % 5, 1 + g % 4 from generate_series(0, 19) g;
+insert into eager_free_t select 1 + g % 30, 1 + g % 6, 1 + g % 5 from generate_series(0, 29) g;
 
 select * from eager_free_t where t1 > (select min(r1) from eager_free_r where r2<t2 and r3 > (Select min(s3) from eager_free_s where s1<r1));
 reset optimizer_segments;

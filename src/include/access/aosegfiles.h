@@ -5,7 +5,7 @@
  *	  list relation.
  *
  * Portions Copyright (c) 2008, Greenplum Inc.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -19,7 +19,6 @@
 #include "catalog/pg_appendonly.h"
 #include "utils/rel.h"
 #include "utils/snapshot.h"
-#include "utils/visibility_summary.h"
 
 #define Natts_pg_aoseg					8
 #define Anum_pg_aoseg_segno				1
@@ -66,8 +65,6 @@ typedef enum FileSegInfoState
  */
 typedef struct FileSegInfo
 {
-	TupleVisibilitySummary tupleVisibilitySummary;
-
 	/* the file segment number */
 	int			segno;
 
@@ -151,8 +148,6 @@ extern void ClearFileSegInfo(Relation parentrel, int segno);
 extern void MarkFileSegInfoAwaitingDrop(Relation parentrel, int segno);
 extern void IncrementFileSegInfoModCount(Relation parentrel, int segno);
 extern FileSegTotals *GetSegFilesTotals(Relation parentrel, Snapshot appendOnlyMetaDataSnapshot);
-
-extern int64 GetAOTotalBytes(Relation parentrel, Snapshot appendOnlyMetaDataSnapshot);
 
 extern void FreeAllSegFileInfo(FileSegInfo **allSegInfo,
 				   int totalSegFiles);

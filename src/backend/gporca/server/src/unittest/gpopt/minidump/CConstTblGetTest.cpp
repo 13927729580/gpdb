@@ -1,9 +1,10 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2018 Pivotal, Inc.
+//	Copyright (C) 2018 VMware, Inc. or its affiliates.
 //---------------------------------------------------------------------------
 
 #include "unittest/gpopt/minidump/CConstTblGetTest.h"
+
 #include "gpos/base.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/task/CAutoTraceFlag.h"
@@ -20,8 +21,7 @@ using namespace gpopt;
 ULONG CConstTblGetTest::m_ulTestCounter = 0;  // start from first test
 
 // minidump files
-const CHAR *rgszCTGMdpFiles[] =
-{
+const CHAR *rgszCTGMdpFiles[] = {
 	"../data/dxl/minidump/ConstTblGetUnderSubqWithOuterRef.mdp",
 	"../data/dxl/minidump/ConstTblGetUnderSubqWithNoOuterRef.mdp",
 	"../data/dxl/minidump/ConstTblGetUnderSubqUnderProjectNoOuterRef.mdp",
@@ -37,10 +37,9 @@ const CHAR *rgszCTGMdpFiles[] =
 GPOS_RESULT
 CConstTblGetTest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
+	CUnittest rgut[] = {
 		GPOS_UNITTEST_FUNC(EresUnittest_RunTests),
-		};
+	};
 
 	GPOS_RESULT eres = CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 
@@ -54,12 +53,8 @@ CConstTblGetTest::EresUnittest()
 GPOS_RESULT
 CConstTblGetTest::EresUnittest_RunTests()
 {
-	return CTestUtils::EresUnittest_RunTests
-						(
-						rgszCTGMdpFiles,
-						&m_ulTestCounter,
-						GPOS_ARRAY_SIZE(rgszCTGMdpFiles)
-						);
+	return CTestUtils::EresUnittest_RunTests(rgszCTGMdpFiles, &m_ulTestCounter,
+											 GPOS_ARRAY_SIZE(rgszCTGMdpFiles));
 }
 
 // EOF

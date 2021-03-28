@@ -9,8 +9,9 @@
 //		Implementation of transform
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
 #include "gpopt/xforms/CXformLeftSemiApply2LeftSemiJoin.h"
+
+#include "gpos/base.h"
 
 
 using namespace gpopt;
@@ -26,15 +27,12 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformLeftSemiApply2LeftSemiJoin::Exfp
-	(
-	CExpressionHandle &exprhdl
-	)
-	const
+CXformLeftSemiApply2LeftSemiJoin::Exfp(CExpressionHandle &exprhdl) const
 {
 	// if there are outer refs that include columns from the immediate outer child, the
 	// transformation is applicable
-	if (exprhdl.HasOuterRefs(1 /*child_index*/) && !CUtils::FInnerUsesExternalColsOnly(exprhdl))
+	if (exprhdl.HasOuterRefs(1 /*child_index*/) &&
+		!CUtils::FInnerUsesExternalColsOnly(exprhdl))
 	{
 		return CXform::ExfpHigh;
 	}
@@ -52,15 +50,11 @@ CXformLeftSemiApply2LeftSemiJoin::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformLeftSemiApply2LeftSemiJoin::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformLeftSemiApply2LeftSemiJoin::Transform(CXformContext *pxfctxt,
+											CXformResult *pxfres,
+											CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
@@ -69,4 +63,3 @@ CXformLeftSemiApply2LeftSemiJoin::Transform
 
 
 // EOF
-

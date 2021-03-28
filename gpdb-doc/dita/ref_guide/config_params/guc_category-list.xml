@@ -313,15 +313,24 @@
             <p>
               <xref href="guc-list.xml#optimizer_array_expansion_threshold" type="section"
                 >optimizer_array_expansion_threshold</xref></p>
+            <p><xref href="guc-list.xml#optimizer_control" type="section">optimizer_control</xref>
+            </p>
+            <p><xref href="guc-list.xml#optimizer_cost_model" type="section"
+                >optimizer_cost_model</xref>
+            </p>
             <p><xref href="guc-list.xml#optimizer_cte_inlining_bound" type="section"
                 >optimizer_cte_inlining_bound</xref>
             </p>
-            <p><xref href="guc-list.xml#optimizer_control" type="section">optimizer_control</xref>
+            <p><xref href="guc-list.xml#optimizer_dpe_stats" type="section"
+                >optimizer_dpe_stats</xref>
             </p>
             <p><xref href="guc-list.xml#optimizer_enable_associativity" type="section"
                 >optimizer_enable_associativity</xref></p>
             <p><xref href="guc-list.xml#optimizer_enable_dml" type="section"
                 >optimizer_enable_dml</xref>
+            </p>
+            <p><xref href="guc-list.xml#optimizer_enable_indexonlyscan" type="section"
+                >optimizer_enable_indexonlyscan</xref>
             </p>
             <p><xref href="guc-list.xml#optimizer_enable_master_only_queries" type="section"
                 >optimizer_enable_master_only_queries</xref></p>
@@ -330,10 +339,10 @@
             <p><xref href="guc-list.xml#optimizer_force_multistage_agg" type="section"
                 >optimizer_force_multistage_agg</xref>
             </p>
-            <p><xref href="guc-list.xml#optimizer_force_three_stage_scalar_dqa" type="section"
-                >optimizer_force_three_stage_scalar_dqa</xref></p>
           </stentry>
           <stentry>
+            <p><xref href="guc-list.xml#optimizer_force_three_stage_scalar_dqa" type="section"
+                >optimizer_force_three_stage_scalar_dqa</xref></p>
             <p><xref href="guc-list.xml#optimizer_join_arity_for_associativity_commutativity"
                 type="section">optimizer_join_arity_for_associativity_commutativity</xref></p>
             <p><xref href="guc-list.xml#optimizer_join_order" format="dita" type="section"
@@ -820,7 +829,7 @@
     <body>
       <p>These parameters enable and configure query metrics collection. When enabled, Greenplum
         Database saves metrics to shared memory during query execution. These metrics are used by
-        Pivotal Greenplum Command Center, which is included with Pivotal's commercial version of
+        Tanzu Greenplum Command Center, which is included with VMware's commercial version of
         Greenplum Database.</p>
       <simpletable id="query-metrics" frame="none">
         <strow>
@@ -1201,6 +1210,8 @@
             </p>
           </stentry>
           <stentry>
+            <p><xref href="guc-list.xml#gpfdist_retry_timeout" type="section"
+                >gpfdist_retry_timeout</xref></p>
             <p>
               <xref href="guc-list.xml#readable_external_table_timeout" type="section"
                 >readable_external_table_timeout</xref>
@@ -1339,18 +1350,25 @@
                   >gp_interconnect_fc_method</xref>
               </p>
               <p>
+                <xref href="guc-list.xml#gp_interconnect_proxy_addresses" type="section"
+                  >gp_interconnect_proxy_addresses</xref></p>
+              <p>
                 <xref href="guc-list.xml#gp_interconnect_queue_depth" type="section"
                   >gp_interconnect_queue_depth</xref>
               </p>
-            </stentry>
-            <stentry>
               <p>
                 <xref href="guc-list.xml#gp_interconnect_setup_timeout" type="section"
                   >gp_interconnect_setup_timeout</xref>
               </p>
+            </stentry>
+            <stentry>
               <p>
                 <xref href="guc-list.xml#gp_interconnect_snd_queue_depth" type="section"
                   >gp_interconnect_snd_queue_depth</xref>
+              </p>
+              <p>
+                <xref href="guc-list.xml#gp_interconnect_transmit_timeout" type="section"
+                  >gp_interconnect_transmit_timeout</xref>
               </p>
               <p>
                 <xref href="guc-list.xml#gp_interconnect_type" type="section"
@@ -1419,8 +1437,8 @@
                 <xref href="guc-list.xml#gp_fts_probe_timeout" format="dita"/>
               </p>
               <p>
-                <xref href="guc-list.xml#gp_fts_probe_threadcount" type="section"
-                  >gp_fts_probe_threadcount</xref>
+                <xref href="guc-list.xml#gp_fts_replication_attempt_count" type="section"
+                  >gp_fts_replication_attempt_count</xref>
               </p>
               <p>
                 <xref href="guc-list.xml#gp_log_fts" format="dita"/>

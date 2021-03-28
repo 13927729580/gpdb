@@ -230,7 +230,7 @@ SELECT a.* FROM MPP_22019_a a  WHERE a.j NOT IN (SELECT j FROM MPP_22019_a a2 wh
 
 -- Simple table.
 create table ddtesttab (i int, j int, k int8) distributed by (k);
-create sequence ddtestseq;
+create sequence ddtestseq cache 1;
 
 insert into ddtesttab values (1, 1, 5);
 insert into ddtesttab values (1, 1, 5 + random()); -- volatile expression as distribution key
@@ -293,6 +293,47 @@ execute p3(1);
 execute p3(1);
 drop table test_prepare;
 
+-- test direct dispatch via gp_segment_id qual
+create table t_test_dd_via_segid(id int);
+insert into t_test_dd_via_segid select * from generate_series(1, 6);
+
+explain (costs off) select gp_segment_id, id from t_test_dd_via_segid where gp_segment_id=0;
+select gp_segment_id, id from t_test_dd_via_segid where gp_segment_id=0;
+
+explain (costs off) select gp_segment_id, id from t_test_dd_via_segid where gp_segment_id=1;
+select gp_segment_id, id from t_test_dd_via_segid where gp_segment_id=1;
+
+explain (costs off) select gp_segment_id, id from t_test_dd_via_segid where gp_segment_id=2;
+select gp_segment_id, id from t_test_dd_via_segid where gp_segment_id=2;
+
+explain (costs off) select gp_segment_id, id from t_test_dd_via_segid where gp_segment_id=1 or gp_segment_id=2;
+select gp_segment_id, id from t_test_dd_via_segid where gp_segment_id=1 or gp_segment_id=2;
+
+explain (costs off) select gp_segment_id, id from t_test_dd_via_segid where gp_segment_id=1 or gp_segment_id=2 or gp_segment_id=3;
+select gp_segment_id, id from t_test_dd_via_segid where gp_segment_id=1 or gp_segment_id=2 or gp_segment_id=3;
+
+explain (costs off) select t1.gp_segment_id, t2.gp_segment_id, * from t_test_dd_via_segid t1, t_test_dd_via_segid t2 where t1.gp_segment_id=t2.id;
+select t1.gp_segment_id, t2.gp_segment_id, * from t_test_dd_via_segid t1, t_test_dd_via_segid t2 where t1.gp_segment_id=t2.id;
+
+explain (costs off) select gp_segment_id, count(*) from t_test_dd_via_segid group by gp_segment_id;
+select gp_segment_id, count(*) from t_test_dd_via_segid group by gp_segment_id;
+
+-- test direct dispatch via SQLValueFunction and FuncExpr for single row insertion.
+create table t_sql_value_function1 (a int, b date);
+create table t_sql_value_function2 (a date);
+
+explain (costs off) insert into t_sql_value_function1 values(1, current_timestamp);
+insert into t_sql_value_function1 values(1, current_timestamp);
+
+explain (costs off) insert into t_sql_value_function2 values(current_timestamp);
+insert into t_sql_value_function2 values(current_timestamp);
+
+explain (costs off) insert into t_sql_value_function1 values(2, now());
+insert into t_sql_value_function1 values(2, now());
+
+explain (costs off) insert into t_sql_value_function2 values(now());
+insert into t_sql_value_function2 values(now());
+
 -- cleanup
 set test_print_direct_dispatch_info=off;
 
@@ -307,4 +348,8 @@ drop table if exists direct_dispatch_bar;
 
 drop table if exists MPP_22019_a;
 drop table if exists MPP_22019_b;
+
+drop table if exists t_sql_value_function1;
+drop table if exists t_sql_value_function2;
+
 commit;

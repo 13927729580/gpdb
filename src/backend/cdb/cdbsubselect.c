@@ -4,7 +4,7 @@
  *	  Flattens subqueries, transforms them to joins.
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -20,11 +20,10 @@
 #include "catalog/pg_type.h"
 #include "nodes/makefuncs.h"
 #include "optimizer/clauses.h"
+#include "optimizer/optimizer.h"
 #include "optimizer/subselect.h"	/* convert_testexpr() */
 #include "optimizer/tlist.h"
 #include "optimizer/prep.h"		/* canonicalize_qual() */
-#include "optimizer/subselect.h"
-#include "optimizer/var.h"		/* contain_vars_of_level_or_above() */
 #include "parser/parse_oper.h"	/* make_op() */
 #include "parser/parse_expr.h"
 #include "parser/parse_relation.h"	/* addRangeTableEntryForSubquery() */
@@ -389,8 +388,8 @@ SubqueryToJoinWalker(Node *node, ConvertSubqueryToJoinContext *context)
 		/**
 		 * Be extremely conservative. If there are any outer vars under an or or a not expression, then give up.
 		 */
-		if (not_clause(node)
-			|| or_clause(node))
+		if (is_notclause(node)
+			|| is_orclause(node))
 		{
 			if (contain_vars_of_level_or_above(node, 1))
 			{
@@ -401,7 +400,7 @@ SubqueryToJoinWalker(Node *node, ConvertSubqueryToJoinContext *context)
 			return;
 		}
 
-		Assert(and_clause(node));
+		Assert(is_andclause(node));
 
 		BoolExpr   *bexp = (BoolExpr *) node;
 		ListCell   *lc = NULL;
@@ -938,7 +937,7 @@ make_lasj_quals(PlannerInfo *root, SubLink *sublink, int subquery_indx)
 										  sublink->testexpr,
 										  subquery_vars);
 
-	join_pred = canonicalize_qual(make_notclause(join_pred));
+	join_pred = canonicalize_qual(make_notclause(join_pred), false);
 
 	Assert(join_pred != NULL);
 	return (Node *) join_pred;
@@ -1231,6 +1230,91 @@ find_nonnullable_vars_walker(Node *node, NonNullableVarsContext *context)
 }
 
 
+/*
+ * This function is used to determine whether the parameters of an expression in
+ * ALL Sublink can be NULL.
+ */
+static bool
+is_param_nullable(Node *node, Query *query, Value *oprname)
+{
+	bool result = false;
+	NonNullableVarsContext context;
+	Expr *expr;
+	ListCell *lc;
+	Expr *arg;
+
+	Assert(query);
+	context.query = query;
+	context.nonNullableVars = NIL;
+
+	/* Find nullable vars in the jointree */
+	expression_tree_walker((Node *) query->jointree, find_nonnullable_vars_walker, &context);
+
+	/*
+	 * A null value "not in / > all / < all" a non-empty set, the result is
+	 * always false, but a null value "not in / > all / < all" a empty set, the
+	 * result is always true. So if the param is nullable, we should not make
+	 * the locus as "Partitioned".
+	 * If the sql is "... a not in (select ...)", the node should be a BoolExpr.
+	 * if the sql is "... a < all (select ...), the node should be a OpExpr"
+	 */
+	if (nodeTag(node) == T_BoolExpr)
+	{
+		if(((BoolExpr *) node)->boolop != NOT_EXPR)
+			return false;
+		expr = lfirst(list_head(((BoolExpr*) node)->args));
+	}
+	else if (nodeTag(node) == T_OpExpr)
+	{
+		if(strcmp(oprname->val.str, "=") == 0)
+			return false;
+		expr = (Expr *) node;
+	}
+	else
+		return true;
+
+	if (nodeTag(expr) != T_OpExpr)
+		return true;
+
+	foreach(lc, ((OpExpr*)expr)->args)
+	{
+		arg = lfirst(lc);
+
+		if (nodeTag(arg) == T_RelabelType)
+			arg = ((RelabelType*)arg)->arg;
+
+		if (nodeTag(arg) == T_Param)
+			continue;
+		else if (nodeTag(arg) == T_Const)
+		{
+			/*
+			 * Is the constant entry in the targetlist null?
+			 */
+			Const	   *constant = (Const *) arg;
+
+			/*
+			 * Note: the 'dummy' column is not NULL, so we don't need any special handling for it
+			 */
+			if (constant->constisnull == true)
+				result = true;
+		}
+		else if (nodeTag(arg) == T_Var)
+		{
+			Var		   *var = (Var *) arg;
+
+			/* Was this var determined to be non-nullable? */
+			if (!list_member(context.nonNullableVars, var))
+			{
+				result = true;
+			}
+		}
+		else
+			result = true;
+	}
+
+	return result;
+}
+
 /**
  * This method determines if the targetlist of a query is nullable.
  * Consider a query of the form: select t1.x, t2.y from t1, t2 where t1.x > 5
@@ -1354,11 +1438,16 @@ convert_IN_to_antijoin(PlannerInfo *root, SubLink *sublink,
 
 		int			subq_indx = add_notin_subquery_rte(parse, subselect);
 		bool		inner_nullable = is_targetlist_nullable(subselect);
+
+		ListCell   *lc = list_head(sublink->operName);
+		bool		outer_nullable = is_param_nullable(sublink->testexpr,
+										   root->parse,
+										   lc? list_head(sublink->operName)->data.ptr_value : NULL);
 		JoinExpr   *join_expr = make_join_expr(NULL, subq_indx, JOIN_LASJ_NOTIN);
 
 		join_expr->quals = make_lasj_quals(root, sublink, subq_indx);
 
-		if (inner_nullable)
+		if (inner_nullable || outer_nullable)
 		{
 			join_expr->quals = add_null_match_clause(join_expr->quals);
 		}

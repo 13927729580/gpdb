@@ -9,33 +9,26 @@
 //		Implementation of scalar arrays
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CScalarArray.h"
+
 #include "gpos/base.h"
 
-#include "naucrates/md/IMDAggregate.h"
-
-#include "gpopt/base/CDrvdPropScalar.h"
 #include "gpopt/base/CColRefSet.h"
-
-#include "gpopt/operators/CScalarArray.h"
+#include "gpopt/base/CDrvdPropScalar.h"
 #include "gpopt/operators/CExpressionHandle.h"
+#include "naucrates/md/IMDAggregate.h"
 
 
 using namespace gpopt;
 using namespace gpmd;
 
 // Ctor
-CScalarArray::CScalarArray
-	(
-	CMemoryPool *mp, 
-	IMDId *elem_type_mdid, 
-	IMDId *array_type_mdid, 
-	BOOL is_multidimenstional
-	)
-	:
-	CScalar(mp),
-	m_pmdidElem(elem_type_mdid),
-	m_pmdidArray(array_type_mdid),
-	m_fMultiDimensional(is_multidimenstional)
+CScalarArray::CScalarArray(CMemoryPool *mp, IMDId *elem_type_mdid,
+						   IMDId *array_type_mdid, BOOL is_multidimenstional)
+	: CScalar(mp),
+	  m_pmdidElem(elem_type_mdid),
+	  m_pmdidArray(array_type_mdid),
+	  m_fMultiDimensional(is_multidimenstional)
 {
 	GPOS_ASSERT(elem_type_mdid->IsValid());
 	GPOS_ASSERT(array_type_mdid->IsValid());
@@ -44,20 +37,14 @@ CScalarArray::CScalarArray
 
 
 // Ctor
-CScalarArray::CScalarArray
-	(
-	CMemoryPool *mp,
-	IMDId *elem_type_mdid,
-	IMDId *array_type_mdid,
-	BOOL is_multidimenstional,
-	CScalarConstArray *pdrgPconst
-	)
-:
-CScalar(mp),
-m_pmdidElem(elem_type_mdid),
-m_pmdidArray(array_type_mdid),
-m_fMultiDimensional(is_multidimenstional),
-m_pdrgPconst(pdrgPconst)
+CScalarArray::CScalarArray(CMemoryPool *mp, IMDId *elem_type_mdid,
+						   IMDId *array_type_mdid, BOOL is_multidimenstional,
+						   CScalarConstArray *pdrgPconst)
+	: CScalar(mp),
+	  m_pmdidElem(elem_type_mdid),
+	  m_pmdidArray(array_type_mdid),
+	  m_fMultiDimensional(is_multidimenstional),
+	  m_pdrgPconst(pdrgPconst)
 {
 	GPOS_ASSERT(elem_type_mdid->IsValid());
 	GPOS_ASSERT(array_type_mdid->IsValid());
@@ -104,7 +91,7 @@ CScalarArray::PmdidArray() const
 //		CScalarArray::FMultiDimensional
 //
 //	@doc:
-//		Is array multi-dimensional 
+//		Is array multi-dimensional
 //
 //---------------------------------------------------------------------------
 BOOL
@@ -124,14 +111,12 @@ CScalarArray::FMultiDimensional() const
 ULONG
 CScalarArray::HashValue() const
 {
-	return gpos::CombineHashes
-					(
-					CombineHashes(m_pmdidElem->HashValue(), m_pmdidArray->HashValue()),
-					gpos::HashValue<BOOL>(&m_fMultiDimensional)
-					);
+	return gpos::CombineHashes(
+		CombineHashes(m_pmdidElem->HashValue(), m_pmdidArray->HashValue()),
+		gpos::HashValue<BOOL>(&m_fMultiDimensional));
 }
 
-	
+
 //---------------------------------------------------------------------------
 //	@function:
 //		CScalarArray::Matches
@@ -141,16 +126,12 @@ CScalarArray::HashValue() const
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarArray::Matches
-	(
-	COperator *pop
-	)
-	const
+CScalarArray::Matches(COperator *pop) const
 {
 	if (pop->Eopid() == Eopid())
 	{
 		CScalarArray *popArray = CScalarArray::PopConvert(pop);
-		
+
 		// match if components are identical
 		if (popArray->FMultiDimensional() == FMultiDimensional() &&
 			PmdidElem()->Equals(popArray->PmdidElem()) &&
@@ -169,7 +150,7 @@ CScalarArray::Matches
 			return true;
 		}
 	}
-	
+
 	return false;
 }
 
@@ -215,4 +196,3 @@ CScalarArray::OsPrint(IOstream &os) const
 
 
 // EOF
-

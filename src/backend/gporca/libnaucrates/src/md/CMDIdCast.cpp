@@ -11,6 +11,7 @@
 
 
 #include "naucrates/md/CMDIdCast.h"
+
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpos;
@@ -24,20 +25,15 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CMDIdCast::CMDIdCast
-	(
-	CMDIdGPDB *mdid_src,
-	CMDIdGPDB *mdid_dest
-	)
-	:
-	m_mdid_src(mdid_src),
-	m_mdid_dest(mdid_dest),
-	m_str(m_mdid_buffer, GPOS_ARRAY_SIZE(m_mdid_buffer))
+CMDIdCast::CMDIdCast(CMDIdGPDB *mdid_src, CMDIdGPDB *mdid_dest)
+	: m_mdid_src(mdid_src),
+	  m_mdid_dest(mdid_dest),
+	  m_str(m_mdid_buffer, GPOS_ARRAY_SIZE(m_mdid_buffer))
 {
 	GPOS_ASSERT(mdid_src->IsValid());
 	GPOS_ASSERT(mdid_dest->IsValid());
-	
-	// serialize mdid into static string 
+
+	// serialize mdid into static string
 	Serialize();
 }
 
@@ -67,17 +63,11 @@ void
 CMDIdCast::Serialize()
 {
 	// serialize mdid as SystemType.mdidSrc.mdidDest
-	m_str.AppendFormat
-			(
-			GPOS_WSZ_LIT("%d.%d.%d.%d;%d.%d.%d"), 
-			MdidType(), 
-					   m_mdid_src->Oid(),
-			m_mdid_src->VersionMajor(),
-			m_mdid_src->VersionMinor(),
-					   m_mdid_dest->Oid(),
-			m_mdid_dest->VersionMajor(),
-			m_mdid_dest->VersionMinor()
-			);
+	m_str.AppendFormat(GPOS_WSZ_LIT("%d.%d.%d.%d;%d.%d.%d"), MdidType(),
+					   m_mdid_src->Oid(), m_mdid_src->VersionMajor(),
+					   m_mdid_src->VersionMinor(), m_mdid_dest->Oid(),
+					   m_mdid_dest->VersionMajor(),
+					   m_mdid_dest->VersionMinor());
 }
 
 //---------------------------------------------------------------------------
@@ -131,21 +121,17 @@ CMDIdCast::MdidDest() const
 //
 //---------------------------------------------------------------------------
 BOOL
-CMDIdCast::Equals
-	(
-	const IMDId *mdid
-	) 
-	const
+CMDIdCast::Equals(const IMDId *mdid) const
 {
-	if (NULL == mdid || EmdidCastFunc != mdid->MdidType())
+	if (nullptr == mdid || EmdidCastFunc != mdid->MdidType())
 	{
 		return false;
 	}
-	
+
 	const CMDIdCast *mdid_cast_func = CMDIdCast::CastMdid(mdid);
-	
+
 	return m_mdid_src->Equals(mdid_cast_func->MdidSrc()) &&
-			m_mdid_dest->Equals(mdid_cast_func->MdidDest());
+		   m_mdid_dest->Equals(mdid_cast_func->MdidDest());
 }
 
 //---------------------------------------------------------------------------
@@ -157,12 +143,8 @@ CMDIdCast::Equals
 //
 //---------------------------------------------------------------------------
 void
-CMDIdCast::Serialize
-	(
-	CXMLSerializer * xml_serializer,
-	const CWStringConst *pstrAttribute
-	)
-	const
+CMDIdCast::Serialize(CXMLSerializer *xml_serializer,
+					 const CWStringConst *pstrAttribute) const
 {
 	xml_serializer->AddAttribute(pstrAttribute, &m_str);
 }
@@ -176,11 +158,7 @@ CMDIdCast::Serialize
 //
 //---------------------------------------------------------------------------
 IOstream &
-CMDIdCast::OsPrint
-	(
-	IOstream &os
-	) 
-	const
+CMDIdCast::OsPrint(IOstream &os) const
 {
 	os << "(" << m_str.GetBuffer() << ")";
 	return os;

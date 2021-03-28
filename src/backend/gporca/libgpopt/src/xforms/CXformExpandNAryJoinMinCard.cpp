@@ -10,6 +10,8 @@
 //		of intermediate results
 //---------------------------------------------------------------------------
 
+#include "gpopt/xforms/CXformExpandNAryJoinMinCard.h"
+
 #include "gpos/base.h"
 
 #include "gpopt/base/CUtils.h"
@@ -18,7 +20,6 @@
 #include "gpopt/operators/CPatternMultiTree.h"
 #include "gpopt/operators/CPatternTree.h"
 #include "gpopt/operators/CPredicateUtils.h"
-#include "gpopt/xforms/CXformExpandNAryJoinMinCard.h"
 #include "gpopt/xforms/CJoinOrderMinCard.h"
 #include "gpopt/xforms/CXformUtils.h"
 
@@ -34,23 +35,15 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformExpandNAryJoinMinCard::CXformExpandNAryJoinMinCard
-	(
-	CMemoryPool *mp
-	)
-	:
-	CXformExploration
-		(
-		 // pattern
-		GPOS_NEW(mp) CExpression
-					(
-					mp,
-					GPOS_NEW(mp) CLogicalNAryJoin(mp),
-					GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternMultiTree(mp)),
-					GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))
-					)
-		)
-{}
+CXformExpandNAryJoinMinCard::CXformExpandNAryJoinMinCard(CMemoryPool *mp)
+	: CXformExploration(
+		  // pattern
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CLogicalNAryJoin(mp),
+			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternMultiTree(mp)),
+			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))))
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -62,13 +55,9 @@ CXformExpandNAryJoinMinCard::CXformExpandNAryJoinMinCard
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformExpandNAryJoinMinCard::Exfp
-	(
-	CExpressionHandle &exprhdl
-	)
-	const
+CXformExpandNAryJoinMinCard::Exfp(CExpressionHandle &exprhdl) const
 {
-	return CXformUtils::ExfpExpandJoinOrder(exprhdl);
+	return CXformUtils::ExfpExpandJoinOrder(exprhdl, this);
 }
 
 
@@ -81,16 +70,12 @@ CXformExpandNAryJoinMinCard::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformExpandNAryJoinMinCard::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformExpandNAryJoinMinCard::Transform(CXformContext *pxfctxt,
+									   CXformResult *pxfres,
+									   CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
-	GPOS_ASSERT(NULL != pxfres);
+	GPOS_ASSERT(nullptr != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfres);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
@@ -108,7 +93,8 @@ CXformExpandNAryJoinMinCard::Transform
 	}
 
 	CExpression *pexprScalar = (*pexpr)[arity - 1];
-	CExpressionArray *pdrgpexprPreds = CPredicateUtils::PdrgpexprConjuncts(mp, pexprScalar);
+	CExpressionArray *pdrgpexprPreds =
+		CPredicateUtils::PdrgpexprConjuncts(mp, pexprScalar);
 
 	// create a join order based on cardinality of intermediate results
 	CJoinOrderMinCard jomc(mp, pdrgpexpr, pdrgpexprPreds);

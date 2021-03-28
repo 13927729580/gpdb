@@ -10,6 +10,7 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/statistics/CStatsPredLike.h"
+
 #include "gpopt/operators/CExpression.h"
 
 using namespace gpnaucrates;
@@ -24,22 +25,17 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CStatsPredLike::CStatsPredLike
-	(
-	ULONG colid,
-	CExpression *expr_left,
-	CExpression *expr_right,
-	CDouble default_scale_factor
-	)
-	:
-	CStatsPred(colid),
-	m_expr_left(expr_left),
-	m_expr_right(expr_right),
-	m_default_scale_factor(default_scale_factor)
+CStatsPredLike::CStatsPredLike(ULONG colid, CExpression *expr_left,
+							   CExpression *expr_right,
+							   CDouble default_scale_factor)
+	: CStatsPred(colid),
+	  m_expr_left(expr_left),
+	  m_expr_right(expr_right),
+	  m_default_scale_factor(default_scale_factor)
 {
 	GPOS_ASSERT(gpos::ulong_max != colid);
-	GPOS_ASSERT(NULL != expr_left);
-	GPOS_ASSERT(NULL != expr_right);
+	GPOS_ASSERT(nullptr != expr_left);
+	GPOS_ASSERT(nullptr != expr_right);
 	GPOS_ASSERT(0 < default_scale_factor);
 }
 

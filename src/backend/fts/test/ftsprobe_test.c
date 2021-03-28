@@ -194,8 +194,6 @@ PrimaryOrMirrorWillBeUpdated(int count)
 	will_be_called_count(StartTransactionCommand, count);
 	will_be_called_count(GetTransactionSnapshot, count);
 	will_be_called_count(CommitTransactionCommand, count);
-	will_be_called_count(ftsLock, count);
-	will_be_called_count(ftsUnlock, count);
 }
 
 /*
@@ -523,7 +521,7 @@ test_ftsReceive_when_fts_handler_ERROR(void **state)
 	expect_value(PQresultStatus, res, result);
 	will_return(PQresultStatus, PGRES_FATAL_ERROR);
 	expect_value(PQresultErrorMessage, res, result);
-	will_be_called(PQresultErrorMessage);
+	will_return(PQresultErrorMessage, "");
 
 	expect_value(PQclear, res, result);
 	will_be_called(PQclear);

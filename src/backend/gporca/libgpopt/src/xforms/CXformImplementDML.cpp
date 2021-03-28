@@ -9,13 +9,14 @@
 //		Implementation of transform
 //---------------------------------------------------------------------------
 
+#include "gpopt/xforms/CXformImplementDML.h"
+
 #include "gpos/base.h"
+
+#include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/operators/CLogicalDML.h"
 #include "gpopt/operators/CPatternLeaf.h"
 #include "gpopt/operators/CPhysicalDML.h"
-#include "gpopt/xforms/CXformImplementDML.h"
-
-#include "gpopt/metadata/CTableDescriptor.h"
 
 using namespace gpopt;
 
@@ -28,22 +29,14 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformImplementDML::CXformImplementDML
-	(
-	CMemoryPool *mp
-	)
-	:
-	CXformImplementation
-		(
-		 // pattern
-		GPOS_NEW(mp) CExpression
-				(
-				mp,
-				GPOS_NEW(mp) CLogicalDML(mp),
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))
-				)
-		)
-{}
+CXformImplementDML::CXformImplementDML(CMemoryPool *mp)
+	: CXformImplementation(
+		  // pattern
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CLogicalDML(mp),
+			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))))
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -53,12 +46,9 @@ CXformImplementDML::CXformImplementDML
 //		Compute promise of xform
 //
 //---------------------------------------------------------------------------
-CXform::EXformPromise 
-CXformImplementDML::Exfp
-	(
-	CExpressionHandle & // exprhdl
-	)
-	const
+CXform::EXformPromise
+CXformImplementDML::Exfp(CExpressionHandle &  // exprhdl
+) const
 {
 	return CXform::ExfpHigh;
 }
@@ -73,15 +63,10 @@ CXformImplementDML::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformImplementDML::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformImplementDML::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+							  CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
@@ -94,7 +79,7 @@ CXformImplementDML::Transform
 
 	CTableDescriptor *ptabdesc = popDML->Ptabdesc();
 	ptabdesc->AddRef();
-	
+
 	CColRefArray *pdrgpcrSource = popDML->PdrgpcrSource();
 	pdrgpcrSource->AddRef();
 	CBitSet *pbsModified = popDML->PbsModified();
@@ -111,13 +96,12 @@ CXformImplementDML::Transform
 	pexprChild->AddRef();
 
 	// create physical DML
-	CExpression *pexprAlt = 
-		GPOS_NEW(mp) CExpression
-			(
-			mp,
-			GPOS_NEW(mp) CPhysicalDML(mp, edmlop, ptabdesc, pdrgpcrSource, pbsModified, pcrAction, pcrTableOid, pcrCtid, pcrSegmentId, pcrTupleOid),
-			pexprChild
-			);
+	CExpression *pexprAlt = GPOS_NEW(mp) CExpression(
+		mp,
+		GPOS_NEW(mp) CPhysicalDML(mp, edmlop, ptabdesc, pdrgpcrSource,
+								  pbsModified, pcrAction, pcrTableOid, pcrCtid,
+								  pcrSegmentId, pcrTupleOid),
+		pexprChild);
 	// add alternative to transformation result
 	pxfres->Add(pexprAlt);
 }

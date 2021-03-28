@@ -4,7 +4,7 @@
  *	  This file contains methods to transform the query tree
  *
  * Portions Copyright (c) 2011, EMC Greenplum
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -18,8 +18,8 @@
 #include "nodes/parsenodes.h"
 #include "nodes/makefuncs.h"
 #include "optimizer/clauses.h"
+#include "optimizer/optimizer.h"
 #include "optimizer/transform.h"
-#include "optimizer/var.h"
 #include "utils/lsyscache.h"
 #include "catalog/pg_proc.h"
 #include "parser/parse_oper.h"
@@ -306,6 +306,7 @@ make_sirvf_subquery(FuncExpr *fe)
 	funcclass = get_expr_result_type((Node *) fe, &resultTypeId, &resultTupleDesc);
 
 	if (funcclass == TYPEFUNC_COMPOSITE ||
+		funcclass == TYPEFUNC_COMPOSITE_DOMAIN ||
 		funcclass == TYPEFUNC_RECORD)
 	{
 		Query	   *sub_sq = sq;
@@ -338,7 +339,7 @@ make_sirvf_subquery(FuncExpr *fe)
 
 		for (attno = 1; attno <= resultTupleDesc->natts; attno++)
 		{
-			Form_pg_attribute attr = resultTupleDesc->attrs[attno - 1];
+			Form_pg_attribute attr = TupleDescAttr(resultTupleDesc, attno - 1);
 			FieldSelect *fs;
 
 			fs = (FieldSelect *) makeNode(FieldSelect);

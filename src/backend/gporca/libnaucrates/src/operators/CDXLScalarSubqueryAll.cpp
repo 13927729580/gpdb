@@ -9,11 +9,11 @@
 //		Implementation of subquery ALL
 //---------------------------------------------------------------------------
 
+#include "naucrates/dxl/operators/CDXLScalarSubqueryAll.h"
+
 #include "gpos/string/CWStringDynamic.h"
 
-#include "naucrates/dxl/operators/CDXLScalarSubqueryAll.h"
 #include "naucrates/dxl/operators/CDXLNode.h"
-
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpos;
@@ -28,16 +28,13 @@ using namespace gpmd;
 //		Constructor
 //
 //---------------------------------------------------------------------------
-CDXLScalarSubqueryAll::CDXLScalarSubqueryAll
-	(
-	CMemoryPool *mp,
-	IMDId *scalar_op_mdid,
-	CMDName *scalar_op_mdname,
-	ULONG colid
-	)
-	:
-	CDXLScalarSubqueryQuantified(mp, scalar_op_mdid, scalar_op_mdname, colid)
-{}
+CDXLScalarSubqueryAll::CDXLScalarSubqueryAll(CMemoryPool *mp,
+											 IMDId *scalar_op_mdid,
+											 CMDName *scalar_op_mdname,
+											 ULONG colid)
+	: CDXLScalarSubqueryQuantified(mp, scalar_op_mdid, scalar_op_mdname, colid)
+{
+}
 
 
 //---------------------------------------------------------------------------

@@ -7,13 +7,12 @@
 //
 //	@doc:
 //		Implementation of DXL Scalar Limit Offset
-//		
+//
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLScalarLimitOffset.h"
 
 #include "naucrates/dxl/operators/CDXLNode.h"
-
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpos;
@@ -27,12 +26,7 @@ using namespace gpdxl;
 //		Constructs a scalar Limit Offset node
 //
 //---------------------------------------------------------------------------
-CDXLScalarLimitOffset::CDXLScalarLimitOffset
-	(
-	CMemoryPool *mp
-	)
-	:
-	CDXLScalar(mp)
+CDXLScalarLimitOffset::CDXLScalarLimitOffset(CMemoryPool *mp) : CDXLScalar(mp)
 {
 }
 
@@ -75,18 +69,16 @@ CDXLScalarLimitOffset::GetOpNameStr() const
 //
 //---------------------------------------------------------------------------
 void
-CDXLScalarLimitOffset::SerializeToDXL
-	(
-	CXMLSerializer *xml_serializer,
-	const CDXLNode *node
-	)
-	const
+CDXLScalarLimitOffset::SerializeToDXL(CXMLSerializer *xml_serializer,
+									  const CDXLNode *node) const
 {
 	const CWStringConst *element_name = GetOpNameStr();
 
-	xml_serializer->OpenElement(CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
+	xml_serializer->OpenElement(
+		CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
 	node->SerializeChildrenToDXL(xml_serializer);
-	xml_serializer->CloseElement(CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
+	xml_serializer->CloseElement(
+		CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), element_name);
 }
 
 #ifdef GPOS_DEBUG
@@ -100,12 +92,8 @@ CDXLScalarLimitOffset::SerializeToDXL
 //
 //---------------------------------------------------------------------------
 void
-CDXLScalarLimitOffset::AssertValid
-	(
-	const CDXLNode *node,
-	BOOL validate_children
-	) 
-	const
+CDXLScalarLimitOffset::AssertValid(const CDXLNode *node,
+								   BOOL validate_children) const
 {
 	const ULONG arity = node->Arity();
 	GPOS_ASSERT(1 >= arity);
@@ -113,14 +101,16 @@ CDXLScalarLimitOffset::AssertValid
 	for (ULONG ul = 0; ul < arity; ++ul)
 	{
 		CDXLNode *dxlnode_arg = (*node)[ul];
-		GPOS_ASSERT(EdxloptypeScalar == dxlnode_arg->GetOperator()->GetDXLOperatorType());
-		
+		GPOS_ASSERT(EdxloptypeScalar ==
+					dxlnode_arg->GetOperator()->GetDXLOperatorType());
+
 		if (validate_children)
 		{
-			dxlnode_arg->GetOperator()->AssertValid(dxlnode_arg, validate_children);
+			dxlnode_arg->GetOperator()->AssertValid(dxlnode_arg,
+													validate_children);
 		}
 	}
 }
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 // EOF

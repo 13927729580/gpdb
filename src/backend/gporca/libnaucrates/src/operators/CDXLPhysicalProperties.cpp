@@ -10,6 +10,7 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLPhysicalProperties.h"
+
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpdxl;
@@ -22,14 +23,10 @@ using namespace gpdxl;
 //		Constructor
 //
 //---------------------------------------------------------------------------
-CDXLPhysicalProperties::CDXLPhysicalProperties
-	(
-	CDXLOperatorCost *cost
-	)
-	:
-	CDXLProperties(),
-	m_operator_cost_dxl(cost)
-{}
+CDXLPhysicalProperties::CDXLPhysicalProperties(CDXLOperatorCost *cost)
+	: CDXLProperties(), m_operator_cost_dxl(cost)
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -53,18 +50,19 @@ CDXLPhysicalProperties::~CDXLPhysicalProperties()
 //
 //---------------------------------------------------------------------------
 void
-CDXLPhysicalProperties::SerializePropertiesToDXL
-	(
-	CXMLSerializer *xml_serializer
-	)
-	const
+CDXLPhysicalProperties::SerializePropertiesToDXL(
+	CXMLSerializer *xml_serializer) const
 {
-	xml_serializer->OpenElement(CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), CDXLTokens::GetDXLTokenStr(EdxltokenProperties));
+	xml_serializer->OpenElement(
+		CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix),
+		CDXLTokens::GetDXLTokenStr(EdxltokenProperties));
 
 	m_operator_cost_dxl->SerializeToDXL(xml_serializer);
 	SerializeStatsToDXL(xml_serializer);
 
-	xml_serializer->CloseElement(CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix), CDXLTokens::GetDXLTokenStr(EdxltokenProperties));
+	xml_serializer->CloseElement(
+		CDXLTokens::GetDXLTokenStr(EdxltokenNamespacePrefix),
+		CDXLTokens::GetDXLTokenStr(EdxltokenProperties));
 }
 
 //---------------------------------------------------------------------------
@@ -79,6 +77,6 @@ CDXLOperatorCost *
 CDXLPhysicalProperties::GetDXLOperatorCost() const
 {
 	return m_operator_cost_dxl;
-}			
+}
 
 // EOF

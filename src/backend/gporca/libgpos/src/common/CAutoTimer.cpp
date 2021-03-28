@@ -9,8 +9,9 @@
 //		Implementation of wrapper around wall clock timer
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
 #include "gpos/common/CAutoTimer.h"
+
+#include "gpos/base.h"
 #include "gpos/task/CAutoSuspendAbort.h"
 
 using namespace gpos;
@@ -23,16 +24,10 @@ using namespace gpos;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CAutoTimer::CAutoTimer
-	(
-	const CHAR *sz,
-	BOOL fPrint
-	)
-	: 
-	m_timer_text_label(sz),
-	m_print_text_label(fPrint)
+CAutoTimer::CAutoTimer(const CHAR *sz, BOOL fPrint)
+	: m_timer_text_label(sz), m_print_text_label(fPrint)
 {
-	GPOS_ASSERT(NULL != sz);	
+	GPOS_ASSERT(nullptr != sz);
 }
 
 
@@ -53,9 +48,9 @@ CAutoTimer::~CAutoTimer() throw()
 
 		ULONG ulElapsedTimeMS = m_clock.ElapsedMS();
 
-		GPOS_TRACE_FORMAT("timer:%s: %dms", m_timer_text_label, ulElapsedTimeMS);
+		GPOS_TRACE_FORMAT("timer:%s: %dms", m_timer_text_label,
+						  ulElapsedTimeMS);
 	}
 }
 
 // EOF
-

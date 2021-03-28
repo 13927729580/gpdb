@@ -1,5 +1,3 @@
-include: helpers/server_helpers.sql;
-
 -- Test this scenario:
 -- mirror has latency replaying the WAL from the primary, the master is reset
 -- from PANIC, master will start the DTX recovery process to recover the
@@ -11,19 +9,6 @@ include: helpers/server_helpers.sql;
 1: alter system set gp_fts_probe_interval to 10;
 1: alter system set gp_fts_probe_retries to 1;
 1: select pg_reload_conf();
-
-1: create or replace function wait_until_standby_in_state(targetstate text)
-returns void as $$
-declare
-   replstate text; /* in func */
-begin
-   loop
-      select state into replstate from pg_stat_replication; /* in func */
-      exit when replstate = targetstate; /* in func */
-      perform pg_sleep(0.1); /* in func */
-   end loop; /* in func */
-end; /* in func */
-$$ language plpgsql;
 
 1: create table t_wait_lsn(a int);
 

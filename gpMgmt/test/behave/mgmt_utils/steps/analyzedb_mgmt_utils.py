@@ -1,7 +1,10 @@
 import re
 import os
 import shutil
+import time
+from datetime import datetime, timedelta
 from gppylib.db import dbconn
+from gppylib.commands.gp import get_coordinatordatadir
 from contextlib import closing
 from test.behave_utils.utils import check_schema_exists, check_table_exists, drop_table_if_exists
 from behave import given, when, then
@@ -34,6 +37,7 @@ DEFAULT PARTITION default_dates);
 """
 
 
+
 @given('there is a regular "{storage_type}" table "{tablename}" with column name list "{col_name_list}" and column type list "{col_type_list}" in schema "{schemaname}"')
 def impl(context, storage_type, tablename, col_name_list, col_type_list, schemaname):
     schemaname_no_quote = schemaname
@@ -47,24 +51,24 @@ def impl(context, storage_type, tablename, col_name_list, col_type_list, scheman
     check_table_exists(context, context.dbname, '.'.join([schemaname, tablename]), table_type=storage_type)
 
 
-@given('there is a hard coded ao partition table "{tablename}" with 4 child partitions in schema "{schemaname}"')
+@given('there is a hard coded partition table "{tablename}" with 4 child partitions in schema "{schemaname}"')
 def impl(context, tablename, schemaname):
     if not check_schema_exists(context, schemaname, context.dbname):
         raise Exception("Schema %s does not exist in database %s" % (schemaname, context.dbname))
     drop_table_if_exists(context, '.'.join([schemaname, tablename]), context.dbname)
     with closing(dbconn.connect(dbconn.DbURL(dbname=context.dbname))) as conn:
         dbconn.execSQL(conn, CREATE_PARTITION_TABLE_SQL % (schemaname, tablename))
-    check_table_exists(context, context.dbname, '.'.join([schemaname, tablename]), table_type='ao')
+    check_table_exists(context, context.dbname, '.'.join([schemaname, tablename]), table_type=None)
 
 
-@given('there is a hard coded multi-level ao partition table "{tablename}" with 4 mid-level and 16 leaf-level partitions in schema "{schemaname}"')
+@given('there is a hard coded multi-level partition table "{tablename}" with 4 mid-level and 16 leaf-level partitions in schema "{schemaname}"')
 def impl(context, tablename, schemaname):
     if not check_schema_exists(context, schemaname, context.dbname):
         raise Exception("Schema %s does not exist in database %s" % (schemaname, context.dbname))
     drop_table_if_exists(context, '.'.join([schemaname, tablename]), context.dbname)
     with closing(dbconn.connect(dbconn.DbURL(dbname=context.dbname))) as conn:
         dbconn.execSQL(conn, CREATE_MULTI_PARTITION_TABLE_SQL % (schemaname, tablename))
-    check_table_exists(context, context.dbname, '.'.join([schemaname, tablename]), table_type='ao')
+    check_table_exists(context, context.dbname, '.'.join([schemaname, tablename]), table_type=None)
 
 
 @given('no state files exist for database "{dbname}"')
@@ -85,7 +89,13 @@ def impl(context, number, dbname):
 @given('a view "{view_name}" exists on table "{table_name}" in schema "{schema_name}"')
 def impl(context, view_name, table_name, schema_name):
     with closing(dbconn.connect(dbconn.DbURL(dbname=context.dbname))) as conn:
-        create_view_on_table(conn, schema_name, table_name, view_name)
+        create_view_on_table_in_schema(conn, schema_name, table_name, view_name)
+
+
+@given('a view "{view_name}" exists on table "{table_name}"')
+def impl(context, view_name, table_name):
+    with closing(dbconn.connect(dbconn.DbURL(dbname=context.dbname))) as conn:
+        create_view_on_table(context.conn, view_name, table_name)
 
 
 @given('"{qualified_table}" appears in the latest state files')
@@ -97,6 +107,13 @@ def impl(context, qualified_table):
             assert False, "no state files found for database %s" % context.dbname
         else:
             assert False, "table %s not found in state file %s" % (qualified_table, os.path.basename(filename))
+
+
+@then('"{qualified_table}" should not appear in the latest state files')
+def impl(context, qualified_table):
+    found, filename = table_found_in_state_file(context.dbname, qualified_table)
+    if found:
+        assert False, "table %s found in state file %s" % (qualified_table, os.path.basename(filename))
 
 
 @given('"{expected_result}" should appear in the latest ao_state file in database "{dbname}"')
@@ -228,6 +245,33 @@ def impl(context, tablename, dbname):
     finally:
         conn.close()
 
+
+@given('the state files for "{dbname}" are artificially aged by {num_days} days')
+@when('the state files for "{dbname}" are artificially aged by {num_days} days')
+def impl(context, dbname, num_days):
+    analyze_dir = get_analyze_dir(dbname)
+    folders = get_list_of_analyze_dirs(dbname)
+    for f in folders:
+        time_of_analyze = datetime.strptime(os.path.basename(f), '%Y%m%d%H%M%S')
+        aged_time_of_analyze = time_of_analyze - timedelta(days=int(num_days))
+        new_folder_name = os.path.join(analyze_dir, aged_time_of_analyze.strftime('%Y%m%d%H%M%S'))
+        shutil.move(f, new_folder_name)
+
+@then('there should be {num_dirs} state directories for database "{dbname}"')
+@then('there should be {num_dirs} state directory for database "{dbname}"')
+def impl(context, num_dirs, dbname):
+    folders = get_list_of_analyze_dirs(dbname)
+    if len(folders) != int(num_dirs):
+        raise Exception("Found %d state directories, expected %s" % (len(folders), num_dirs))
+
+@given('the user waits {num_secs} seconds')
+@when('the user waits {num_secs} seconds')
+@given('the user waits {num_secs} second')
+@when('the user waits {num_secs} second')
+def impl(context, num_secs):
+    time.sleep(int(num_secs))
+
+
 def get_mod_count_in_state_file(dbname, schema, table):
     file = get_latest_aostate_file(dbname)
     comma_name = ','.join([schema, table])
@@ -311,7 +355,7 @@ def get_list_of_analyze_dirs(dbname):
         return []
 
     ordered_list = [os.path.join(analyze_dir, x) for x in sorted(os.listdir(analyze_dir), reverse=True)]
-    return filter(os.path.isdir, ordered_list)
+    return list(filter(os.path.isdir, ordered_list))
 
 
 def get_latest_analyze_dir(dbname):
@@ -324,8 +368,8 @@ def get_latest_analyze_dir(dbname):
 
 
 def get_analyze_dir(dbname):
-    master_data_dir = os.environ.get('MASTER_DATA_DIRECTORY')
-    analyze_dir = os.path.join(master_data_dir, 'db_analyze', dbname)
+    coordinator_data_dir = get_coordinatordatadir()
+    analyze_dir = os.path.join(coordinator_data_dir, 'db_analyze', dbname)
     return analyze_dir
 
 
@@ -386,6 +430,7 @@ def create_table_with_column_list(conn, storage_type, schemaname, tablename, col
 
     query = 'CREATE TABLE %s.%s %s %s DISTRIBUTED RANDOMLY' % (schemaname, tablename, col_list, storage_str)
     dbconn.execSQL(conn, query)
+    conn.commit()
 
 
 def insert_data_into_table(conn, schemaname, tablename, col_type_list, num_rows="100"):
@@ -393,6 +438,7 @@ def insert_data_into_table(conn, schemaname, tablename, col_type_list, num_rows=
     col_str = ','.join(["(random()*i)::%s" % x for x in col_type_list])
     query = "INSERT INTO " + schemaname + '.' + tablename + " SELECT " + col_str + " FROM generate_series(1," + num_rows + ") i"
     dbconn.execSQL(conn, query)
+    conn.commit()
 
 
 def perform_ddl_on_table(conn, schemaname, tablename):
@@ -402,7 +448,15 @@ def perform_ddl_on_table(conn, schemaname, tablename):
     dbconn.execSQL(conn, query)
 
 
-def create_view_on_table(conn, schemaname, tablename, viewname):
+def create_view_on_table_in_schema(conn, schemaname, tablename, viewname):
     query = "CREATE OR REPLACE VIEW " + schemaname + "." + viewname + \
             " AS SELECT * FROM " + schemaname + "." + tablename
     dbconn.execSQL(conn, query)
+    conn.commit()
+
+
+def create_view_on_table(conn, viewname, tablename):
+    query = "CREATE OR REPLACE VIEW " + viewname + \
+            " AS SELECT * FROM " + tablename
+    dbconn.execSQL(conn, query)
+    conn.commit()

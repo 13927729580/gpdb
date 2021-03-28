@@ -13,29 +13,29 @@
 
 #include "gpos/base.h"
 #include "gpos/common/CRefCount.h"
+
 #include "gpopt/metadata/CName.h"
 
 namespace gpopt
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CColumnDescriptorTest
-	//
-	//	@doc:
-	//		Static unit tests
-	//
-	//---------------------------------------------------------------------------
-	class CColumnDescriptorTest
-	{
-		public:
+//---------------------------------------------------------------------------
+//	@class:
+//		CColumnDescriptorTest
+//
+//	@doc:
+//		Static unit tests
+//
+//---------------------------------------------------------------------------
+class CColumnDescriptorTest
+{
+public:
+	// unittests
+	static GPOS_RESULT EresUnittest();
+	static GPOS_RESULT EresUnittest_Basic();
 
-			// unittests
-			static GPOS_RESULT EresUnittest();
-			static GPOS_RESULT EresUnittest_Basic();
+};	// class CColumnDescriptorTest
+}  // namespace gpopt
 
-	}; // class CColumnDescriptorTest
-}
-
-#endif // !GPOPT_CColumnDescriptorTest_H
+#endif	// !GPOPT_CColumnDescriptorTest_H
 
 // EOF

@@ -9,39 +9,39 @@
 //		Optimizer class implementation
 //---------------------------------------------------------------------------
 
+#include "gpopt/optimizer/COptimizer.h"
+
+#include <fstream>
+
 #include "gpos/common/CBitSet.h"
 #include "gpos/common/CDebugCounter.h"
 #include "gpos/error/CAutoTrace.h"
 #include "gpos/error/CErrorHandlerStandard.h"
 #include "gpos/io/CFileDescriptor.h"
 
-#include "naucrates/base/CDatumGenericGPDB.h"
-#include "naucrates/dxl/operators/CDXLNode.h"
-#include "naucrates/md/IMDProvider.h"
-
-#include "naucrates/traceflags/traceflags.h"
 #include "gpopt/base/CAutoOptCtxt.h"
+#include "gpopt/base/CDrvdPropCtxtPlan.h"
 #include "gpopt/base/CQueryContext.h"
+#include "gpopt/cost/ICostModel.h"
 #include "gpopt/engine/CEngine.h"
 #include "gpopt/engine/CEnumeratorConfig.h"
 #include "gpopt/engine/CStatisticsConfig.h"
 #include "gpopt/exception.h"
+#include "gpopt/mdcache/CMDAccessor.h"
 #include "gpopt/minidump/CMiniDumperDXL.h"
 #include "gpopt/minidump/CMinidumperUtils.h"
-#include "gpopt/minidump/CSerializableStackTrace.h"
-#include "gpopt/minidump/CSerializableQuery.h"
-#include "gpopt/minidump/CSerializablePlan.h"
-#include "gpopt/minidump/CSerializableOptimizerConfig.h"
 #include "gpopt/minidump/CSerializableMDAccessor.h"
-#include "gpopt/mdcache/CMDAccessor.h"
+#include "gpopt/minidump/CSerializableOptimizerConfig.h"
+#include "gpopt/minidump/CSerializablePlan.h"
+#include "gpopt/minidump/CSerializableQuery.h"
+#include "gpopt/minidump/CSerializableStackTrace.h"
+#include "gpopt/optimizer/COptimizerConfig.h"
 #include "gpopt/translate/CTranslatorDXLToExpr.h"
 #include "gpopt/translate/CTranslatorExprToDXL.h"
-
-#include "gpopt/optimizer/COptimizerConfig.h"
-#include "gpopt/optimizer/COptimizer.h"
-#include "gpopt/cost/ICostModel.h"
-
-#include <fstream>
+#include "naucrates/base/CDatumGenericGPDB.h"
+#include "naucrates/dxl/operators/CDXLNode.h"
+#include "naucrates/md/IMDProvider.h"
+#include "naucrates/traceflags/traceflags.h"
 
 using namespace gpos;
 using namespace gpdxl;
@@ -58,17 +58,16 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 void
-COptimizer::PrintQuery
-	(
-	CMemoryPool *mp,
-	CExpression *pexprTranslated,
-	CQueryContext *pqc
-	)
+COptimizer::PrintQuery(CMemoryPool *mp, CExpression *pexprTranslated,
+					   CQueryContext *pqc)
 {
 	CAutoTrace at(mp);
-	at.Os() << std::endl << "Algebrized query: " << std::endl << *pexprTranslated;
+	at.Os() << std::endl
+			<< "Algebrized query: " << std::endl
+			<< *pexprTranslated;
 
-	CExpressionArray *pdrgpexpr = COptCtxt::PoctxtFromTLS()->Pcteinfo()->PdrgPexpr(mp);
+	CExpressionArray *pdrgpexpr =
+		COptCtxt::PoctxtFromTLS()->Pcteinfo()->PdrgPexpr(mp);
 	const ULONG ulCTEs = pdrgpexpr->Size();
 	if (0 < ulCTEs)
 	{
@@ -82,7 +81,9 @@ COptimizer::PrintQuery
 
 	CExpression *pexprPreprocessed = pqc->Pexpr();
 	(void) pexprPreprocessed->PdpDerive();
-	at.Os() << std::endl << "Algebrized preprocessed query: " << std::endl << *pexprPreprocessed;
+	at.Os() << std::endl
+			<< "Algebrized preprocessed query: " << std::endl
+			<< *pexprPreprocessed;
 }
 
 
@@ -95,11 +96,7 @@ COptimizer::PrintQuery
 //
 //---------------------------------------------------------------------------
 void
-COptimizer::PrintPlan
-	(
-	CMemoryPool *mp,
-	CExpression *pexprPlan
-	)
+COptimizer::PrintPlan(CMemoryPool *mp, CExpression *pexprPlan)
 {
 	CAutoTrace at(mp);
 	at.Os() << std::endl << "Physical plan: " << std::endl << *pexprPlan;
@@ -115,17 +112,13 @@ COptimizer::PrintPlan
 //
 //---------------------------------------------------------------------------
 void
-COptimizer::DumpSamples
-	(
-	CMemoryPool *mp,
-	CEnumeratorConfig *pec,
-	ULONG ulSessionId,
-	ULONG ulCmdId
-	)
+COptimizer::DumpSamples(CMemoryPool *mp, CEnumeratorConfig *pec,
+						ULONG ulSessionId, ULONG ulCmdId)
 {
-	GPOS_ASSERT(NULL != pec);
+	GPOS_ASSERT(nullptr != pec);
 
-	CWStringDynamic *str = CDXLUtils::SerializeSamplePlans(mp, pec, true /*indentation*/);
+	CWStringDynamic *str =
+		CDXLUtils::SerializeSamplePlans(mp, pec, true /*indentation*/);
 	pec->DumpSamples(str, ulSessionId, ulCmdId);
 	GPOS_DELETE(str);
 	GPOS_CHECK_ABORT;
@@ -145,16 +138,12 @@ COptimizer::DumpSamples
 //
 //---------------------------------------------------------------------------
 void
-COptimizer::PrintQueryOrPlan
-	(
-	CMemoryPool *mp,
-	CExpression *pexpr,
-	CQueryContext *pqc
-	)
+COptimizer::PrintQueryOrPlan(CMemoryPool *mp, CExpression *pexpr,
+							 CQueryContext *pqc)
 {
-	GPOS_ASSERT(NULL != pexpr);
+	GPOS_ASSERT(nullptr != pexpr);
 
-	if (NULL != pqc)
+	if (nullptr != pqc)
 	{
 		if (GPOS_FTRACE(EopttracePrintQuery))
 		{
@@ -173,7 +162,8 @@ COptimizer::PrintQueryOrPlan
 		// extract the name as the name for the next query
 		if (NULL != pexpr &&
 			COperator::EopPhysicalComputeScalar == pexpr->Pop()->Eopid() &&
-			COperator::EopPhysicalConstTableGet == (*pexpr)[0]->Pop()->Eopid() &&
+			COperator::EopPhysicalConstTableGet ==
+				(*pexpr)[0]->Pop()->Eopid() &&
 			COperator::EopScalarProjectList == (*pexpr)[1]->Pop()->Eopid() &&
 			1 == (*pexpr)[1]->Arity())
 		{
@@ -183,21 +173,26 @@ COptimizer::PrintQueryOrPlan
 			if (COperator::EopScalarConst == pop->Eopid())
 			{
 				CScalarConst *popScalarConst = CScalarConst::PopConvert(pop);
-				CDatumGenericGPDB *datum = dynamic_cast<CDatumGenericGPDB *>(popScalarConst->GetDatum());
+				CDatumGenericGPDB *datum = dynamic_cast<CDatumGenericGPDB *>(
+					popScalarConst->GetDatum());
 
-				if (NULL != datum)
+				if (NULL != datum && !datum->IsNull())
 				{
-					const char *select_element_bytes = (const char *) datum->GetByteArrayValue();
-					ULONG select_element_len = clib::Strlen(select_element_bytes);
+					const char *select_element_bytes =
+						(const char *) datum->GetByteArrayValue();
+					ULONG select_element_len =
+						clib::Strlen(select_element_bytes);
 					const char *query_name_prefix = "query name: ";
-					ULONG query_name_prefix_len = clib::Strlen(query_name_prefix);
+					ULONG query_name_prefix_len =
+						clib::Strlen(query_name_prefix);
 
 					if (0 == clib::Strncmp((const char *) select_element_bytes,
 										   query_name_prefix,
 										   query_name_prefix_len))
 					{
 						// the constant in the select starts with "query_name: "
-						for (ULONG i=query_name_prefix_len; i<select_element_len; i++)
+						for (ULONG i = query_name_prefix_len;
+							 i < select_element_len; i++)
 						{
 							if (select_element_bytes[i] > 0)
 							{
@@ -232,40 +227,36 @@ COptimizer::PrintQueryOrPlan
 //
 //---------------------------------------------------------------------------
 CDXLNode *
-COptimizer::PdxlnOptimize
-	(
-	CMemoryPool *mp, 
-	CMDAccessor *md_accessor,
-	const CDXLNode *query,
-	const CDXLNodeArray *query_output_dxlnode_array, 
-	const CDXLNodeArray *cte_producers, 
-	IConstExprEvaluator *pceeval,
+COptimizer::PdxlnOptimize(
+	CMemoryPool *mp, CMDAccessor *md_accessor, const CDXLNode *query,
+	const CDXLNodeArray *query_output_dxlnode_array,
+	const CDXLNodeArray *cte_producers, IConstExprEvaluator *pceeval,
 	ULONG ulHosts,	// actual number of data nodes in the system
-	ULONG ulSessionId,
-	ULONG ulCmdId,
-	CSearchStageArray *search_stage_array,
+	ULONG ulSessionId, ULONG ulCmdId, CSearchStageArray *search_stage_array,
 	COptimizerConfig *optimizer_config,
-	const CHAR *szMinidumpFileName 	// name of minidump file to be created
-	)
+	const CHAR *szMinidumpFileName	// name of minidump file to be created
+)
 {
-	GPOS_ASSERT(NULL != md_accessor);
-	GPOS_ASSERT(NULL != query);
-	GPOS_ASSERT(NULL != query_output_dxlnode_array);
-	GPOS_ASSERT(NULL != optimizer_config);
+	GPOS_ASSERT(nullptr != md_accessor);
+	GPOS_ASSERT(nullptr != query);
+	GPOS_ASSERT(nullptr != query_output_dxlnode_array);
+	GPOS_ASSERT(nullptr != optimizer_config);
 
 	BOOL fMinidump = GPOS_FTRACE(EopttraceMinidump);
 
 	// If minidump was requested, open the minidump file and initialize
 	// minidumper. (We create the minidumper object even if we're not
 	// dumping, but without the Init-call, it will stay inactive.)
-	CMiniDumperDXL mdmp(mp);
+	CMiniDumperDXL mdmp;
 	CAutoP<std::wofstream> wosMinidump;
 	CAutoP<COstreamBasic> osMinidump;
 	if (fMinidump)
 	{
 		CHAR file_name[GPOS_FILE_NAME_BUF_SIZE];
 
-		CMinidumperUtils::GenerateMinidumpFileName(file_name, GPOS_FILE_NAME_BUF_SIZE, ulSessionId, ulCmdId, szMinidumpFileName);
+		CMinidumperUtils::GenerateMinidumpFileName(
+			file_name, GPOS_FILE_NAME_BUF_SIZE, ulSessionId, ulCmdId,
+			szMinidumpFileName);
 
 		// Note: std::wofstream won't throw an error on failure. The stream is merely marked as
 		// failed. We could check the state, and avoid the overhead of serializing the
@@ -275,18 +266,19 @@ COptimizer::PdxlnOptimize
 
 		mdmp.Init(osMinidump.Value());
 	}
-	CDXLNode *pdxlnPlan = NULL;
+	CDXLNode *pdxlnPlan = nullptr;
 	CErrorHandlerStandard errhdl;
 	GPOS_TRY_HDL(&errhdl)
 	{
 		CSerializableStackTrace serStack;
 		CSerializableOptimizerConfig serOptConfig(mp, optimizer_config);
 		CSerializableMDAccessor serMDA(md_accessor);
-		CSerializableQuery serQuery(mp, query, query_output_dxlnode_array, cte_producers);
+		CSerializableQuery serQuery(mp, query, query_output_dxlnode_array,
+									cte_producers);
 
-		{			
+		{
 			optimizer_config->AddRef();
-			if (NULL != pceeval)
+			if (nullptr != pceeval)
 			{
 				pceeval->AddRef();
 			}
@@ -296,12 +288,15 @@ COptimizer::PdxlnOptimize
 
 			// translate DXL Tree -> Expr Tree
 			CTranslatorDXLToExpr dxltr(mp, md_accessor);
-			CExpression *pexprTranslated =	dxltr.PexprTranslateQuery(query, query_output_dxlnode_array, cte_producers);
+			CExpression *pexprTranslated = dxltr.PexprTranslateQuery(
+				query, query_output_dxlnode_array, cte_producers);
 			GPOS_CHECK_ABORT;
 			gpdxl::ULongPtrArray *pdrgpul = dxltr.PdrgpulOutputColRefs();
 			gpmd::CMDNameArray *pdrgpmdname = dxltr.Pdrgpmdname();
 
-			CQueryContext *pqc = CQueryContext::PqcGenerate(mp, pexprTranslated, pdrgpul, pdrgpmdname, true /*fDeriveStats*/);
+			CQueryContext *pqc =
+				CQueryContext::PqcGenerate(mp, pexprTranslated, pdrgpul,
+										   pdrgpmdname, true /*fDeriveStats*/);
 			GPOS_CHECK_ABORT;
 
 			PrintQueryOrPlan(mp, pexprTranslated, pqc);
@@ -312,7 +307,8 @@ COptimizer::PdxlnOptimize
 			// if the number of inlinable CTEs is greater than the cutoff, then
 			// disable inlining for this query
 			if (!GPOS_FTRACE(EopttraceEnableCTEInlining) ||
-				CUtils::UlInlinableCTEs(pexprTranslated) > optimizer_config->GetCteConf()->UlCTEInliningCutoff())
+				CUtils::UlInlinableCTEs(pexprTranslated) >
+					optimizer_config->GetCteConf()->UlCTEInliningCutoff())
 			{
 				COptCtxt::PoctxtFromTLS()->Pcteinfo()->DisableInlining();
 			}
@@ -323,19 +319,24 @@ COptimizer::PdxlnOptimize
 			GPOS_CHECK_ABORT;
 
 			// translate plan into DXL
-			pdxlnPlan = CreateDXLNode(mp, md_accessor, pexprPlan, pqc->PdrgPcr(), pdrgpmdname, ulHosts);
+			pdxlnPlan = CreateDXLNode(mp, md_accessor, pexprPlan,
+									  pqc->PdrgPcr(), pdrgpmdname, ulHosts);
 			GPOS_CHECK_ABORT;
 
 			if (fMinidump)
 			{
-				CSerializablePlan serPlan(mp, pdxlnPlan, optimizer_config->GetEnumeratorCfg()->GetPlanId(), optimizer_config->GetEnumeratorCfg()->GetPlanSpaceSize());
+				CSerializablePlan serPlan(
+					mp, pdxlnPlan,
+					optimizer_config->GetEnumeratorCfg()->GetPlanId(),
+					optimizer_config->GetEnumeratorCfg()->GetPlanSpaceSize());
 				CMinidumperUtils::Finalize(&mdmp, true /* fSerializeErrCtxt*/);
 				GPOS_CHECK_ABORT;
 			}
-			
+
 			if (GPOS_FTRACE(EopttraceSamplePlans))
 			{
-				DumpSamples(mp, optimizer_config->GetEnumeratorCfg(), ulSessionId, ulCmdId);
+				DumpSamples(mp, optimizer_config->GetEnumeratorCfg(),
+							ulSessionId, ulCmdId);
 				GPOS_CHECK_ABORT;
 			}
 
@@ -369,23 +370,16 @@ COptimizer::PdxlnOptimize
 //
 //---------------------------------------------------------------------------
 void
-COptimizer::HandleExceptionAfterFinalizingMinidump
-	(
-	CException &ex
-	)
+COptimizer::HandleExceptionAfterFinalizingMinidump(CException &ex)
 {
-	if (NULL != ITask::Self() &&
-		!ITask::Self()->GetErrCtxt()->IsPending())
+	if (nullptr != ITask::Self() && !ITask::Self()->GetErrCtxt()->IsPending())
 	{
 		// if error context has no pending exception, then minidump creation
 		// might have reset the error,
 		// in this case we need to raise the original exception
-		GPOS_RAISE
-			(
-			ex.Major(),
-			ex.Minor(),
-			GPOS_WSZ_LIT("re-raising exception after finalizing minidump")
-			);
+		GPOS_RAISE(
+			ex.Major(), ex.Minor(),
+			GPOS_WSZ_LIT("re-raising exception after finalizing minidump"));
 	}
 
 	// otherwise error is still pending, re-throw original exception
@@ -400,11 +394,7 @@ COptimizer::HandleExceptionAfterFinalizingMinidump
 // To be able to enter the recursive logic, the execution locality of root
 // is determined before the recursive call.
 void
-COptimizer::CheckCTEConsistency
-	(
-	CMemoryPool *mp,
-	CExpression *pexpr
-	)
+COptimizer::CheckCTEConsistency(CMemoryPool *mp, CExpression *pexpr)
 {
 	UlongToUlongMap *phmulul = GPOS_NEW(mp) UlongToUlongMap(mp);
 	CDrvdPropPlan *pdpplanChild = CDrvdPropPlan::Pdpplan(pexpr->PdpDerive());
@@ -424,12 +414,8 @@ COptimizer::CheckCTEConsistency
 //
 //---------------------------------------------------------------------------
 CExpression *
-COptimizer::PexprOptimize
-	(
-	CMemoryPool *mp,
-	CQueryContext *pqc,
-	CSearchStageArray *search_stage_array
-	)
+COptimizer::PexprOptimize(CMemoryPool *mp, CQueryContext *pqc,
+						  CSearchStageArray *search_stage_array)
 {
 	CEngine eng(mp);
 	eng.Init(pqc, search_stage_array);
@@ -438,7 +424,6 @@ COptimizer::PexprOptimize
 	GPOS_CHECK_ABORT;
 
 	CExpression *pexprPlan = eng.PexprExtractPlan();
-	(void) pexprPlan->PrppCompute(mp, pqc->Prpp());
 
 	CheckCTEConsistency(mp, pexprPlan);
 
@@ -459,19 +444,13 @@ COptimizer::PexprOptimize
 //		COptimizer::CreateDXLNode
 //
 //	@doc:
-//		Translate an optimizer expression into a DXL tree 
+//		Translate an optimizer expression into a DXL tree
 //
 //---------------------------------------------------------------------------
 CDXLNode *
-COptimizer::CreateDXLNode
-	(
-	CMemoryPool *mp, 
-	CMDAccessor *md_accessor, 
-	CExpression *pexpr,
-	CColRefArray *colref_array,
-	CMDNameArray *pdrgpmdname,
-	ULONG ulHosts
-	)
+COptimizer::CreateDXLNode(CMemoryPool *mp, CMDAccessor *md_accessor,
+						  CExpression *pexpr, CColRefArray *colref_array,
+						  CMDNameArray *pdrgpmdname, ULONG ulHosts)
 {
 	GPOS_ASSERT(0 < ulHosts);
 	IntPtrArray *pdrgpiHosts = GPOS_NEW(mp) IntPtrArray(mp);
@@ -482,8 +461,9 @@ COptimizer::CreateDXLNode
 	}
 
 	CTranslatorExprToDXL ptrexprtodxl(mp, md_accessor, pdrgpiHosts);
-	CDXLNode *pdxlnPlan = ptrexprtodxl.PdxlnTranslate(pexpr, colref_array, pdrgpmdname);
-	
+	CDXLNode *pdxlnPlan =
+		ptrexprtodxl.PdxlnTranslate(pexpr, colref_array, pdrgpmdname);
+
 	return pdxlnPlan;
 }
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import fileinput
 import os
 import pipes
@@ -8,19 +8,15 @@ import stat
 import time
 import glob
 import shutil
-try:
-    import subprocess32 as subprocess
-except:
-    import subprocess
+import subprocess
 import difflib
 
 import pg
-import yaml
 
 from contextlib import closing
 from datetime import datetime
 from gppylib.commands.base import Command, ExecutionError, REMOTE
-from gppylib.commands.gp import chk_local_db_running
+from gppylib.commands.gp import chk_local_db_running, get_coordinatordatadir
 from gppylib.db import dbconn
 from gppylib.gparray import GpArray, MODE_SYNCHRONIZED
 
@@ -28,11 +24,13 @@ from gppylib.gparray import GpArray, MODE_SYNCHRONIZED
 PARTITION_START_DATE = '2010-01-01'
 PARTITION_END_DATE = '2013-01-01'
 
-master_data_dir = os.environ.get('MASTER_DATA_DIRECTORY')
-if master_data_dir is None:
-    raise Exception('MASTER_DATA_DIRECTORY is not set')
+coordinator_data_dir = get_coordinatordatadir()
+if coordinator_data_dir is None:
+    raise Exception('COORDINATOR_DATA_DIRECTORY is not set')
 
 
+# query_sql returns a cursor object, so the caller is responsible for closing
+# the dbconn connection.
 def query_sql(dbname, sql):
     result = None
 
@@ -43,16 +41,14 @@ def query_sql(dbname, sql):
 def execute_sql(dbname, sql):
     result = None
 
-    with dbconn.connect(dbconn.DbURL(dbname=dbname), unsetSearchPath=False) as conn:
+    with closing(dbconn.connect(dbconn.DbURL(dbname=dbname), unsetSearchPath=False)) as conn:
         dbconn.execSQL(conn, sql)
-    conn.close()
 
 def execute_sql_singleton(dbname, sql):
     result = None
-    with dbconn.connect(dbconn.DbURL(dbname=dbname), unsetSearchPath=False) as conn:
+    with closing(dbconn.connect(dbconn.DbURL(dbname=dbname), unsetSearchPath=False)) as conn:
         result = dbconn.querySingleton(conn, sql)
 
-    conn.close()
     if result is None:
         raise Exception("error running query: %s" % sql)
 
@@ -73,7 +69,7 @@ def run_command(context, command):
     cmd = Command(name='run %s' % command, cmdStr='%s' % command)
     try:
         cmd.run(validateAfter=True)
-    except ExecutionError, e:
+    except ExecutionError as e:
         context.exception = e
 
     result = cmd.get_results()
@@ -87,7 +83,7 @@ def run_async_command(context, command):
     cmd = Command(name='run %s' % command, cmdStr='%s' % command)
     try:
         proc = cmd.runNoWait()
-    except ExecutionError, e:
+    except ExecutionError as e:
         context.exception = e
     context.async_proc = proc
 
@@ -96,16 +92,16 @@ def run_cmd(command):
     cmd = Command(name='run %s' % command, cmdStr='%s' % command)
     try:
         cmd.run(validateAfter=True)
-    except ExecutionError, e:
-        print 'caught exception %s' % e
+    except ExecutionError as e:
+        print('caught exception %s' % e)
 
     result = cmd.get_results()
     return (result.rc, result.stdout, result.stderr)
 
 
-def run_command_remote(context, command, host, source_file, export_mdd, validateAfter=True):
+def run_command_remote(context, command, host, source_file, export_cdd, validateAfter=True):
     cmd = Command(name='run command %s' % command,
-                  cmdStr='gpssh -h %s -e \'source %s; %s; %s\'' % (host, source_file, export_mdd, command))
+                  cmdStr='gpssh -h %s -e \'source %s; %s; %s\'' % (host, source_file, export_cdd, command))
     cmd.run(validateAfter=validateAfter)
     result = cmd.get_results()
     context.ret_code = result.rc
@@ -120,7 +116,7 @@ def run_gpcommand(context, command, cmd_prefix=''):
         cmd = Command(name='run %s' % command, cmdStr='%s;$GPHOME/bin/%s' % (cmd_prefix, command))
     try:
         cmd.run(validateAfter=True)
-    except ExecutionError, e:
+    except ExecutionError as e:
         context.exception = e
 
     result = cmd.get_results()
@@ -145,8 +141,8 @@ def check_stdout_msg(context, msg, escapeStr = False):
     pat = re.compile(msg)
 
     actual = context.stdout_message
-    if isinstance(msg, unicode):
-        actual = actual.decode('utf-8')
+    if type(actual) is bytes:
+        actual = actual.decode()
 
     if not pat.search(actual):
         err_str = "Expected stdout string '%s' and found: '%s'" % (msg, actual)
@@ -185,7 +181,7 @@ def check_database_is_running(context):
 
     pgport = int(os.environ['PGPORT'])
 
-    running_status = chk_local_db_running(os.environ.get('MASTER_DATA_DIRECTORY'), pgport)
+    running_status = chk_local_db_running(get_coordinatordatadir(), pgport)
     gpdb_running = running_status[0] and running_status[1] and running_status[2] and running_status[3]
 
     return gpdb_running
@@ -306,14 +302,14 @@ def check_table_exists(context, dbname, table_name, table_type=None, host=None, 
         if '.' in table_name:
             schemaname, tablename = table_name.split('.')
             SQL_format = """
-                SELECT c.oid, c.relkind, c.relstorage, c.reloptions
+                SELECT c.oid, c.relkind, c.relam, c.reloptions
                 FROM pg_class c, pg_namespace n
                 WHERE c.relname = '%s' AND n.nspname = '%s' AND c.relnamespace = n.oid;
                 """
             SQL = SQL_format % (escape_string(tablename, conn=conn), escape_string(schemaname, conn=conn))
         else:
             SQL_format = """
-                SELECT oid, relkind, relstorage, reloptions \
+                SELECT oid, relkind, relam, reloptions \
                 FROM pg_class \
                 WHERE relname = E'%s';\
                 """
@@ -329,16 +325,12 @@ def check_table_exists(context, dbname, table_name, table_type=None, host=None, 
         if table_type is None:
             return True
 
-    if table_row[2] == 'a':
+    if table_row[2] == 3434:
         original_table_type = 'ao'
-    elif table_row[2] == 'c':
+    elif table_row[2] == 3435:
         original_table_type = 'co'
-    elif table_row[2] == 'h':
+    elif table_row[2] == 2:
         original_table_type = 'heap'
-    elif table_row[2] == 'x':
-        original_table_type = 'external'
-    elif table_row[2] == 'v':
-        original_table_type = 'view'
     else:
         raise Exception('Unknown table type %s' % table_row[2])
 
@@ -348,25 +340,10 @@ def check_table_exists(context, dbname, table_name, table_type=None, host=None, 
     return True
 
 
-def drop_external_table_if_exists(context, table_name, dbname):
-    if check_table_exists(context, table_name=table_name, dbname=dbname, table_type='external'):
-        drop_external_table(context, table_name=table_name, dbname=dbname)
-
-
 def drop_table_if_exists(context, table_name, dbname, host=None, port=0, user=None):
     SQL = 'drop table if exists %s' % table_name
     with closing(dbconn.connect(dbconn.DbURL(hostname=host, port=port, username=user, dbname=dbname), unsetSearchPath=False)) as conn:
         dbconn.execSQL(conn, SQL)
-
-
-def drop_external_table(context, table_name, dbname, host=None, port=0, user=None):
-    SQL = 'drop external table %s' % table_name
-    with closing(dbconn.connect(dbconn.DbURL(hostname=host, port=port, username=user, dbname=dbname), unsetSearchPath=False)) as conn:
-        dbconn.execSQL(conn, SQL)
-
-    if check_table_exists(context, table_name=table_name, dbname=dbname, table_type='external', host=host, port=port,
-                          user=user):
-        raise Exception('Unable to successfully drop the table %s' % table_name)
 
 
 def drop_table(context, table_name, dbname, host=None, port=0, user=None):
@@ -398,24 +375,14 @@ def drop_schema(context, schema_name, dbname):
         raise Exception('Unable to successfully drop the schema %s' % schema_name)
 
 
-def get_partition_tablenames(tablename, dbname, part_level=1):
-    child_part_sql = "select partitiontablename from pg_partitions where tablename='%s' and partitionlevel=%s;" % (
-    tablename, part_level)
+def get_leaf_tablenames(tablename, dbname):
+    child_part_sql = "SELECT relid FROM pg_partition_tree('%s') WHERE isleaf" % (tablename)
     rows = getRows(dbname, child_part_sql)
     return rows
 
 
-def get_partition_names(schemaname, tablename, dbname, part_level, part_number):
-    part_num_sql = """select partitionschemaname || '.' || partitiontablename from pg_partitions
-                             where schemaname='%s' and tablename='%s'
-                             and partitionlevel=%s and partitionposition=%s;""" % (
-    schemaname, tablename, part_level, part_number)
-    rows = getRows(dbname, part_num_sql)
-    return rows
-
-
-def validate_part_table_data_on_segments(context, tablename, part_level, dbname):
-    rows = get_partition_tablenames(tablename, dbname, part_level)
+def validate_part_table_data_on_segments(context, tablename, dbname):
+    rows = get_leaf_tablenames(tablename, dbname)
     for part_tablename in rows:
         seg_data_sql = "select gp_segment_id, count(*) from gp_dist_random('%s') group by gp_segment_id;" % \
                        part_tablename[0]
@@ -436,12 +403,12 @@ def create_external_partition(context, tablename, dbname, port, filename):
                         partition s_5  start(date '2014-01-01') end(date '2015-01-01') ) \
                         ;" % (tablename, table_definition)
 
-    master_hostname = get_master_hostname();
+    coordinator_hostname = get_coordinator_hostname();
     create_ext_table_str = "Create readable external table %s_ret (%s) \
                             location ('gpfdist://%s:%s/%s') \
                             format 'csv' encoding 'utf-8' \
                             log errors segment reject limit 1000 \
-                            ;" % (tablename, table_definition, master_hostname[0][0].strip(), port, filename)
+                            ;" % (tablename, table_definition, coordinator_hostname[0][0].strip(), port, filename)
 
     alter_table_str = "Alter table %s exchange partition p_2 \
                        with table %s_ret without validation \
@@ -590,7 +557,7 @@ def are_segments_synchronized():
     gparray = GpArray.initFromCatalog(dbconn.DbURL())
     segments = gparray.getDbList()
     for seg in segments:
-        if seg.mode != MODE_SYNCHRONIZED and not seg.isSegmentMaster(True):
+        if seg.mode != MODE_SYNCHRONIZED and not seg.isSegmentCoordinator(True):
             return False
     return True
 
@@ -609,9 +576,9 @@ def check_row_count(context, tablename, dbname, nrows):
         raise Exception('%d rows in table %s.%s, expected row count = %d' % (result, dbname, tablename, nrows))
 
 
-def get_master_hostname(dbname='template1'):
-    master_hostname_sql = "SELECT DISTINCT hostname FROM gp_segment_configuration WHERE content=-1 AND role='p'"
-    return getRows(dbname, master_hostname_sql)
+def get_coordinator_hostname(dbname='template1'):
+    coordinator_hostname_sql = "SELECT DISTINCT hostname FROM gp_segment_configuration WHERE content=-1 AND role='p'"
+    return getRows(dbname, coordinator_hostname_sql)
 
 
 def get_hosts(dbname='template1'):
@@ -635,9 +602,9 @@ def get_all_hostnames_as_list(context, dbname):
     for seg in segs:
         hosts.append(seg[0].strip())
 
-    masters = get_master_hostname(dbname)
-    for master in masters:
-        hosts.append(master[0].strip())
+    coordinators = get_coordinator_hostname(dbname)
+    for coordinator in coordinators:
+        hosts.append(coordinator[0].strip())
 
     return hosts
 
@@ -671,7 +638,7 @@ def are_segments_running():
     result = True
     for seg in segments:
         if seg.status != 'u':
-            print "segment is not up - %s" % seg
+            print("segment is not up - %s" % seg)
             result = False
     return result
 
@@ -681,7 +648,7 @@ def modify_sql_file(file, hostport):
         for line in fileinput.FileInput(file, inplace=1):
             if line.find("gpfdist") >= 0:
                 line = re.sub('(\d+)\.(\d+)\.(\d+)\.(\d+)\:(\d+)', hostport, line)
-            print str(re.sub('\n', '', line))
+            print(str(re.sub('\n', '', line)))
 
 
 def remove_dir(host, directory):

@@ -9,6 +9,8 @@
 //		Test for CColumnFactory
 //---------------------------------------------------------------------------
 
+#include "unittest/gpopt/base/CColumnFactoryTest.h"
+
 #include "gpos/base.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/test/CUnittest.h"
@@ -18,13 +20,11 @@
 #include "gpopt/base/CQueryContext.h"
 #include "gpopt/mdcache/CMDAccessor.h"
 #include "gpopt/mdcache/CMDCache.h"
-
-#include "unittest/gpopt/base/CColumnFactoryTest.h"
-#include "unittest/gpopt/translate/CTranslatorExprToDXLTest.h"
-#include "unittest/gpopt/CTestUtils.h"
-
-#include "naucrates/md/IMDTypeInt4.h"
 #include "naucrates/md/CMDProviderMemory.h"
+#include "naucrates/md/IMDTypeInt4.h"
+
+#include "unittest/gpopt/CTestUtils.h"
+#include "unittest/gpopt/translate/CTranslatorExprToDXLTest.h"
 
 using namespace gpopt;
 
@@ -39,10 +39,8 @@ using namespace gpopt;
 GPOS_RESULT
 CColumnFactoryTest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
-		GPOS_UNITTEST_FUNC(CColumnFactoryTest::EresUnittest_Basic)
-		};
+	CUnittest rgut[] = {
+		GPOS_UNITTEST_FUNC(CColumnFactoryTest::EresUnittest_Basic)};
 
 	return CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 }
@@ -78,7 +76,8 @@ CColumnFactoryTest::EresUnittest_Basic()
 
 	// typed/named colref
 	CWStringConst strName(GPOS_WSZ_LIT("C_CustKey"));
-	CColRef *pcrTwo = cf.PcrCreate(pmdtypeint4, default_type_modifier, CName(&strName));
+	CColRef *pcrTwo =
+		cf.PcrCreate(pmdtypeint4, default_type_modifier, CName(&strName));
 	GPOS_ASSERT(pcrTwo == cf.LookupColRef(pcrTwo->m_id));
 
 	// clone previous colref
@@ -94,4 +93,3 @@ CColumnFactoryTest::EresUnittest_Basic()
 
 
 // EOF
-

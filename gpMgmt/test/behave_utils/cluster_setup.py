@@ -1,19 +1,20 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import socket
 import inspect
 from gppylib.commands.base import Command
+from gppylib.commands.gp import get_coordinatordatadir
 
 class GpDeleteSystem(Command):
     """This is a wrapper for gpdeletesystem."""
-    def __init__(self, mdd=None):
-        if not mdd:
-            mdd = os.getenv('MASTER_DATA_DIRECTORY')
-        cmd_str = "export MASTER_DATA_DIRECTORY=%s; echo -e \"y\\ny\\n\" | gpdeletesystem -d %s" % (mdd, mdd)
+    def __init__(self, cdd=None):
+        if not cdd:
+            cdd = get_coordinatordatadir()
+        cmd_str = "export COORDINATOR_DATA_DIRECTORY=%s; echo -e \"y\\ny\\n\" | gpdeletesystem -d %s" % (cdd, cdd)
         Command.__init__(self, 'run gpdeletesystem', cmd_str)
 
     def run(self, validate=True):
-        print "Running delete system: %s" % self
+        print("Running delete system: %s" % self)
         Command.run(self, validateAfter=validate)
         result = self.get_results()
         return result
@@ -22,19 +23,19 @@ class GpDeleteSystem(Command):
 class TestCluster:
     def __init__(self, hosts = None, base_dir = '/tmp/default_gpinitsystem', hba_hostnames='0'):
         """
-        hosts: lists of cluster hosts. master host will be assumed to be the first element.
+        hosts: lists of cluster hosts. coordinator host will be assumed to be the first element.
         base_dir: cluster directory
         """
 
-        master_host = 'localhost'
+        coordinator_host = 'localhost'
         segments_host = socket.gethostname()
-        self.hosts = [master_host, segments_host]
+        self.hosts = [coordinator_host, segments_host]
 
         if hosts:
             self.hosts = hosts
 
         self.port_base = '20500'
-        self.master_port = os.environ.get('PGPORT', '10300')
+        self.coordinator_port = os.environ.get('PGPORT', '10300')
         self.mirror_port_base = '21500'
 
         self.gpinitconfig_template = local_path('configs/gpinitconfig_template')
@@ -49,7 +50,7 @@ class TestCluster:
 
         self.primary_dir = os.path.join(self.base_dir, 'data/primary')
         self.mirror_dir = os.path.join(self.base_dir, 'data/mirror')
-        self.master_dir = os.path.join(self.base_dir, 'data/master')
+        self.coordinator_dir = os.path.join(self.base_dir, 'data/coordinator')
 
         # Test metadata
         # Whether to do gpinitsystem or not
@@ -66,16 +67,16 @@ class TestCluster:
         env_file = os.path.join(self.base_dir, 'gpdb-env.sh')
         with open(env_file, 'w') as f:
             f.write('#!/usr/bin/env bash\n')
-            f.write('export MASTER_DATA_DIRECTORY=%s\n' % os.path.join(self.master_dir,'gpseg-1'))
-            f.write('export PGPORT=%s\n' % self.master_port)
+            f.write('export COORDINATOR_DATA_DIRECTORY=%s\n' % os.path.join(self.coordinator_dir,'gpseg-1'))
+            f.write('export PGPORT=%s\n' % self.coordinator_port)
             f.flush()
 
     def _generate_gpinit_config_files(self):
         transforms = {'%PORT_BASE%': self.port_base,
-                      '%MASTER_HOST%': self.hosts[0], # First item in self.hosts
+                      '%COORDINATOR_HOST%': self.hosts[0], # First item in self.hosts
                       '%HOSTFILE%': self.hosts_file,
-                      '%MASTER_PORT%': self.master_port,
-                      '%MASTER_DATA_DIR%': self.master_dir,
+                      '%COORDINATOR_PORT%': self.coordinator_port,
+                      '%COORDINATOR_DATA_DIR%': self.coordinator_dir,
                       '%DATA_DIR%': (self.primary_dir + ' ') * self.number_of_segments,
                       '%HBA_HOSTNAMES%': self.hba_hostnames
                       }
@@ -106,7 +107,7 @@ class TestCluster:
         assert os.path.exists(self.hosts_file)
 
         # run gpinitsystem
-        clean_env = 'unset MASTER_DATA_DIRECTORY; unset PGPORT;'
+        clean_env = 'unset COORDINATOR_DATA_DIRECTORY; unset PGPORT;'
         segment_mirroring_option = '--mirror-mode=spread' if mirroring_configuration == 'spread' else ''
         gpinitsystem_cmd = clean_env + 'gpinitsystem -a -c  %s %s' % (self.init_file, segment_mirroring_option)
         res = run_shell_command(gpinitsystem_cmd, 'run gpinitsystem', verbose=True)
@@ -130,18 +131,18 @@ def substitute_strings_in_file(input_file, output_file, sub_dictionary):
     @param output_file: Absolute path of the file to create.
 
     @type sub_dictionary: dictionary @param sub_dictionary: Dictionary that specifies substitution. Key will be replaced with Value.  @rtype bool @returns True if there is at least one substitution made , False otherwise """
-    print "input_file: %s ; output_file: %s ; sub_dictionary: %s" % (input_file, output_file, str(sub_dictionary))
+    print("input_file: %s ; output_file: %s ; sub_dictionary: %s" % (input_file, output_file, str(sub_dictionary)))
     substituted = False
     with open(output_file, 'w') as output_file_object:
         with open(input_file, 'r') as input_file_object:
             for each_line in input_file_object:
                 new_line = each_line
-                for key,value in sub_dictionary.items():
+                for key,value in list(sub_dictionary.items()):
                     new_line = new_line.replace(key, value)
                 if not each_line == new_line:
                     substituted = True
                 output_file_object.write(new_line)
-    print "Substituted: %s" % str(substituted)
+    print("Substituted: %s" % str(substituted))
     return substituted
 
 def local_path(filename):
@@ -160,19 +161,19 @@ def run_shell_command(cmdstr, cmdname = 'shell command', results={'rc':0, 'stdou
     results['stderr'] = result.stderr
 
     if verbose:
-        print "command output: %s" % results['stdout']
+        print("command output: %s" % results['stdout'])
     if results['rc'] != 0:
         if verbose:
-            print "command error: %s" % results['stderr']
+            print("command error: %s" % results['stderr'])
     return results
 
 def reset_hosts(hosts, test_base_dir):
 
     primary_dir = os.path.join(test_base_dir, 'data', 'primary')
     mirror_dir = os.path.join(test_base_dir, 'data', 'mirror')
-    master_dir = os.path.join(test_base_dir, 'data', 'master')
+    coordinator_dir = os.path.join(test_base_dir, 'data', 'coordinator')
 
-    host_args = " ".join(map(lambda x: "-h %s" % x, hosts))
+    host_args = " ".join(["-h %s" % x for x in hosts])
     reset_primary_dirs_cmd = "gpssh %s -e 'rm -rf %s; mkdir -p %s'" % (host_args, primary_dir, primary_dir)
     res = run_shell_command(reset_primary_dirs_cmd, 'reset segment dirs', verbose=True)
     if res['rc'] > 0:
@@ -183,8 +184,8 @@ def reset_hosts(hosts, test_base_dir):
     if res['rc'] > 0:
         raise Exception("Failed to reset segment directories")
 
-    reset_master_dirs_cmd = "gpssh %s -e 'rm -rf %s; mkdir -p %s'" % (host_args, master_dir, master_dir)
-    res = run_shell_command(reset_master_dirs_cmd, 'reset segment dirs', verbose=True)
+    reset_coordinator_dirs_cmd = "gpssh %s -e 'rm -rf %s; mkdir -p %s'" % (host_args, coordinator_dir, coordinator_dir)
+    res = run_shell_command(reset_coordinator_dirs_cmd, 'reset segment dirs', verbose=True)
     if res['rc'] > 0:
         raise Exception("Failed to reset segment directories")
 

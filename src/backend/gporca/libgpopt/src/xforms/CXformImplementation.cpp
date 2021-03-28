@@ -9,9 +9,9 @@
 //		Implementation of basic implementation transformation
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
-
 #include "gpopt/xforms/CXformImplementation.h"
+
+#include "gpos/base.h"
 
 using namespace gpopt;
 
@@ -24,14 +24,9 @@ using namespace gpopt;
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CXformImplementation::CXformImplementation
-	(
-	CExpression *pexpr
-	)
-	:
-	CXform(pexpr)
+CXformImplementation::CXformImplementation(CExpression *pexpr) : CXform(pexpr)
 {
-	GPOS_ASSERT(NULL != pexpr);
+	GPOS_ASSERT(nullptr != pexpr);
 }
 
 
@@ -43,9 +38,7 @@ CXformImplementation::CXformImplementation
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CXformImplementation::~CXformImplementation()
-{}
+CXformImplementation::~CXformImplementation() = default;
 
 
 // EOF
-

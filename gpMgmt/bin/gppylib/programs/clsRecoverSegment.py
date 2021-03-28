@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Line too long            - pylint: disable=C0301
 # Invalid name             - pylint: disable=C0103
 #
@@ -20,7 +20,7 @@ from gppylib.mainUtils import *
 
 from optparse import OptionGroup
 import os, sys, signal, time
-
+from contextlib import closing
 
 from gppylib import gparray, gplog, userinput, utils
 from gppylib.util import gp_utils
@@ -28,15 +28,16 @@ from gppylib.commands import gp, pg, unix
 from gppylib.commands.base import Command, WorkerPool
 from gppylib.db import dbconn
 from gppylib.gpparseopts import OptParser, OptChecker
+from gppylib.operations.detect_unreachable_hosts import get_unreachable_segment_hosts
 from gppylib.operations.startSegments import *
 from gppylib.operations.buildMirrorSegments import *
 from gppylib.operations.rebalanceSegments import GpSegmentRebalanceOperation
+from gppylib.operations.update_pg_hba_conf import config_primaries_for_replication
 from gppylib.programs import programIoUtils
 from gppylib.system import configurationInterface as configInterface
-from gppylib.system.environment import GpMasterEnvironment
+from gppylib.system.environment import GpCoordinatorEnvironment
 from gppylib.parseutils import line_reader, check_values, canonicalize_address
 from gppylib.utils import writeLinesToFile, normalizeAndValidateInputPath, TableLogger
-from gppylib.gphostcache import GpInterfaceToHostNameCache
 from gppylib.operations.utils import ParallelOperation
 from gppylib.operations.package import SyncPackages
 from gppylib.heapchecksum import HeapChecksum
@@ -70,7 +71,7 @@ class PortAssigner:
         self.__usedPortsByHostName = {}
 
         byHost = GpArray.getSegmentsByHostName(segments)
-        for hostName, segments in byHost.iteritems():
+        for hostName, segments in byHost.items():
             usedPorts = self.__usedPortsByHostName[hostName] = {}
             for seg in segments:
                 usedPorts[seg.getSegmentPort()] = True
@@ -110,11 +111,9 @@ class RemoteQueryCommand(Command):
     def run(self):
         logger.debug('Executing query (%s:%s) for segment (%s:%s) on database (%s)' % (
             self.qname, self.query, self.hostname, self.port, self.dbname))
-        with dbconn.connect(dbconn.DbURL(hostname=self.hostname, port=self.port, dbname=self.dbname),
-                            utility=True) as conn:
+        with closing(dbconn.connect(dbconn.DbURL(hostname=self.hostname, port=self.port, dbname=self.dbname),
+                            utility=True)) as conn:
             self.res = dbconn.query(conn, self.query).fetchall()
-        conn.close()
-
 # -------------------------------------------------------------------------
 
 class GpRecoverSegmentProgram:
@@ -216,7 +215,6 @@ class GpRecoverSegmentProgram:
                 rows.append(self._getParsedRow(filename, lineno, line))
 
         allAddresses = [row["newAddress"] for row in rows if "newAddress" in row]
-        interfaceLookup = GpInterfaceToHostNameCache(self.__pool, allAddresses, [None]*len(allAddresses))
 
         failedSegments = []
         failoverSegments = []
@@ -263,10 +261,9 @@ class GpRecoverSegmentProgram:
 
                 dataDirectory = normalizeAndValidateInputPath(row["newDataDirectory"], "config file",
                                                               row['lineno'])
-
-                hostName = interfaceLookup.getHostName(address)
-                if hostName is None:
-                    raise Exception('Unable to find host name for address %s from line:%s' % (address, row['lineno']))
+                # FIXME: hostname probably should not be address, but to do so, "hostname" should be added to gpaddmirrors config file
+                # FIXME: This appears identical to __getMirrorsToBuildFromConfigFilein clsAddMirrors
+                hostName = address
 
                 # now update values in failover segment
                 failoverSegment.setSegmentAddress(address)
@@ -287,6 +284,10 @@ class GpRecoverSegmentProgram:
             peerForFailedSegment = peersForFailedSegments[index]
 
             peerForFailedSegmentDbId = peerForFailedSegment.getSegmentDbId()
+
+            if failedSegment.unreachable:
+                continue
+
             segs.append(GpMirrorToBuild(failedSegment, peerForFailedSegment, failoverSegments[index],
                                         self.__options.forceFullResynchronization))
 
@@ -338,7 +339,7 @@ class GpRecoverSegmentProgram:
                 segHostname = seg.getSegmentHostName()
 
                 # Haven't seen this hostname before so we put it on a new host
-                if not recoverHostMap.has_key(segHostname):
+                if segHostname not in recoverHostMap:
                     try:
                         recoverHostMap[segHostname] = self.__options.newRecoverHosts[recoverHostIdx]
                     except:
@@ -350,7 +351,7 @@ class GpRecoverSegmentProgram:
                 if isStandardArray:
                     # We have a standard array configuration, so we'll try to use the same
                     # interface naming convention.  If this doesn't work, we'll correct it
-                    # below on name lookup
+                    # below during ping failure
                     segInterface = segAddress[segAddress.rfind('-'):]
                     destAddress = recoverHostMap[segHostname] + segInterface
                     destHostname = recoverHostMap[segHostname]
@@ -364,36 +365,14 @@ class GpRecoverSegmentProgram:
                 # Save off the new host/address for this address.
                 recoverAddressMap[segAddress] = (destHostname, destAddress)
 
-            # Now that we've generated the mapping, look up all the addresses to make
-            # sure they are resolvable.
-            interfaces = [address for (_ignore, address) in recoverAddressMap.values()]
-            interfaceLookup = GpInterfaceToHostNameCache(self.__pool, interfaces, [None] * len(interfaces))
-
-            for key in recoverAddressMap.keys():
+            for key in list(recoverAddressMap.keys()):
                 (newHostname, newAddress) = recoverAddressMap[key]
                 try:
-                    addressHostnameLookup = interfaceLookup.getHostName(newAddress)
-                    # Lookup failed so use hostname passed in for everything.
-                    if addressHostnameLookup is None:
-                        interfaceHostnameWarnings.append(
-                            "Lookup of %s failed.  Using %s for both hostname and address." % (newAddress, newHostname))
-                        newAddress = newHostname
+                    unix.Ping.local("ping new address", newAddress)
                 except:
-                    # Catch all exceptions.  We will use hostname instead of address
-                    # that we generated.
-                    interfaceHostnameWarnings.append(
-                        "Lookup of %s failed.  Using %s for both hostname and address." % (newAddress, newHostname))
+                    # new address created is invalid, so instead use same hostname for address
+                    self.logger.info("Ping of %s failed, Using %s for both hostname and address.", newAddress, newHostname)
                     newAddress = newHostname
-
-                # if we've updated the address to use the hostname because of lookup failure
-                # make sure the hostname is resolvable and up
-                if newHostname == newAddress:
-                    try:
-                        unix.Ping.local("ping new hostname", newHostname)
-                    except:
-                        raise Exception("Ping of host %s failed." % newHostname)
-
-                # Save changes in map
                 recoverAddressMap[key] = (newHostname, newAddress)
 
             if len(self.__options.newRecoverHosts) != recoverHostIdx:
@@ -422,6 +401,9 @@ class GpRecoverSegmentProgram:
                 failoverSegment.setSegmentAddress(newRecoverAddress)
                 port = portAssigner.findAndReservePort(newRecoverHost, newRecoverAddress)
                 failoverSegment.setSegmentPort(port)
+
+            if failedSegment.unreachable:
+                continue
 
             segs.append(GpMirrorToBuild(failedSegment, liveSegment, failoverSegment, forceFull))
 
@@ -549,10 +531,9 @@ class GpRecoverSegmentProgram:
 
     def _get_dblist(self):
         # template0 does not accept any connections so we exclude it
-        with dbconn.connect(dbconn.DbURL()) as conn:
+        with closing(dbconn.connect(dbconn.DbURL())) as conn:
             res = dbconn.query(conn, "SELECT datname FROM PG_DATABASE WHERE datname != 'template0'")
-        conn.close()
-        return res.fetchall()
+            return res.fetchall()
 
     def run(self):
         if self.__options.parallelDegree < 1 or self.__options.parallelDegree > 64:
@@ -560,7 +541,7 @@ class GpRecoverSegmentProgram:
                 "Invalid parallelDegree provided with -B argument: %d" % self.__options.parallelDegree)
 
         self.__pool = WorkerPool(self.__options.parallelDegree)
-        gpEnv = GpMasterEnvironment(self.__options.masterDataDirectory, True)
+        gpEnv = GpCoordinatorEnvironment(self.__options.coordinatorDataDirectory, True)
 
         # verify "where to recover" options
         optionCnt = 0
@@ -573,11 +554,23 @@ class GpRecoverSegmentProgram:
         if optionCnt > 1:
             raise ProgramArgumentValidationException("Only one of -i, -p, and -r may be specified")
 
-        faultProberInterface.getFaultProber().initializeProber(gpEnv.getMasterPort())
+        faultProberInterface.getFaultProber().initializeProber(gpEnv.getCoordinatorPort())
 
-        confProvider = configInterface.getConfigurationProvider().initializeProvider(gpEnv.getMasterPort())
+        confProvider = configInterface.getConfigurationProvider().initializeProvider(gpEnv.getCoordinatorPort())
 
         gpArray = confProvider.loadSystemConfig(useUtilityMode=False)
+
+        num_workers = min(len(gpArray.get_hostlist()), self.__options.parallelDegree)
+        hosts = set(gpArray.get_hostlist(includeCoordinator=False))
+        unreachable_hosts = get_unreachable_segment_hosts(hosts, num_workers)
+        for i, segmentPair in enumerate(gpArray.segmentPairs):
+            if segmentPair.primaryDB.getSegmentHostName() in unreachable_hosts:
+                logger.warning("Not recovering segment %d because %s is unreachable" % (segmentPair.primaryDB.dbid, segmentPair.primaryDB.getSegmentHostName()))
+                gpArray.segmentPairs[i].primaryDB.unreachable = True
+
+            if segmentPair.mirrorDB.getSegmentHostName() in unreachable_hosts:
+                logger.warning("Not recovering segment %d because %s is unreachable" % (segmentPair.mirrorDB.dbid, segmentPair.mirrorDB.getSegmentHostName()))
+                gpArray.segmentPairs[i].mirrorDB.unreachable = True
 
         if not gpArray.hasMirrors:
             raise ExceptionNoStackTraceNeeded(
@@ -592,20 +585,9 @@ class GpRecoverSegmentProgram:
                     if h.strip() not in uniqueHosts:
                         uniqueHosts.append(h.strip())
                 self.__options.newRecoverHosts = uniqueHosts
-            except Exception, ex:
+            except Exception as ex:
                 raise ProgramArgumentValidationException( \
                     "Invalid value for recover hosts: %s" % ex)
-
-        # If it's a rebalance operation, make sure we are in an acceptable state to do that
-        # Acceptable state is:
-        #    - No segments down
-        #    - No segments in change tracking or unsynchronized state
-        if self.__options.rebalanceSegments:
-            if len(gpArray.get_invalid_segdbs()) > 0:
-                raise Exception("Down segments still exist.  All segments must be up to rebalance.")
-            if len(gpArray.get_synchronized_segdbs()) != len(gpArray.getSegDbList()):
-                raise Exception(
-                    "Some segments are not yet synchronized.  All segments must be synchronized to rebalance.")
 
         # retain list of hosts that were existing in the system prior to getRecoverActions...
         # this will be needed for later calculations that determine whether
@@ -665,16 +647,15 @@ class GpRecoverSegmentProgram:
             if new_hosts:
                 self.syncPackages(new_hosts)
 
+            config_primaries_for_replication(gpArray, self.__options.hba_hostnames)
             if not mirrorBuilder.buildMirrors("recover", gpEnv, gpArray):
                 sys.exit(1)
 
-            self.trigger_fts_probe(port=gpEnv.getMasterPort())
+            self.trigger_fts_probe(port=gpEnv.getCoordinatorPort())
 
-            self.logger.info("******************************************************************")
-            self.logger.info("Updating segments for streaming is completed.")
-            self.logger.info("For segments updated successfully, streaming will continue in the background.")
-            self.logger.info("Use  gpstate -s  to check the streaming progress.")
-            self.logger.info("******************************************************************")
+            self.logger.info("********************************")
+            self.logger.info("Segments successfully recovered.")
+            self.logger.info("********************************")
 
         sys.exit(0)
 
@@ -700,17 +681,17 @@ class GpRecoverSegmentProgram:
         # go forward if we have at least one segment that has replied
         if len(successes) == 0:
             raise Exception("No segments responded to ssh query for heap checksum validation.")
-        consistent, inconsistent, master_checksum_value = heap_checksum.check_segment_consistency(successes)
+        consistent, inconsistent, coordinator_checksum_value = heap_checksum.check_segment_consistency(successes)
         if len(inconsistent) > 0:
             self.logger.fatal("Heap checksum setting differences reported on segments")
             self.logger.fatal("Failed checksum consistency validation:")
             for gpdb in inconsistent:
                 segment_name = gpdb.getSegmentHostName()
                 checksum = gpdb.heap_checksum
-                self.logger.fatal("%s checksum set to %s differs from master checksum set to %s" %
-                                  (segment_name, checksum, master_checksum_value))
+                self.logger.fatal("%s checksum set to %s differs from coordinator checksum set to %s" %
+                                  (segment_name, checksum, coordinator_checksum_value))
             raise Exception("Heap checksum setting differences reported on segments")
-        self.logger.info("Heap checksum setting is consistent between master and the segments that are candidates "
+        self.logger.info("Heap checksum setting is consistent between coordinator and the segments that are candidates "
                          "for recoverseg")
 
     def cleanup(self):
@@ -735,14 +716,14 @@ class GpRecoverSegmentProgram:
         loggingGroup = addStandardLoggingAndHelpOptions(parser, True)
         loggingGroup.add_option("-s", None, default=None, action='store_false',
                                 dest='showProgressInplace',
-                                help='Show pg_basebackup progress sequentially instead of inplace')
+                                help='Show pg_basebackup/pg_rewind progress sequentially instead of inplace')
         loggingGroup.add_option("--no-progress",
                                 dest="showProgress", default=True, action="store_false",
-                                help="Suppress pg_basebackup progress output")
+                                help="Suppress pg_basebackup/pg_rewind progress output")
 
         addTo = OptionGroup(parser, "Connection Options")
         parser.add_option_group(addTo)
-        addMasterDirectoryOptionForSingleClusterProgram(addTo)
+        addCoordinatorDirectoryOptionForSingleClusterProgram(addTo)
 
         addTo = OptionGroup(parser, "Recovery Source Options")
         parser.add_option_group(addTo)
@@ -775,6 +756,8 @@ class GpRecoverSegmentProgram:
                          help="Max # of workers to use for building recovery segments.  [default: %default]")
         addTo.add_option("-r", None, default=False, action='store_true',
                          dest='rebalanceSegments', help='Rebalance synchronized segments.')
+        addTo.add_option('', '--hba-hostnames', action='store_true', dest='hba_hostnames',
+                         help='use hostnames instead of CIDR in pg_hba.conf')
 
         parser.set_defaults()
         return parser
@@ -789,8 +772,8 @@ class GpRecoverSegmentProgram:
     def mainOptions():
         """
         The dictionary this method returns instructs the simple_main framework
-        to check for a gprecoverseg.lock file under MASTER_DATA_DIRECTORY to
-        prevent the customer from trying to run more than one instance of
+        to check for a gprecoverseg.lock file under COORDINATOR_DATA_DIRECTORY
+        to prevent the customer from trying to run more than one instance of
         gprecoverseg at the same time.
         """
         return {'pidlockpath': 'gprecoverseg.lock', 'parentpidvar': 'GPRECOVERPID'}

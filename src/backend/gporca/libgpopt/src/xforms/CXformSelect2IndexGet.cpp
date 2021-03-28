@@ -9,15 +9,15 @@
 //		Implementation of select over a table to an index get transformation
 //---------------------------------------------------------------------------
 
+#include "gpopt/xforms/CXformSelect2IndexGet.h"
+
 #include "gpos/base.h"
 
 #include "gpopt/operators/CLogicalGet.h"
 #include "gpopt/operators/CLogicalSelect.h"
-#include "gpopt/xforms/CXformSelect2IndexGet.h"
 #include "gpopt/xforms/CXformUtils.h"
-
-#include "naucrates/md/CMDRelationGPDB.h"
 #include "naucrates/md/CMDIndexGPDB.h"
+#include "naucrates/md/CMDRelationGPDB.h"
 
 using namespace gpopt;
 using namespace gpmd;
@@ -30,23 +30,17 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformSelect2IndexGet::CXformSelect2IndexGet
-	(
-	CMemoryPool *mp
-	)
-	:
-	// pattern
-	CXformExploration
-		(
-		GPOS_NEW(mp) CExpression
-				(
-				mp,
-				GPOS_NEW(mp) CLogicalSelect(mp),
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalGet(mp)), // relational child
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))	// predicate tree
-				)
-		)
-{}
+CXformSelect2IndexGet::CXformSelect2IndexGet(CMemoryPool *mp)
+	:  // pattern
+	  CXformExploration(GPOS_NEW(mp) CExpression(
+		  mp, GPOS_NEW(mp) CLogicalSelect(mp),
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CLogicalGet(mp)),  // relational child
+		  GPOS_NEW(mp)
+			  CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))  // predicate tree
+		  ))
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -58,11 +52,7 @@ CXformSelect2IndexGet::CXformSelect2IndexGet
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformSelect2IndexGet::Exfp
-	(
-	CExpressionHandle &exprhdl
-	)
-	const
+CXformSelect2IndexGet::Exfp(CExpressionHandle &exprhdl) const
 {
 	if (exprhdl.DeriveHasSubquery(1))
 	{
@@ -81,15 +71,10 @@ CXformSelect2IndexGet::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformSelect2IndexGet::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformSelect2IndexGet::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+								 CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
@@ -106,9 +91,10 @@ CXformSelect2IndexGet::Transform
 	{
 		return;
 	}
-	
+
 	// array of expressions in the scalar expression
-	CExpressionArray *pdrgpexpr = CPredicateUtils::PdrgpexprConjuncts(mp, pexprScalar);
+	CExpressionArray *pdrgpexpr =
+		CPredicateUtils::PdrgpexprConjuncts(mp, pexprScalar);
 	GPOS_ASSERT(pdrgpexpr->Size() > 0);
 
 	// derive the scalar and relational properties to build set of required columns
@@ -121,28 +107,17 @@ CXformSelect2IndexGet::Transform
 
 	// find the indexes whose included columns meet the required columns
 	CMDAccessor *md_accessor = COptCtxt::PoctxtFromTLS()->Pmda();
-	const IMDRelation *pmdrel = md_accessor->RetrieveRel(popGet->Ptabdesc()->MDId());
+	const IMDRelation *pmdrel =
+		md_accessor->RetrieveRel(popGet->Ptabdesc()->MDId());
 
 	for (ULONG ul = 0; ul < ulIndices; ul++)
 	{
 		IMDId *pmdidIndex = pmdrel->IndexMDidAt(ul);
 		const IMDIndex *pmdindex = md_accessor->RetrieveIndex(pmdidIndex);
-		CExpression *pexprIndexGet = CXformUtils::PexprLogicalIndexGet
-						(
-						 mp,
-						 md_accessor,
-						 pexprRelational,
-						 pexpr->Pop()->UlOpId(),
-						 pdrgpexpr,
-						 pcrsReqd,
-						 pcrsScalarExpr,
-						 NULL /*outer_refs*/,
-						 pmdindex,
-						 pmdrel,
-						 false /*fAllowPartialIndex*/,
-						 NULL /*ppartcnstrIndex*/
-						);
-		if (NULL != pexprIndexGet)
+		CExpression *pexprIndexGet = CXformUtils::PexprLogicalIndexGet(
+			mp, md_accessor, pexprRelational, pexpr->Pop()->UlOpId(), pdrgpexpr,
+			pcrsReqd, pcrsScalarExpr, nullptr /*outer_refs*/, pmdindex, pmdrel);
+		if (nullptr != pexprIndexGet)
 		{
 			pxfres->Add(pexprIndexGet);
 		}
@@ -153,4 +128,3 @@ CXformSelect2IndexGet::Transform
 }
 
 // EOF
-

@@ -6,34 +6,31 @@
 //		CParseHandlerOptimizerConfig.cpp
 //
 //	@doc:
-//		Implementation of the SAX parse handler class for parsing optimizer 
+//		Implementation of the SAX parse handler class for parsing optimizer
 //		config params
 //---------------------------------------------------------------------------
 
+#include "naucrates/dxl/parser/CParseHandlerOptimizerConfig.h"
+
 #include "gpos/common/CBitSet.h"
 
-#include "naucrates/dxl/parser/CParseHandlerOptimizerConfig.h"
-#include "naucrates/dxl/parser/CParseHandlerManager.h"
-#include "naucrates/dxl/parser/CParseHandlerFactory.h"
-#include "naucrates/dxl/parser/CParseHandlerTraceFlags.h"
-#include "naucrates/dxl/parser/CParseHandlerEnumeratorConfig.h"
-#include "naucrates/dxl/parser/CParseHandlerStatisticsConfig.h"
-#include "naucrates/dxl/parser/CParseHandlerCTEConfig.h"
-#include "naucrates/dxl/parser/CParseHandlerCostModel.h"
-#include "naucrates/dxl/parser/CParseHandlerHint.h"
-#include "naucrates/dxl/parser/CParseHandlerWindowOids.h"
-
-
-#include "naucrates/dxl/operators/CDXLOperatorFactory.h"
-#include "naucrates/traceflags/traceflags.h"
-
-#include "naucrates/dxl/xml/dxltokens.h"
-
 #include "gpopt/base/CWindowOids.h"
+#include "gpopt/cost/ICostModel.h"
 #include "gpopt/engine/CEnumeratorConfig.h"
 #include "gpopt/engine/CStatisticsConfig.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
-#include "gpopt/cost/ICostModel.h"
+#include "naucrates/dxl/operators/CDXLOperatorFactory.h"
+#include "naucrates/dxl/parser/CParseHandlerCTEConfig.h"
+#include "naucrates/dxl/parser/CParseHandlerCostModel.h"
+#include "naucrates/dxl/parser/CParseHandlerEnumeratorConfig.h"
+#include "naucrates/dxl/parser/CParseHandlerFactory.h"
+#include "naucrates/dxl/parser/CParseHandlerHint.h"
+#include "naucrates/dxl/parser/CParseHandlerManager.h"
+#include "naucrates/dxl/parser/CParseHandlerStatisticsConfig.h"
+#include "naucrates/dxl/parser/CParseHandlerTraceFlags.h"
+#include "naucrates/dxl/parser/CParseHandlerWindowOids.h"
+#include "naucrates/dxl/xml/dxltokens.h"
+#include "naucrates/traceflags/traceflags.h"
 
 using namespace gpdxl;
 
@@ -47,16 +44,12 @@ XERCES_CPP_NAMESPACE_USE
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CParseHandlerOptimizerConfig::CParseHandlerOptimizerConfig
-	(
-	CMemoryPool *mp,
-	CParseHandlerManager *parse_handler_mgr,
-	CParseHandlerBase *parse_handler_root
-	)
-	:
-	CParseHandlerBase(mp, parse_handler_mgr, parse_handler_root),
-	m_pbs(NULL),
-	m_optimizer_config(NULL)
+CParseHandlerOptimizerConfig::CParseHandlerOptimizerConfig(
+	CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+	CParseHandlerBase *parse_handler_root)
+	: CParseHandlerBase(mp, parse_handler_mgr, parse_handler_root),
+	  m_pbs(nullptr),
+	  m_optimizer_config(nullptr)
 {
 }
 
@@ -83,63 +76,85 @@ CParseHandlerOptimizerConfig::~CParseHandlerOptimizerConfig()
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerOptimizerConfig::StartElement
-	(
-	const XMLCh* const element_uri,
-	const XMLCh* const element_local_name,
-	const XMLCh* const element_qname,
-	const Attributes &attrs
-	)
-{	
-	if (0 == XMLString::compareString(CDXLTokens::XmlstrToken(EdxltokenHint), element_local_name))
+CParseHandlerOptimizerConfig::StartElement(
+	const XMLCh *const element_uri, const XMLCh *const element_local_name,
+	const XMLCh *const element_qname, const Attributes &attrs)
+{
+	if (0 == XMLString::compareString(CDXLTokens::XmlstrToken(EdxltokenHint),
+									  element_local_name))
 	{
 		// install a parse handler for the hint config
-		CParseHandlerBase *pphHint = CParseHandlerFactory::GetParseHandler(m_mp, CDXLTokens::XmlstrToken(EdxltokenHint), m_parse_handler_mgr, this);
+		CParseHandlerBase *pphHint = CParseHandlerFactory::GetParseHandler(
+			m_mp, CDXLTokens::XmlstrToken(EdxltokenHint), m_parse_handler_mgr,
+			this);
 		m_parse_handler_mgr->ActivateParseHandler(pphHint);
-		pphHint->startElement(element_uri, element_local_name, element_qname, attrs);
+		pphHint->startElement(element_uri, element_local_name, element_qname,
+							  attrs);
 		this->Append(pphHint);
 		return;
-
 	}
-	else if (0 == XMLString::compareString(CDXLTokens::XmlstrToken(EdxltokenCostModelConfig), element_local_name))
+	else if (0 == XMLString::compareString(
+					  CDXLTokens::XmlstrToken(EdxltokenCostModelConfig),
+					  element_local_name))
 	{
 		// install a parse handler for the cost model config
-		CParseHandlerBase *pphCostModel = CParseHandlerFactory::GetParseHandler(m_mp, CDXLTokens::XmlstrToken(EdxltokenCostModelConfig), m_parse_handler_mgr, this);
+		CParseHandlerBase *pphCostModel = CParseHandlerFactory::GetParseHandler(
+			m_mp, CDXLTokens::XmlstrToken(EdxltokenCostModelConfig),
+			m_parse_handler_mgr, this);
 		m_parse_handler_mgr->ActivateParseHandler(pphCostModel);
-		pphCostModel->startElement(element_uri, element_local_name, element_qname, attrs);
+		pphCostModel->startElement(element_uri, element_local_name,
+								   element_qname, attrs);
 		this->Append(pphCostModel);
 		return;
-
 	}
-	else if (0 == XMLString::compareString(CDXLTokens::XmlstrToken(EdxltokenTraceFlags), element_local_name))
+	else if (0 == XMLString::compareString(
+					  CDXLTokens::XmlstrToken(EdxltokenTraceFlags),
+					  element_local_name))
 	{
 		// install a parse handler for the trace flags
-		CParseHandlerBase *pphTraceFlags = CParseHandlerFactory::GetParseHandler(m_mp, CDXLTokens::XmlstrToken(EdxltokenTraceFlags), m_parse_handler_mgr, this);
+		CParseHandlerBase *pphTraceFlags =
+			CParseHandlerFactory::GetParseHandler(
+				m_mp, CDXLTokens::XmlstrToken(EdxltokenTraceFlags),
+				m_parse_handler_mgr, this);
 		m_parse_handler_mgr->ActivateParseHandler(pphTraceFlags);
-		pphTraceFlags->startElement(element_uri, element_local_name, element_qname, attrs);
+		pphTraceFlags->startElement(element_uri, element_local_name,
+									element_qname, attrs);
 		this->Append(pphTraceFlags);
 		return;
-
 	}
-	else if (0 != XMLString::compareString(CDXLTokens::XmlstrToken(EdxltokenOptimizerConfig), element_local_name))
+	else if (0 != XMLString::compareString(
+					  CDXLTokens::XmlstrToken(EdxltokenOptimizerConfig),
+					  element_local_name))
 	{
-		CWStringDynamic *str = CDXLUtils::CreateDynamicStringFromXMLChArray(m_parse_handler_mgr->GetDXLMemoryManager(), element_local_name);
-		GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiDXLUnexpectedTag, str->GetBuffer());
+		CWStringDynamic *str = CDXLUtils::CreateDynamicStringFromXMLChArray(
+			m_parse_handler_mgr->GetDXLMemoryManager(), element_local_name);
+		GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiDXLUnexpectedTag,
+				   str->GetBuffer());
 	}
 
-	CParseHandlerBase *pphWindowOids = CParseHandlerFactory::GetParseHandler(m_mp, CDXLTokens::XmlstrToken(EdxltokenWindowOids), m_parse_handler_mgr, this);
+	CParseHandlerBase *pphWindowOids = CParseHandlerFactory::GetParseHandler(
+		m_mp, CDXLTokens::XmlstrToken(EdxltokenWindowOids), m_parse_handler_mgr,
+		this);
 	m_parse_handler_mgr->ActivateParseHandler(pphWindowOids);
 
 	// install a parse handler for the CTE configuration
-	CParseHandlerBase *pphCTEConfig = CParseHandlerFactory::GetParseHandler(m_mp, CDXLTokens::XmlstrToken(EdxltokenCTEConfig), m_parse_handler_mgr, this);
+	CParseHandlerBase *pphCTEConfig = CParseHandlerFactory::GetParseHandler(
+		m_mp, CDXLTokens::XmlstrToken(EdxltokenCTEConfig), m_parse_handler_mgr,
+		this);
 	m_parse_handler_mgr->ActivateParseHandler(pphCTEConfig);
 
 	// install a parse handler for the statistics configuration
-	CParseHandlerBase *pphStatisticsConfig = CParseHandlerFactory::GetParseHandler(m_mp, CDXLTokens::XmlstrToken(EdxltokenStatisticsConfig), m_parse_handler_mgr, this);
+	CParseHandlerBase *pphStatisticsConfig =
+		CParseHandlerFactory::GetParseHandler(
+			m_mp, CDXLTokens::XmlstrToken(EdxltokenStatisticsConfig),
+			m_parse_handler_mgr, this);
 	m_parse_handler_mgr->ActivateParseHandler(pphStatisticsConfig);
 
 	// install a parse handler for the enumerator configuration
-	CParseHandlerBase *pphEnumeratorConfig = CParseHandlerFactory::GetParseHandler(m_mp, CDXLTokens::XmlstrToken(EdxltokenEnumeratorConfig), m_parse_handler_mgr, this);
+	CParseHandlerBase *pphEnumeratorConfig =
+		CParseHandlerFactory::GetParseHandler(
+			m_mp, CDXLTokens::XmlstrToken(EdxltokenEnumeratorConfig),
+			m_parse_handler_mgr, this);
 	m_parse_handler_mgr->ActivateParseHandler(pphEnumeratorConfig);
 
 	// store parse handlers
@@ -158,41 +173,47 @@ CParseHandlerOptimizerConfig::StartElement
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerOptimizerConfig::EndElement
-	(
-	const XMLCh* const, // element_uri,
-	const XMLCh* const element_local_name,
-	const XMLCh* const // element_qname
-	)
+CParseHandlerOptimizerConfig::EndElement(const XMLCh *const,  // element_uri,
+										 const XMLCh *const element_local_name,
+										 const XMLCh *const	 // element_qname
+)
 {
-	if (0 != XMLString::compareString(CDXLTokens::XmlstrToken(EdxltokenOptimizerConfig), element_local_name))
+	if (0 != XMLString::compareString(
+				 CDXLTokens::XmlstrToken(EdxltokenOptimizerConfig),
+				 element_local_name))
 	{
-		CWStringDynamic *str = CDXLUtils::CreateDynamicStringFromXMLChArray(m_parse_handler_mgr->GetDXLMemoryManager(), element_local_name);
-		GPOS_RAISE( gpdxl::ExmaDXL, gpdxl::ExmiDXLUnexpectedTag, str->GetBuffer());
+		CWStringDynamic *str = CDXLUtils::CreateDynamicStringFromXMLChArray(
+			m_parse_handler_mgr->GetDXLMemoryManager(), element_local_name);
+		GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiDXLUnexpectedTag,
+				   str->GetBuffer());
 	}
-	
-	GPOS_ASSERT(NULL == m_optimizer_config);
+
+	GPOS_ASSERT(nullptr == m_optimizer_config);
 	GPOS_ASSERT(7 >= this->Length());
 
-	CParseHandlerEnumeratorConfig *pphEnumeratorConfig = dynamic_cast<CParseHandlerEnumeratorConfig *>((*this)[0]);
+	CParseHandlerEnumeratorConfig *pphEnumeratorConfig =
+		dynamic_cast<CParseHandlerEnumeratorConfig *>((*this)[0]);
 	CEnumeratorConfig *pec = pphEnumeratorConfig->GetEnumeratorCfg();
 	pec->AddRef();
 
-	CParseHandlerStatisticsConfig *pphStatisticsConfig = dynamic_cast<CParseHandlerStatisticsConfig *>((*this)[1]);
+	CParseHandlerStatisticsConfig *pphStatisticsConfig =
+		dynamic_cast<CParseHandlerStatisticsConfig *>((*this)[1]);
 	CStatisticsConfig *stats_config = pphStatisticsConfig->GetStatsConf();
 	stats_config->AddRef();
 
-	CParseHandlerCTEConfig *pphCTEConfig = dynamic_cast<CParseHandlerCTEConfig *>((*this)[2]);
+	CParseHandlerCTEConfig *pphCTEConfig =
+		dynamic_cast<CParseHandlerCTEConfig *>((*this)[2]);
 	CCTEConfig *pcteconfig = pphCTEConfig->GetCteConf();
 	pcteconfig->AddRef();
-	
-	CParseHandlerWindowOids *pphDefoidsGPDB = dynamic_cast<CParseHandlerWindowOids *>((*this)[3]);
+
+	CParseHandlerWindowOids *pphDefoidsGPDB =
+		dynamic_cast<CParseHandlerWindowOids *>((*this)[3]);
 	CWindowOids *pwindowoidsGPDB = pphDefoidsGPDB->GetWindowOids();
-	GPOS_ASSERT(NULL != pwindowoidsGPDB);
+	GPOS_ASSERT(nullptr != pwindowoidsGPDB);
 	pwindowoidsGPDB->AddRef();
 
-	ICostModel *pcm = NULL;
-	CHint *phint = NULL;
+	ICostModel *pcm = nullptr;
+	CHint *phint = nullptr;
 	if (5 == this->Length())
 	{
 		// no cost model: use default one
@@ -201,9 +222,10 @@ CParseHandlerOptimizerConfig::EndElement
 	}
 	else
 	{
-		CParseHandlerCostModel *pphCostModelConfig = dynamic_cast<CParseHandlerCostModel *>((*this)[4]);
+		CParseHandlerCostModel *pphCostModelConfig =
+			dynamic_cast<CParseHandlerCostModel *>((*this)[4]);
 		pcm = pphCostModelConfig->GetCostModel();
-		GPOS_ASSERT(NULL != pcm);
+		GPOS_ASSERT(nullptr != pcm);
 		pcm->AddRef();
 
 		if (6 == this->Length())
@@ -212,19 +234,22 @@ CParseHandlerOptimizerConfig::EndElement
 		}
 		else
 		{
-			CParseHandlerHint *pphHint = dynamic_cast<CParseHandlerHint *>((*this)[5]);
+			CParseHandlerHint *pphHint =
+				dynamic_cast<CParseHandlerHint *>((*this)[5]);
 			phint = pphHint->GetHint();
-			GPOS_ASSERT(NULL != phint);
+			GPOS_ASSERT(nullptr != phint);
 			phint->AddRef();
 		}
 	}
 
-	m_optimizer_config = GPOS_NEW(m_mp) COptimizerConfig(pec, stats_config, pcteconfig, pcm, phint, pwindowoidsGPDB);
+	m_optimizer_config = GPOS_NEW(m_mp) COptimizerConfig(
+		pec, stats_config, pcteconfig, pcm, phint, pwindowoidsGPDB);
 
-	CParseHandlerTraceFlags *pphTraceFlags = dynamic_cast<CParseHandlerTraceFlags *>((*this)[this->Length() - 1]);
+	CParseHandlerTraceFlags *pphTraceFlags =
+		dynamic_cast<CParseHandlerTraceFlags *>((*this)[this->Length() - 1]);
 	pphTraceFlags->GetTraceFlagBitSet()->AddRef();
 	m_pbs = pphTraceFlags->GetTraceFlagBitSet();
-	
+
 	// deactivate handler
 	m_parse_handler_mgr->DeactivateHandler();
 }

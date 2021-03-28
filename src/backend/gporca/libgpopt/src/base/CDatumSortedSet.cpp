@@ -1,23 +1,19 @@
 //	Greenplum Database
-//	Copyright (C) 2016 Pivotal Software, Inc.
+//	Copyright (C) 2016 VMware, Inc. or its affiliates.
 
-#include "gpopt/operators/COperator.h"
 #include "gpopt/base/CDatumSortedSet.h"
-#include "gpopt/operators/CScalarConst.h"
-#include "gpopt/base/CUtils.h"
+
 #include "gpos/common/CAutoRef.h"
+
+#include "gpopt/base/CUtils.h"
+#include "gpopt/operators/COperator.h"
+#include "gpopt/operators/CScalarConst.h"
 
 using namespace gpopt;
 
-CDatumSortedSet::CDatumSortedSet
-	(
-	CMemoryPool *mp,
-	CExpression *pexprArray,
-	const IComparator *pcomp
-	)
-	:
-	IDatumArray(mp),
-	m_fIncludesNull(false)
+CDatumSortedSet::CDatumSortedSet(CMemoryPool *mp, CExpression *pexprArray,
+								 const IComparator *pcomp)
+	: IDatumArray(mp), m_fIncludesNull(false)
 {
 	GPOS_ASSERT(COperator::EopScalarArray == pexprArray->Pop()->Eopid());
 
@@ -27,7 +23,8 @@ CDatumSortedSet::CDatumSortedSet
 	gpos::CAutoRef<IDatumArray> aprngdatum(GPOS_NEW(mp) IDatumArray(mp));
 	for (ULONG ul = 0; ul < ulArrayExprArity; ul++)
 	{
-		CScalarConst *popScConst = CUtils::PScalarArrayConstChildAt(pexprArray, ul);
+		CScalarConst *popScConst =
+			CUtils::PScalarArrayConstChildAt(pexprArray, ul);
 		IDatum *datum = popScConst->GetDatum();
 		if (datum->IsNull())
 		{
@@ -57,7 +54,8 @@ CDatumSortedSet::CDatumSortedSet
 	}
 }
 
-BOOL CDatumSortedSet::FIncludesNull() const
+BOOL
+CDatumSortedSet::FIncludesNull() const
 {
 	return m_fIncludesNull;
 }

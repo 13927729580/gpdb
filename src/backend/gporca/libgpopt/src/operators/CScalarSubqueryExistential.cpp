@@ -9,14 +9,14 @@
 //		Implementation of existential subquery operator
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
-
-#include "gpopt/base/CDrvdPropScalar.h"
-#include "gpopt/base/CColRefSet.h"
-#include "gpopt/base/COptCtxt.h"
-#include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/operators/CScalarSubqueryExistential.h"
 
+#include "gpos/base.h"
+
+#include "gpopt/base/CColRefSet.h"
+#include "gpopt/base/CDrvdPropScalar.h"
+#include "gpopt/base/COptCtxt.h"
+#include "gpopt/operators/CExpressionHandle.h"
 #include "naucrates/md/IMDTypeBool.h"
 
 using namespace gpopt;
@@ -30,13 +30,10 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CScalarSubqueryExistential::CScalarSubqueryExistential
-	(
-	CMemoryPool *mp
-	)
-	:
-	CScalar(mp)
-{}
+CScalarSubqueryExistential::CScalarSubqueryExistential(CMemoryPool *mp)
+	: CScalar(mp)
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -46,8 +43,7 @@ CScalarSubqueryExistential::CScalarSubqueryExistential
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CScalarSubqueryExistential::~CScalarSubqueryExistential()
-{}
+CScalarSubqueryExistential::~CScalarSubqueryExistential() = default;
 
 
 //---------------------------------------------------------------------------
@@ -75,13 +71,9 @@ CScalarSubqueryExistential::MdidType() const
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarSubqueryExistential::Matches
-	(
-	COperator *pop
-	)
-	const
+CScalarSubqueryExistential::Matches(COperator *pop) const
 {
-	GPOS_ASSERT(NULL != pop);
+	GPOS_ASSERT(nullptr != pop);
 
 	return pop->Eopid() == Eopid();
 }
@@ -96,18 +88,13 @@ CScalarSubqueryExistential::Matches
 //
 //---------------------------------------------------------------------------
 CPartInfo *
-CScalarSubqueryExistential::PpartinfoDerive
-	(
-	CMemoryPool *, // mp, 
-	CExpressionHandle &exprhdl
-	)
-	const
+CScalarSubqueryExistential::PpartinfoDerive(CMemoryPool *,	// mp,
+											CExpressionHandle &exprhdl) const
 {
 	CPartInfo *ppartinfoChild = exprhdl.DerivePartitionInfo(0);
-	GPOS_ASSERT(NULL != ppartinfoChild);
+	GPOS_ASSERT(nullptr != ppartinfoChild);
 	ppartinfoChild->AddRef();
 	return ppartinfoChild;
 }
 
 // EOF
-

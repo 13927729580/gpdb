@@ -46,7 +46,7 @@ class RemoteOperation(Operation):
         pickled_execname = pickle.dumps(execname) 
         pickled_operation = pickle.dumps(self.operation)
         cmd = Command('pickling an operation', '$GPHOME/sbin/gpoperation.py',
-                      ctxt=REMOTE, remoteHost=self.host, stdin = pickled_execname + pickled_operation)
+                      ctxt=REMOTE, remoteHost=self.host, stdin = pickled_execname + pickled_operation, pickled=True)
         cmd.run(validateAfter=True)
         msg =  "Output on host %s: %s" % (self.host, cmd.get_results().stdout)
         if self.msg_ctx:
@@ -95,17 +95,17 @@ class SerialOperation(Operation):
     def __str__(self):
         return "Serial(%d)" % len(self.operations)
 
-class MasterOperation(Operation):
+class CoordinatorOperation(Operation):
     def __init__(self, operation):
-        super(MasterOperation, self).__init__()
+        super(CoordinatorOperation, self).__init__()
         self.operation = operation
     
     def execute(self):
-        # TODO: check that we're running on master
+        # TODO: check that we're running on coordinator
         pass
 
 if __name__ == "__main__":
     import sys 
-    from unix import CheckFile, CheckRemoteFile
-    print RemoteOperation(CheckFile(sys.argv[1]), "localhost").run()
-    print CheckRemoteFile(sys.argv[1], "localhost").run()
+    from .unix import CheckFile, CheckRemoteFile
+    print(RemoteOperation(CheckFile(sys.argv[1]), "localhost").run())
+    print(CheckRemoteFile(sys.argv[1], "localhost").run())

@@ -9,13 +9,13 @@
 //		Tests for the floating-point wrapper class.
 //---------------------------------------------------------------------------
 
+#include "unittest/gpos/common/CDoubleTest.h"
+
 #include "gpos/base.h"
 #include "gpos/common/CDouble.h"
 #include "gpos/error/CAutoTrace.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/test/CUnittest.h"
-
-#include "unittest/gpos/common/CDoubleTest.h"
 
 
 using namespace gpos;
@@ -31,13 +31,12 @@ using namespace gpos;
 GPOS_RESULT
 CDoubleTest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
+	CUnittest rgut[] = {
 		GPOS_UNITTEST_FUNC(CDoubleTest::EresUnittest_Arithmetic),
 		GPOS_UNITTEST_FUNC(CDoubleTest::EresUnittest_Bool),
 		GPOS_UNITTEST_FUNC(CDoubleTest::EresUnittest_Convert),
 		GPOS_UNITTEST_FUNC(CDoubleTest::EresUnittest_Limits),
-		};
+	};
 
 	return CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 }
@@ -171,7 +170,7 @@ CDoubleTest::EresUnittest_Convert()
 	   << INT(10) << " * " << fp << " = " << (INT(10) * fp) << std::endl
 	   << LINT(10) << "l / " << fp << " = " << (LINT(10) / fp) << std::endl
 	   << "-'10.0' = " << (-CDouble(clib::Strtod("10.0"))) << std::endl
-	   << "Pow(" << ULONG(3)  << ") = " << fp.Pow(ULONG(3)) << std::endl;
+	   << "Pow(" << ULONG(3) << ") = " << fp.Pow(ULONG(3)) << std::endl;
 
 	return GPOS_OK;
 }
@@ -215,8 +214,10 @@ CDoubleTest::EresUnittest_Limits()
 	   << "inf * inf = " << (fpInf * fpInf) << std::endl
 	   << "inf * 2 = " << (fpInf * fpInf) << std::endl
 	   << "inf * zero = " << (fpInf * fpZero) << std::endl
-	   << "(inf * zero) * (inf * zero) = " << (fpInf * fpZero) * (fpInf * fpZero) << std::endl
-	   << "(inf * zero) / (inf * zero) = " << (fpInf * fpZero) / (fpInf * fpZero) << std::endl;
+	   << "(inf * zero) * (inf * zero) = "
+	   << (fpInf * fpZero) * (fpInf * fpZero) << std::endl
+	   << "(inf * zero) / (inf * zero) = "
+	   << (fpInf * fpZero) / (fpInf * fpZero) << std::endl;
 
 	return GPOS_OK;
 }

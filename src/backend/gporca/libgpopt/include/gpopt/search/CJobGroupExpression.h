@@ -19,105 +19,96 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	// prototypes
-	class CGroup;
-	class CGroupExpression;
+// prototypes
+class CGroup;
+class CGroupExpression;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CJobGroupExpression
-	//
-	//	@doc:
-	//		Abstract superclass of all group expression optimization jobs
-	//
-	//---------------------------------------------------------------------------
-	class CJobGroupExpression : public CJob
+//---------------------------------------------------------------------------
+//	@class:
+//		CJobGroupExpression
+//
+//	@doc:
+//		Abstract superclass of all group expression optimization jobs
+//
+//---------------------------------------------------------------------------
+class CJobGroupExpression : public CJob
+{
+private:
+	// true if job has scheduled child group jobs
+	BOOL m_fChildrenScheduled;
+
+	// true if job has scheduled transformation jobs
+	BOOL m_fXformsScheduled;
+
+protected:
+	// target group expression
+	CGroupExpression *m_pgexpr{nullptr};
+
+	// ctor
+	CJobGroupExpression() = default;
+
+	// dtor
+	~CJobGroupExpression() override = default;
+
+	// has job scheduled child groups ?
+	BOOL
+	FChildrenScheduled() const
 	{
+		return m_fChildrenScheduled;
+	}
 
-		private:
+	// set children scheduled
+	void
+	SetChildrenScheduled()
+	{
+		m_fChildrenScheduled = true;
+	}
 
-			// true if job has scheduled child group jobs
-			BOOL m_fChildrenScheduled;
+	// has job scheduled xform groups ?
+	BOOL
+	FXformsScheduled() const
+	{
+		return m_fXformsScheduled;
+	}
 
-			// true if job has scheduled transformation jobs
-			BOOL m_fXformsScheduled;
+	// set xforms scheduled
+	void
+	SetXformsScheduled()
+	{
+		m_fXformsScheduled = true;
+	}
 
-			// private copy ctor
-			CJobGroupExpression(const CJobGroupExpression&);
+	// initialize job
+	void Init(CGroupExpression *pgexpr);
 
-		protected:
+	// schedule transformation jobs for applicable xforms
+	virtual void ScheduleApplicableTransformations(CSchedulerContext *psc) = 0;
 
-			// target group expression
-			CGroupExpression *m_pgexpr;
+	// schedule jobs for all child groups
+	virtual void ScheduleChildGroupsJobs(CSchedulerContext *psc) = 0;
 
-			// ctor
-			CJobGroupExpression()
-				:
-				m_pgexpr(NULL)
-			{}
+	// schedule transformation jobs for the given set of xforms
+	void ScheduleTransformations(CSchedulerContext *psc, CXformSet *xform_set);
 
-			// dtor
-			virtual
-			~CJobGroupExpression()
-			{}
-
-			// has job scheduled child groups ?
-			BOOL FChildrenScheduled() const
-			{
-				return m_fChildrenScheduled;
-			}
-
-			// set children scheduled
-			void SetChildrenScheduled()
-			{
-				m_fChildrenScheduled = true;
-			}
-
-			// has job scheduled xform groups ?
-			BOOL FXformsScheduled() const
-			{
-				return m_fXformsScheduled;
-			}
-
-			// set xforms scheduled
-			void SetXformsScheduled()
-			{
-				m_fXformsScheduled = true;
-			}
-
-			// initialize job
-			void Init(CGroupExpression *pgexpr);
-
-			// schedule transformation jobs for applicable xforms
-			virtual
-			void ScheduleApplicableTransformations(CSchedulerContext *psc) = 0;
-
-			// schedule jobs for all child groups
-			virtual
-			void ScheduleChildGroupsJobs(CSchedulerContext *psc) = 0;
-
-			// schedule transformation jobs for the given set of xforms
-			void ScheduleTransformations(CSchedulerContext *psc, CXformSet *xform_set);
-
-			// job's function
-			virtual
-			BOOL FExecute(CSchedulerContext *psc) = 0;
+	// job's function
+	BOOL FExecute(CSchedulerContext *psc) override = 0;
 
 #ifdef GPOS_DEBUG
 
-			// print function
-			virtual
-			IOstream &OsPrint(IOstream &os) = 0;
+	// print function
+	IOstream &OsPrint(IOstream &os) const override = 0;
 
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
+public:
+	CJobGroupExpression(const CJobGroupExpression &) = delete;
 
-	}; // class CJobGroupExpression
+};	// class CJobGroupExpression
 
-}
+}  // namespace gpopt
 
-#endif // !GPOPT_CJobGroupExpression_H
+#endif	// !GPOPT_CJobGroupExpression_H
 
 
 // EOF

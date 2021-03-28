@@ -18,79 +18,74 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	// prototypes
-	class CReqdPropPlan;
+// prototypes
+class CReqdPropPlan;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CPropSpec
-	//
-	//	@doc:
-	//		Property specification
-	//
-	//---------------------------------------------------------------------------
-	class CPropSpec : public CRefCount
+//---------------------------------------------------------------------------
+//	@class:
+//		CPropSpec
+//
+//	@doc:
+//		Property specification
+//
+//---------------------------------------------------------------------------
+class CPropSpec : public CRefCount, public DbgPrintMixin<CPropSpec>
+{
+public:
+	// property type
+	enum EPropSpecType
 	{
-		public:
+		EpstOrder,
+		EpstDistribution,
+		EpstRewindability,
 
-			// property type
-			enum EPropSpecType
-			{
-				EpstOrder,
-				EpstDistribution,
-				EpstRewindability,
-				EpstPartPropagation,
+		EpstSentinel
+	};
 
-				EpstSentinel
-			};
+private:
+protected:
+	// ctor
+	CPropSpec() = default;
 
-		private:
+	// dtor
+	~CPropSpec() override = default;
 
-			// private copy ctor
-			CPropSpec(const CPropSpec &);
+public:
+	CPropSpec(const CPropSpec &) = delete;
 
-		protected:
+	// append enforcers to dynamic array for the given plan properties
+	virtual void AppendEnforcers(CMemoryPool *mp, CExpressionHandle &exprhdl,
+								 CReqdPropPlan *prpp,
+								 CExpressionArray *pdrgpexpr,
+								 CExpression *pexpr) = 0;
 
-			// ctor
-			CPropSpec()
-			{}
+	// hash function
+	virtual ULONG HashValue() const = 0;
 
-			// dtor
-			~CPropSpec()
-			{}
+	// extract columns used by the property
+	virtual CColRefSet *PcrsUsed(CMemoryPool *mp) const = 0;
 
-		public:
+	// property type
+	virtual EPropSpecType Epst() const = 0;
 
-			// append enforcers to dynamic array for the given plan properties
-			virtual
-			void AppendEnforcers(CMemoryPool *mp, CExpressionHandle &exprhdl, CReqdPropPlan *prpp, CExpressionArray *pdrgpexpr, CExpression *pexpr) = 0;
+	virtual gpos::IOstream &OsPrint(gpos::IOstream &os) const = 0;
 
-			// hash function
-			virtual
-			ULONG HashValue() const = 0;
-
-			// extract columns used by the property
-			virtual
-			CColRefSet *PcrsUsed(CMemoryPool *mp) const = 0;
-
-			// property type
-			virtual
-			EPropSpecType Epst() const = 0;
-
-	}; // class CPropSpec
+};	// class CPropSpec
 
 
-	// shorthand for printing
-	inline
-	IOstream &operator << (IOstream &os, const CPropSpec &ospec)
-	{
-		return ospec.OsPrint(os);
-	}
-
+// shorthand for printing
+inline IOstream &
+operator<<(IOstream &os, const CPropSpec &ospec)
+{
+	return ospec.OsPrint(os);
 }
 
-#endif // !GPOPT_CPropSpec_H
+}  // namespace gpopt
+
+FORCE_GENERATE_DBGSTR(gpopt::CPropSpec);
+
+#endif	// !GPOPT_CPropSpec_H
 
 // EOF

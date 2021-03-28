@@ -14,76 +14,60 @@
 
 #include "gpos/base.h"
 
-#include "naucrates/md/IMDId.h"
-#include "naucrates/md/CMDName.h"
-
 #include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/operators/CDXLScalarSubqueryQuantified.h"
+#include "naucrates/md/CMDName.h"
+#include "naucrates/md/IMDId.h"
 
 namespace gpdxl
 {
+using namespace gpmd;
 
-	using namespace gpmd;
+//---------------------------------------------------------------------------
+//	@class:
+//		CDXLScalarSubqueryAny
+//
+//	@doc:
+//		Class for representing ANY subqueries
+//
+//---------------------------------------------------------------------------
+class CDXLScalarSubqueryAny : public CDXLScalarSubqueryQuantified
+{
+private:
+public:
+	CDXLScalarSubqueryAny(CDXLScalarSubqueryAny &) = delete;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDXLScalarSubqueryAny
-	//
-	//	@doc:
-	//		Class for representing ANY subqueries
-	//
-	//---------------------------------------------------------------------------
-	class CDXLScalarSubqueryAny : public CDXLScalarSubqueryQuantified
-	{			
+	// ctor
+	CDXLScalarSubqueryAny(CMemoryPool *mp, IMDId *scalar_op_mdid,
+						  CMDName *mdname, ULONG colid);
 
-		private:	
-			
-			// private copy ctor
-			CDXLScalarSubqueryAny(CDXLScalarSubqueryAny&);
-			
-		public:
-			// ctor
-			CDXLScalarSubqueryAny
-				(
-				CMemoryPool *mp,
-				IMDId *scalar_op_mdid,
-				CMDName *mdname,
-				ULONG colid
-				);
+	// ident accessors
+	Edxlopid GetDXLOperator() const override;
 
-			// ident accessors
-			Edxlopid GetDXLOperator() const;
-			
-			// name of the operator
-			const CWStringConst *GetOpNameStr() const;
-			
-			// conversion function
-			static
-			CDXLScalarSubqueryAny *Cast
-				(
-				CDXLOperator *dxl_op
-				)
-			{
-				GPOS_ASSERT(NULL != dxl_op);
-				GPOS_ASSERT(EdxlopScalarSubqueryAny == dxl_op->GetDXLOperator());
+	// name of the operator
+	const CWStringConst *GetOpNameStr() const override;
 
-				return dynamic_cast<CDXLScalarSubqueryAny*>(dxl_op);
-			}
+	// conversion function
+	static CDXLScalarSubqueryAny *
+	Cast(CDXLOperator *dxl_op)
+	{
+		GPOS_ASSERT(nullptr != dxl_op);
+		GPOS_ASSERT(EdxlopScalarSubqueryAny == dxl_op->GetDXLOperator());
 
-			// does the operator return a boolean result
-			virtual
-			BOOL HasBoolResult
-					(
-					CMDAccessor *//md_accessor
-					)
-					const
-			{
-				return true;
-			}
-	};
-}
+		return dynamic_cast<CDXLScalarSubqueryAny *>(dxl_op);
+	}
+
+	// does the operator return a boolean result
+	BOOL
+	HasBoolResult(CMDAccessor *	 //md_accessor
+	) const override
+	{
+		return true;
+	}
+};
+}  // namespace gpdxl
 
 
-#endif // !GPDXL_CDXLScalarSubqueryAny_H
+#endif	// !GPDXL_CDXLScalarSubqueryAny_H
 
 // EOF

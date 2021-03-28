@@ -9,13 +9,14 @@
 //		Implementation of scalar constant operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CScalarConst.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/base/CDrvdPropScalar.h"
 #include "gpopt/base/CColRefSet.h"
-#include "naucrates/base/IDatumBool.h"
-#include "gpopt/operators/CScalarConst.h"
+#include "gpopt/base/CDrvdPropScalar.h"
 #include "gpopt/operators/CExpressionHandle.h"
+#include "naucrates/base/IDatumBool.h"
 
 using namespace gpopt;
 using namespace gpnaucrates;
@@ -29,16 +30,10 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CScalarConst::CScalarConst
-	(
-	CMemoryPool *mp,
-	IDatum *datum
-	)
-	:
-	CScalar(mp),
-	m_pdatum(datum)
+CScalarConst::CScalarConst(CMemoryPool *mp, IDatum *datum)
+	: CScalar(mp), m_pdatum(datum)
 {
-	GPOS_ASSERT(NULL != datum);
+	GPOS_ASSERT(nullptr != datum);
 }
 
 
@@ -68,11 +63,7 @@ CScalarConst::~CScalarConst()
 ULONG
 CScalarConst::HashValue() const
 {
-	return gpos::CombineHashes
-			(
-			COperator::HashValue(),
-			m_pdatum->HashValue()
-			);
+	return gpos::CombineHashes(COperator::HashValue(), m_pdatum->HashValue());
 }
 
 //---------------------------------------------------------------------------
@@ -84,11 +75,7 @@ CScalarConst::HashValue() const
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarConst::Matches
-	(
-	COperator *pop
-	)
-	const
+CScalarConst::Matches(COperator *pop) const
 {
 	if (pop->Eopid() == Eopid())
 	{
@@ -125,11 +112,7 @@ CScalarConst::MdidType() const
 //
 //---------------------------------------------------------------------------
 IOstream &
-CScalarConst::OsPrint
-	(
-	IOstream &os
-	)
-	const
+CScalarConst::OsPrint(IOstream &os) const
 {
 	os << SzId() << " (";
 	m_pdatum->OsPrint(os);
@@ -147,12 +130,9 @@ CScalarConst::OsPrint
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarConst::FCastedConst
-	(
-	CExpression *pexpr
-	)
+CScalarConst::FCastedConst(CExpression *pexpr)
 {
-	GPOS_ASSERT(NULL != pexpr);
+	GPOS_ASSERT(nullptr != pexpr);
 
 	// cast(constant)
 	if (COperator::EopScalarCast == pexpr->Pop()->Eopid())
@@ -177,12 +157,9 @@ CScalarConst::FCastedConst
 //
 //---------------------------------------------------------------------------
 CScalarConst *
-CScalarConst::PopExtractFromConstOrCastConst
-	(
-	CExpression *pexpr
-	)
+CScalarConst::PopExtractFromConstOrCastConst(CExpression *pexpr)
 {
-	GPOS_ASSERT(NULL != pexpr);
+	GPOS_ASSERT(nullptr != pexpr);
 
 	BOOL fScConst = COperator::EopScalarConst == pexpr->Pop()->Eopid();
 	BOOL fCastedScConst = CScalarConst::FCastedConst(pexpr);
@@ -190,7 +167,7 @@ CScalarConst::PopExtractFromConstOrCastConst
 	// constant or cast(constant)
 	if (!fScConst && !fCastedScConst)
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	if (fScConst)
@@ -212,11 +189,8 @@ CScalarConst::PopExtractFromConstOrCastConst
 //
 //---------------------------------------------------------------------------
 CScalar::EBoolEvalResult
-CScalarConst::Eber
-	(
-	ULongPtrArray * //pdrgpulChildren
-	)
-	const
+CScalarConst::Eber(ULongPtrArray *	//pdrgpulChildren
+) const
 {
 	if (m_pdatum->IsNull())
 	{
@@ -245,4 +219,3 @@ CScalarConst::TypeModifier() const
 
 
 // EOF
-

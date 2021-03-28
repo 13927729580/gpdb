@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2019 Pivotal, Inc.
+//	Copyright (C) 2019 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CMemoryPoolPalloc.cpp
@@ -13,31 +13,26 @@
 
 extern "C" {
 #include "postgres.h"
+
 #include "utils/memutils.h"
 }
 
 #include "gpos/memory/CMemoryPool.h"
-#include "gpopt/gpdbwrappers.h"
 
+#include "gpopt/gpdbwrappers.h"
 #include "gpopt/utils/CMemoryPoolPalloc.h"
 
 using namespace gpos;
 
 // ctor
 CMemoryPoolPalloc::CMemoryPoolPalloc()
-	: m_cxt(NULL)
 {
 	m_cxt = gpdb::GPDBAllocSetContextCreate();
 }
 
 void *
-CMemoryPoolPalloc::NewImpl
-	(
-	const ULONG bytes,
-	const CHAR *,
-	const ULONG,
-	CMemoryPool::EAllocationType eat
-	)
+CMemoryPoolPalloc::NewImpl(const ULONG bytes, const CHAR *, const ULONG,
+						   CMemoryPool::EAllocationType eat)
 {
 	// if it's a singleton allocation, allocate requested memory
 	if (CMemoryPool::EatSingleton == eat)
@@ -47,19 +42,21 @@ CMemoryPoolPalloc::NewImpl
 	// if it's an array allocation, allocate header + requested memory
 	else
 	{
-		ULONG alloc_size = GPOS_MEM_ALIGNED_STRUCT_SIZE(SArrayAllocHeader) + GPOS_MEM_ALIGNED_SIZE(bytes);
+		ULONG alloc_size = GPOS_MEM_ALIGNED_STRUCT_SIZE(SArrayAllocHeader) +
+						   GPOS_MEM_ALIGNED_SIZE(bytes);
 
 		void *ptr = gpdb::GPDBMemoryContextAlloc(m_cxt, alloc_size);
 
-		if (NULL == ptr)
+		if (nullptr == ptr)
 		{
-			return NULL;
+			return nullptr;
 		}
 
-		SArrayAllocHeader *header = static_cast<SArrayAllocHeader*>(ptr);
+		SArrayAllocHeader *header = static_cast<SArrayAllocHeader *>(ptr);
 
 		header->m_user_size = bytes;
-		return static_cast<BYTE*>(ptr) + GPOS_MEM_ALIGNED_STRUCT_SIZE(SArrayAllocHeader);
+		return static_cast<BYTE *>(ptr) +
+			   GPOS_MEM_ALIGNED_STRUCT_SIZE(SArrayAllocHeader);
 	}
 }
 
@@ -72,7 +69,8 @@ CMemoryPoolPalloc::DeleteImpl(void *ptr, CMemoryPool::EAllocationType eat)
 	}
 	else
 	{
-		void* header = static_cast<BYTE*>(ptr) - GPOS_MEM_ALIGNED_STRUCT_SIZE(SArrayAllocHeader);
+		void *header = static_cast<BYTE *>(ptr) -
+					   GPOS_MEM_ALIGNED_STRUCT_SIZE(SArrayAllocHeader);
 		gpdb::GPDBFree(header);
 	}
 }
@@ -95,9 +93,11 @@ CMemoryPoolPalloc::TotalAllocatedSize() const
 ULONG
 CMemoryPoolPalloc::UserSizeOfAlloc(const void *ptr)
 {
-	GPOS_ASSERT(ptr != NULL);
-	void* void_header = static_cast<BYTE*>(const_cast<void*>(ptr)) - GPOS_MEM_ALIGNED_STRUCT_SIZE(SArrayAllocHeader);
-	const SArrayAllocHeader *header = static_cast<SArrayAllocHeader*>(void_header);
+	GPOS_ASSERT(ptr != nullptr);
+	void *void_header = static_cast<BYTE *>(const_cast<void *>(ptr)) -
+						GPOS_MEM_ALIGNED_STRUCT_SIZE(SArrayAllocHeader);
+	const SArrayAllocHeader *header =
+		static_cast<SArrayAllocHeader *>(void_header);
 	return header->m_user_size;
 }
 

@@ -9,8 +9,9 @@
 //		Implementation of the wide character string class.
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
 #include "gpos/string/CWString.h"
+
+#include "gpos/base.h"
 
 using namespace gpos;
 
@@ -23,18 +24,13 @@ using namespace gpos;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CWString::CWString
-	(
-	ULONG length
-	)
-	:
-	CWStringBase
-		(
-		length,
-		true // owns_memory
-		),
-	m_w_str_buffer(NULL)
-{}
+CWString::CWString(ULONG length)
+	: CWStringBase(length,
+				   true	 // owns_memory
+				   ),
+	  m_w_str_buffer(nullptr)
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -45,7 +41,7 @@ CWString::CWString
 //		Returns the wide character buffer storing the string
 //
 //---------------------------------------------------------------------------
-const WCHAR*
+const WCHAR *
 CWString::GetBuffer() const
 {
 	return m_w_str_buffer;
@@ -61,12 +57,9 @@ CWString::GetBuffer() const
 //
 //---------------------------------------------------------------------------
 void
-CWString::Append
-	(
-	const CWStringBase *str
-	)
+CWString::Append(const CWStringBase *str)
 {
-	GPOS_ASSERT(NULL != str);
+	GPOS_ASSERT(nullptr != str);
 	if (0 < str->Length())
 	{
 		AppendBuffer(str->GetBuffer());
@@ -75,4 +68,3 @@ CWString::Append
 }
 
 // EOF
-

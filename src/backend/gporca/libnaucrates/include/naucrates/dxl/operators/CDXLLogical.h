@@ -7,48 +7,46 @@
 //
 //	@doc:
 //		Base class for DXL logical operators.
-//		
+//
 //---------------------------------------------------------------------------
 
 #ifndef GPDXL_CDXLLogical_H
 #define GPDXL_CDXLLogical_H
 
 #include "gpos/base.h"
-#include "naucrates/dxl/operators/CDXLOperator.h"
+
 #include "naucrates/dxl/operators/CDXLColRef.h"
+#include "naucrates/dxl/operators/CDXLOperator.h"
 
 namespace gpdxl
 {
-	using namespace gpos;
-	
-	// fwd decl 
-	class CXMLSerializer;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDXLLogical
-	//
-	//	@doc:
-	//		Base class the DXL logical operators
-	//
-	//---------------------------------------------------------------------------
-	class CDXLLogical : public CDXLOperator
-	{
-		private:
+using namespace gpos;
 
-			// private copy ctor
-			CDXLLogical(const CDXLLogical&);
+// fwd decl
+class CXMLSerializer;
 
-		public:
-			// ctor/dtor
-			explicit
-			CDXLLogical(CMemoryPool *mp);
+//---------------------------------------------------------------------------
+//	@class:
+//		CDXLLogical
+//
+//	@doc:
+//		Base class the DXL logical operators
+//
+//---------------------------------------------------------------------------
+class CDXLLogical : public CDXLOperator
+{
+private:
+public:
+	CDXLLogical(const CDXLLogical &) = delete;
 
-			// Get operator type
-			Edxloptype GetDXLOperatorType() const;
-	};
-}
+	// ctor/dtor
+	explicit CDXLLogical(CMemoryPool *mp);
 
-#endif // !GPDXL_CDXLLogical_H
+	// Get operator type
+	Edxloptype GetDXLOperatorType() const override;
+};
+}  // namespace gpdxl
+
+#endif	// !GPDXL_CDXLLogical_H
 
 // EOF

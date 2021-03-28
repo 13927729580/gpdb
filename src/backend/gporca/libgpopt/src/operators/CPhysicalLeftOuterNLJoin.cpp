@@ -9,9 +9,9 @@
 //		Implementation of left outer nested-loops join operator
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
-
 #include "gpopt/operators/CPhysicalLeftOuterNLJoin.h"
+
+#include "gpos/base.h"
 
 
 using namespace gpopt;
@@ -25,13 +25,10 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CPhysicalLeftOuterNLJoin::CPhysicalLeftOuterNLJoin
-	(
-	CMemoryPool *mp
-	)
-	:
-	CPhysicalNLJoin(mp)
-{}
+CPhysicalLeftOuterNLJoin::CPhysicalLeftOuterNLJoin(CMemoryPool *mp)
+	: CPhysicalNLJoin(mp)
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -42,9 +39,7 @@ CPhysicalLeftOuterNLJoin::CPhysicalLeftOuterNLJoin
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CPhysicalLeftOuterNLJoin::~CPhysicalLeftOuterNLJoin()
-{}
+CPhysicalLeftOuterNLJoin::~CPhysicalLeftOuterNLJoin() = default;
 
 
 // EOF
-

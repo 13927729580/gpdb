@@ -9,11 +9,12 @@
 //		Implementation of Select to Apply transform
 //---------------------------------------------------------------------------
 
+#include "gpopt/xforms/CXformSelect2Apply.h"
+
 #include "gpos/base.h"
 
 #include "gpopt/operators/CLogicalSelect.h"
 #include "gpopt/operators/CPatternLeaf.h"
-#include "gpopt/xforms/CXformSelect2Apply.h"
 
 using namespace gpopt;
 
@@ -26,23 +27,16 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformSelect2Apply::CXformSelect2Apply
-	(
-	CMemoryPool *mp
-	)
-	:
-	// pattern
-	CXformSubqueryUnnest
-		(
-		GPOS_NEW(mp) CExpression
-				(
-				mp,
-				GPOS_NEW(mp) CLogicalSelect(mp),
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp)), // relational child
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))	// predicate tree
-				)
-		)
-{}
+CXformSelect2Apply::CXformSelect2Apply(CMemoryPool *mp)
+	:  // pattern
+	  CXformSubqueryUnnest(GPOS_NEW(mp) CExpression(
+		  mp, GPOS_NEW(mp) CLogicalSelect(mp),
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CPatternLeaf(mp)),  // relational child
+		  GPOS_NEW(mp)
+			  CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))  // predicate tree
+		  ))
+{
+}
 
 // EOF
-

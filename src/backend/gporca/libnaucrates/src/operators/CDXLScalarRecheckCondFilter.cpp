@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CDXLScalarRecheckCondFilter.h
@@ -9,13 +9,14 @@
 //		Filter for rechecking an index condition on the operator upstream of the index scan
 //
 //	@owner:
-//		
+//
 //
 //	@test:
 //
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLScalarRecheckCondFilter.h"
+
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpos;

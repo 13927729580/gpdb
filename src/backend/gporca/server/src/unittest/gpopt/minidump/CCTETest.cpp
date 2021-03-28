@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal, Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CCTETest.cpp
@@ -10,6 +10,7 @@
 //---------------------------------------------------------------------------
 
 #include "unittest/gpopt/minidump/CCTETest.h"
+
 #include "gpos/base.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/task/CAutoTraceFlag.h"
@@ -23,11 +24,10 @@
 
 using namespace gpopt;
 
-ULONG CCTETest::m_ulCTETestCounter = 0;  // start from first test
+ULONG CCTETest::m_ulCTETestCounter = 0;	 // start from first test
 
 // minidump files
-const CHAR *rgszCTEFileNames[] =
-	{
+const CHAR *rgszCTEFileNames[] = {
 	// TODO:  - 03/20/2014: the plan in this test keeps changing between runs
 	// re-enable test after this issue is fixed
 	//		"../data/dxl/minidump/CTE-1.mdp",
@@ -58,8 +58,7 @@ const CHAR *rgszCTEFileNames[] =
 	"../data/dxl/minidump/CTEinlining.mdp",
 	"../data/dxl/minidump/CTE-ValuesScan-ProjList.mdp",
 	"../data/dxl/minidump/CTEWithMergedGroup.mdp",
-	"../data/dxl/minidump/CTEMergeGroupsCircularDeriveStats.mdp"
-	};
+	"../data/dxl/minidump/CTEMergeGroupsCircularDeriveStats.mdp"};
 
 
 //---------------------------------------------------------------------------
@@ -73,10 +72,9 @@ const CHAR *rgszCTEFileNames[] =
 GPOS_RESULT
 CCTETest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
+	CUnittest rgut[] = {
 		GPOS_UNITTEST_FUNC(EresUnittest_RunTests),
-		};
+	};
 
 	GPOS_RESULT eres = CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 
@@ -97,12 +95,9 @@ CCTETest::EresUnittest()
 GPOS_RESULT
 CCTETest::EresUnittest_RunTests()
 {
-	return CTestUtils::EresUnittest_RunTests
-						(
-						rgszCTEFileNames,
-						&m_ulCTETestCounter,
-						GPOS_ARRAY_SIZE(rgszCTEFileNames)
-						);
+	return CTestUtils::EresUnittest_RunTests(rgszCTEFileNames,
+											 &m_ulCTETestCounter,
+											 GPOS_ARRAY_SIZE(rgszCTEFileNames));
 }
 
 // EOF

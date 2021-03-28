@@ -9,13 +9,13 @@
 //		Serializable plan object
 //---------------------------------------------------------------------------
 
+#include "gpopt/minidump/CSerializablePlan.h"
+
 #include "gpos/base.h"
 #include "gpos/error/CErrorContext.h"
 #include "gpos/task/CTask.h"
 
 #include "naucrates/dxl/CDXLUtils.h"
-
-#include "gpopt/minidump/CSerializablePlan.h"
 
 using namespace gpos;
 using namespace gpopt;
@@ -29,22 +29,16 @@ using namespace gpdxl;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CSerializablePlan::CSerializablePlan
-	(
-	CMemoryPool *mp,
-	const CDXLNode *pdxlnPlan,
-	ULLONG plan_id,
-	ULLONG plan_space_size
-	)
-	:
-	CSerializable(),
-	m_mp(mp),
-	m_plan_dxl_root(pdxlnPlan),
-	m_pstrPlan(NULL),
-	m_plan_id(plan_id),
-	m_plan_space_size(plan_space_size)
+CSerializablePlan::CSerializablePlan(CMemoryPool *mp, const CDXLNode *pdxlnPlan,
+									 ULLONG plan_id, ULLONG plan_space_size)
+	: CSerializable(),
+	  m_mp(mp),
+	  m_plan_dxl_root(pdxlnPlan),
+	  m_pstrPlan(nullptr),
+	  m_plan_id(plan_id),
+	  m_plan_space_size(plan_space_size)
 {
-	GPOS_ASSERT(NULL != pdxlnPlan);
+	GPOS_ASSERT(nullptr != pdxlnPlan);
 }
 
 
@@ -70,22 +64,12 @@ CSerializablePlan::~CSerializablePlan()
 //
 //---------------------------------------------------------------------------
 void
-CSerializablePlan::Serialize
-	(
-	COstream &oos
-	)
+CSerializablePlan::Serialize(COstream &oos)
 {
-	CDXLUtils::SerializePlan
-				(
-				m_mp,
-				oos,
-				m_plan_dxl_root,
-				m_plan_id,
-				m_plan_space_size,
-				false /*fSerializeHeaders*/,
-				false /*indentation*/
-				);
+	CDXLUtils::SerializePlan(m_mp, oos, m_plan_dxl_root, m_plan_id,
+							 m_plan_space_size, false /*fSerializeHeaders*/,
+							 false /*indentation*/
+	);
 }
 
 // EOF
-

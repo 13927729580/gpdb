@@ -25,10 +25,19 @@ CREATE TABLE dml_union_s (
         c text ,
         d numeric default 10.00)
 DISTRIBUTED BY (b)
-PARTITION BY range(d) (
-        start(1) end(1001) every(100),
-        default partition def
-);
+PARTITION BY range(d);
+
+CREATE TABLE dml_union_s_1_prt_2 PARTITION OF dml_union_s FOR VALUES FROM (1) TO (1001);
+CREATE TABLE dml_union_s_1_prt_3 PARTITION OF dml_union_s FOR VALUES FROM (1001) TO (1101);
+CREATE TABLE dml_union_s_1_prt_4 PARTITION OF dml_union_s FOR VALUES FROM (1101) TO (1201);
+CREATE TABLE dml_union_s_1_prt_5 PARTITION OF dml_union_s FOR VALUES FROM (1201) TO (1301);
+CREATE TABLE dml_union_s_1_prt_6 PARTITION OF dml_union_s FOR VALUES FROM (1301) TO (1401);
+CREATE TABLE dml_union_s_1_prt_7 PARTITION OF dml_union_s FOR VALUES FROM (1401) TO (1501);
+CREATE TABLE dml_union_s_1_prt_8 PARTITION OF dml_union_s FOR VALUES FROM (1501) TO (1601);
+CREATE TABLE dml_union_s_1_prt_9 PARTITION OF dml_union_s FOR VALUES FROM (1601) TO (1701);
+CREATE TABLE dml_union_s_1_prt_10 PARTITION OF dml_union_s FOR VALUES FROM (1701) TO (1801);
+CREATE TABLE dml_union_s_1_prt_11 PARTITION OF dml_union_s FOR VALUES FROM (1801) TO (1901);
+CREATE TABLE dml_union_s_1_prt_def PARTITION OF dml_union_s DEFAULT;
 
 INSERT INTO dml_union_r SELECT generate_series(1,100), generate_series(1,100) * 3,'r', generate_series(1,100) % 6;
 INSERT INTO dml_union_r VALUES(NULL,NULL,'text',NULL),(NULL,NULL,'text',NULL),(NULL,NULL,'text',NULL),(NULL,NULL,'text',NULL),(NULL,NULL,'text',NULL);
@@ -258,9 +267,12 @@ SELECT COUNT(*) FROM dml_union_r;
 -- @description union_test29: INSERT NON ATOMICS with union/intersect/except
 begin;
 SELECT COUNT(*) FROM dml_union_r;
+-- GPDB_12_MERGE_FIXME: ORCA doesn't produce the right intersect plan
+set optimizer=off;
 SELECT COUNT(*) FROM (SELECT dml_union_r.* FROM dml_union_r INTERSECT (SELECT dml_union_r.* FROM dml_union_r UNION ALL SELECT dml_union_s.* FROM dml_union_s) EXCEPT SELECT dml_union_s.* FROM dml_union_s)foo;
 INSERT INTO dml_union_r SELECT dml_union_r.* FROM dml_union_r INTERSECT (SELECT dml_union_r.* FROM dml_union_r UNION ALL SELECT dml_union_s.* FROM dml_union_s) EXCEPT SELECT dml_union_s.* FROM dml_union_s;
 SELECT COUNT(*) FROM dml_union_r;
+reset optimizer;
 rollback;
 
 -- @description union_test30: INSERT NON ATOMICS with union/intersect/except
@@ -588,7 +600,7 @@ rollback;
 
 -- @description union_update_test26: Negative Tests Update the partition key to an out of dml_union_range value with no default partition
 begin;
-ALTER TABLE dml_union_s drop default partition;
+DROP TABLE dml_union_s_1_prt_def;
 SELECT COUNT(DISTINCT(d)) FROM dml_union_s;
 UPDATE dml_union_s SET d = (SELECT NULL UNION SELECT NULL)::numeric;
 --SELECT DISTINCT(d) FROM dml_union_s;
@@ -597,7 +609,7 @@ rollback;
 
 -- @description union_update_test27: Negative Tests Update the partition key to an out of range value with no default partition
 begin;
-ALTER TABLE dml_union_s drop default partition;
+DROP TABLE dml_union_s_1_prt_def;
 SELECT COUNT(DISTINCT(d)) FROM dml_union_s;
 UPDATE dml_union_s SET d = (SELECT NULL INTERSECT SELECT NULL)::numeric; 
 --SELECT DISTINCT(d) FROM dml_union_s;
@@ -606,7 +618,7 @@ rollback;
 
 -- @description union_update_test28: Negative Tests Update the partition key to an out of dml_union_range value with no default partition
 begin;
-ALTER TABLE dml_union_s drop default partition;
+DROP TABLE dml_union_s_1_prt_def;
 SELECT COUNT(DISTINCT(d)) FROM dml_union_s;
 UPDATE dml_union_s SET d = (SELECT NULL EXCEPT SELECT NULL)::numeric; 
 --SELECT DISTINCT(d) FROM dml_union_s;

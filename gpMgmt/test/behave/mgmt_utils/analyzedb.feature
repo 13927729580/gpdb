@@ -21,15 +21,15 @@ Feature: Incrementally analyze the database
 
     Scenario: Missing parameters
         When the user runs "analyzedb -d"
-        Then analyzedb should print "error: -d option requires an argument" error message
+        Then analyzedb should print "error: -d option requires 1 argument" error message
         When the user runs "analyzedb -d incr_analyze -t"
-        Then analyzedb should print "error: -t option requires an argument" error message
+        Then analyzedb should print "error: -t option requires 1 argument" error message
         When the user runs "analyzedb -d incr_analyze -s"
-        Then analyzedb should print "error: -s option requires an argument" error message
+        Then analyzedb should print "error: -s option requires 1 argument" error message
         When the user runs "analyzedb -d incr_analyze -t public.t1_ao -i"
-        Then analyzedb should print "error: -i option requires an argument" error message
+        Then analyzedb should print "error: -i option requires 1 argument" error message
         When the user runs "analyzedb -d incr_analyze -t public.t1_ao -x"
-        Then analyzedb should print "error: -x option requires an argument" error message
+        Then analyzedb should print "error: -x option requires 1 argument" error message
 
     Scenario: Additional ignored arguments
         When the user runs "analyzedb -l -d incr_analyze xyz"
@@ -163,6 +163,77 @@ Feature: Incrementally analyze the database
         Then analyzedb should print "-"my schema"."my ao" to stdout
         When the user runs "analyzedb -l -d incr_analyze -t '"my schema"."my ao"'"
         Then analyzedb should print "-"my schema"."my ao" to stdout
+
+    Scenario: Clean all state files
+        Given no state files exist for database "incr_analyze"
+        When the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And the user runs "analyzedb -a -d incr_analyze --clean_all"
+        And the user runs "analyzedb -a -d incr_analyze -l"
+        Then analyzedb should return a return code of 0
+        And output should print "-public.t1_ao" to stdout
+        And "public.t1_ao" should not appear in the latest state files
+        And there should be 0 state directories for database "incr_analyze"
+
+    Scenario: Clean latest state files
+        Given no state files exist for database "incr_analyze"
+        When the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t3_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t3_ao"
+        And the user runs "analyzedb -a -d incr_analyze --clean_last"
+        And the user runs "analyzedb -a -d incr_analyze -l"
+        Then analyzedb should return a return code of 0
+        And analyzedb should print "-public.t3_ao" to stdout
+        And output should not contain "-public.t1_ao"
+        And "public.t1_ao" should appear in the latest state files
+        And "public.t3_ao" should not appear in the latest state files
+        And there should be 1 state directory for database "incr_analyze"
+
+    Scenario: Preserve state files less than 8 days old
+        Given no state files exist for database "incr_analyze"
+        When the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        Then analyzedb should return a return code of 0
+        And there should be 5 state directories for database "incr_analyze"
+
+    Scenario: Automatically clean older state files and leave the current and 3 most recent
+        Given no state files exist for database "incr_analyze"
+        When the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the state files for "incr_analyze" are artificially aged by 10 days
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        And some data is inserted into table "t1_ao" in schema "public" with column type list "int,text,real"
+        And the user waits 1 second
+        And the user runs "analyzedb -a -d incr_analyze -t public.t1_ao"
+        Then analyzedb should return a return code of 0
+        And there should be 4 state directories for database "incr_analyze"
 
     Scenario: Incremental analyze, no dirty tables
         Given no state files exist for database "incr_analyze"
@@ -1399,8 +1470,18 @@ Feature: Incrementally analyze the database
         And output should not contain "-public.sales_1_prt_3"
         And output should not contain "-public.sales_1_prt_4"
         And analyzedb should print "-public.sales_1_prt_2" to stdout
+        And analyzedb should print "rootpartition" to stdout
         And "public.sales_1_prt_2" should appear in the latest state files
         And "public.sales_1_prt_4" should appear in the latest state files
+
+    Scenario: Partition tables, (entries for all parts, dml on all parts, root), skip root stats
+        Given no state files exist for database "incr_analyze"
+        And the user runs "analyzedb -a -d incr_analyze -t public.sales"
+        And the row "1,'2008-01-01'" is inserted into "public.sales" in "incr_analyze"
+        And the row "2,'2008-01-02'" is inserted into "public.sales" in "incr_analyze"
+        When the user runs "analyzedb -a -d incr_analyze -t public.sales --skip_orca_root_stats"
+        Then analyzedb should return a return code of 0
+        And output should not contain "rootpartition"
 
     # entries exist for some parts in state files for partition tables
 
@@ -1546,14 +1627,14 @@ Feature: Incrementally analyze the database
     # request mid-level
     Scenario: Multi-level partition and request mid-level
         Given no state files exist for database "incr_analyze"
-        And there is a hard coded multi-level ao partition table "sales_region" with 4 mid-level and 16 leaf-level partitions in schema "public"
+        And there is a hard coded multi-level partition table "sales_region" with 4 mid-level and 16 leaf-level partitions in schema "public"
         When the user runs "analyzedb -a -d incr_analyze -t public.sales_region_1_prt_2"
         Then analyzedb should print "There are no tables or partitions to be analyzed" to stdout
         And analyzedb should print "Skipping mid-level partition public.sales_region_1_prt_2" to stdout
 
     Scenario: Partition tables, (entries for some parts, dml on some parts, some parts)
         Given no state files exist for database "incr_analyze"
-        And there is a hard coded multi-level ao partition table "sales_region" with 4 mid-level and 16 leaf-level partitions in schema "public"
+        And there is a hard coded multi-level partition table "sales_region" with 4 mid-level and 16 leaf-level partitions in schema "public"
         And the user runs command "printf 'public.sales_1_prt_2 \npublic.sales_1_prt_4' > config_file"
         And the user runs "analyzedb -a -d incr_analyze -f config_file"
         And the row "1,'2008-01-01'" is inserted into "public.sales" in "incr_analyze"
@@ -1577,9 +1658,9 @@ Feature: Incrementally analyze the database
         When the user runs "analyzedb -l -d incr_analyze -t pg_catalog.pg_attribute"
         Then analyzedb should print "-pg_catalog.pg_attribute" to stdout
         When the user runs "analyzedb -l -d incr_analyze -s pg_catalog"
-        Then output should contain both "pg_catalog.pg_class" and "pg_catalog.pg_partition_rule"
+        Then output should contain both "pg_catalog.pg_class" and "pg_catalog.pg_partitioned_table"
         When the user runs "analyzedb -l -d incr_analyze"
-        Then output should contain both "pg_catalog.pg_class" and "pg_catalog.pg_partition_rule"
+        Then output should contain both "pg_catalog.pg_class" and "pg_catalog.pg_partitioned_table"
 
     Scenario: Concurrent analyzedb runs all capture the correct values in their output files
         Given no state files exist for database "incr_analyze"

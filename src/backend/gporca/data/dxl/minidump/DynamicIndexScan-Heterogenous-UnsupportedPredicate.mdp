@@ -3,7 +3,7 @@
   <dxl:Thread Id="0">
     <dxl:OptimizerConfig>
       <dxl:EnumeratorConfig Id="0" PlanSamples="0" CostThreshold="0"/>
-      <dxl:StatisticsConfig DampingFactorFilter="0.750000" DampingFactorJoin="0.010000" DampingFactorGroupBy="0.750000"/>
+      <dxl:StatisticsConfig DampingFactorFilter="0.750000" DampingFactorJoin="0.000000" DampingFactorGroupBy="0.750000" MaxStatsBuckets="100"/>
       <dxl:CTEConfig CTEInliningCutoff="0"/> 
       <dxl:WindowOids RowNumber="7000" Rank="7001"/>
       <dxl:CostModelConfig CostModelType="1" SegmentsForCosting="2">
@@ -11,7 +11,7 @@
           <dxl:CostParam Name="NLJFactor" Value="1.000000" LowerBound="0.500000" UpperBound="1.500000"/>
         </dxl:CostParams>
       </dxl:CostModelConfig>
-      <dxl:TraceFlags Value="103027,101013,102024,102025,102115,102116,102117,102119,102121,103001,103014,103015,103026"/>
+      <dxl:TraceFlags Value="101013,102001,102002,102003,102024,102025,102115,102116,102117,102119,102121,102144,103001,103014,103015,103026,103027,103033"/>
     </dxl:OptimizerConfig>
     <dxl:Metadata SystemIds="0.GPDB">
       <dxl:GPDBScalarOp Mdid="0.518.1.0" Name="&lt;&gt;" ComparisonType="NEq" ReturnsNullOnNullInput="true">
@@ -773,22 +773,31 @@
               <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>
             </dxl:PartEqFilters>
             <dxl:PartFilters>
-              <dxl:Or>
+              <dxl:And>
                 <dxl:Or>
-                  <dxl:ArrayComp OperatorName="&gt;" OperatorMdid="0.521.1.0" OperatorType="Any">
+                  <dxl:Or>
+                    <dxl:ArrayComp OperatorName="&gt;" OperatorMdid="0.521.1.0" OperatorType="Any">
+                      <dxl:ConstValue TypeMdid="0.23.1.0" Value="50"/>
+                      <dxl:PartListValues Level="0" ResultType="0.1007.1.0" ElementType="0.23.1.0"/>
+                    </dxl:ArrayComp>
+                    <dxl:DefaultPart Level="0"/>
+                  </dxl:Or>
+                  <dxl:Or>
+                    <dxl:ArrayComp OperatorName="&lt;" OperatorMdid="0.97.1.0" OperatorType="Any">
+                      <dxl:ConstValue TypeMdid="0.23.1.0" Value="50"/>
+                      <dxl:PartListValues Level="0" ResultType="0.1007.1.0" ElementType="0.23.1.0"/>
+                    </dxl:ArrayComp>
+                    <dxl:DefaultPart Level="0"/>
+                  </dxl:Or>
+                </dxl:Or>
+                <dxl:Or>
+                  <dxl:ArrayComp OperatorName="&lt;&gt;" OperatorMdid="0.518.1.0" OperatorType="Any">
                     <dxl:ConstValue TypeMdid="0.23.1.0" Value="50"/>
                     <dxl:PartListValues Level="0" ResultType="0.1007.1.0" ElementType="0.23.1.0"/>
                   </dxl:ArrayComp>
                   <dxl:DefaultPart Level="0"/>
                 </dxl:Or>
-                <dxl:Or>
-                  <dxl:ArrayComp OperatorName="&lt;" OperatorMdid="0.97.1.0" OperatorType="Any">
-                    <dxl:ConstValue TypeMdid="0.23.1.0" Value="50"/>
-                    <dxl:PartListValues Level="0" ResultType="0.1007.1.0" ElementType="0.23.1.0"/>
-                  </dxl:ArrayComp>
-                  <dxl:DefaultPart Level="0"/>
-                </dxl:Or>
-              </dxl:Or>
+              </dxl:And>
             </dxl:PartFilters>
             <dxl:ResidualFilter>
               <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>
@@ -797,12 +806,18 @@
               <dxl:ConstValue TypeMdid="0.23.1.0" Value="1"/>
             </dxl:PropagationExpression>
             <dxl:PrintableFilter>
-              <dxl:ArrayComp OperatorName="&lt;&gt;" OperatorMdid="0.518.1.0" OperatorType="All">
-                <dxl:Ident ColId="0" ColName="c1" TypeMdid="0.23.1.0"/>
-                <dxl:Array ArrayType="0.1007.1.0" ElementType="0.23.1.0" MultiDimensional="false">
+              <dxl:And>
+                <dxl:ArrayComp OperatorName="&lt;&gt;" OperatorMdid="0.518.1.0" OperatorType="All">
+                  <dxl:Ident ColId="0" ColName="c1" TypeMdid="0.23.1.0"/>
+                  <dxl:Array ArrayType="0.1007.1.0" ElementType="0.23.1.0" MultiDimensional="false">
+                    <dxl:ConstValue TypeMdid="0.23.1.0" Value="50"/>
+                  </dxl:Array>
+                </dxl:ArrayComp>
+                <dxl:Comparison ComparisonOperator="&lt;&gt;" OperatorMdid="0.518.1.0">
+                  <dxl:Ident ColId="0" ColName="c1" TypeMdid="0.23.1.0"/>
                   <dxl:ConstValue TypeMdid="0.23.1.0" Value="50"/>
-                </dxl:Array>
-              </dxl:ArrayComp>
+                </dxl:Comparison>
+              </dxl:And>
             </dxl:PrintableFilter>
           </dxl:PartitionSelector>
           <dxl:DynamicTableScan PartIndexId="1">

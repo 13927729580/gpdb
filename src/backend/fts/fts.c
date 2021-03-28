@@ -8,7 +8,7 @@
  *
  * Portions Copyright (c) 2005-2010, Greenplum Inc.
  * Portions Copyright (c) 2011, EMC Corp.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -29,12 +29,15 @@
 #include "storage/proc.h"
 #include "storage/shmem.h"
 
+#include "access/genam.h"
+#include "access/table.h"
 #include "access/xact.h"
 #include "catalog/indexing.h"
 #include "libpq/pqsignal.h"
 #include "cdb/cdbvars.h"
 #include "libpq-int.h"
 #include "cdb/cdbfts.h"
+#include "pgstat.h"
 #include "postmaster/fts.h"
 #include "postmaster/ftsprobe.h"
 #include "postmaster/postmaster.h"
@@ -42,9 +45,10 @@
 #include "utils/faultinjector.h"
 #include "utils/fmgroids.h"
 #include "utils/memutils.h"
+#include "utils/rel.h"
 
 #include "catalog/gp_configuration_history.h"
-#include "catalog/gp_segment_config.h"
+#include "catalog/gp_segment_configuration.h"
 
 #include "tcop/tcopprot.h" /* quickdie() */
 
@@ -65,7 +69,7 @@ static volatile sig_atomic_t got_SIGHUP = false;
  */
 static void FtsLoop(void);
 
-static CdbComponentDatabases *readCdbComponentInfoAndUpdateStatus(MemoryContext);
+static CdbComponentDatabases *readCdbComponentInfoAndUpdateStatus(void);
 
 /*=========================================================================
  * HELPER FUNCTIONS
@@ -121,7 +125,7 @@ FtsProbeMain(Datum main_arg)
 	BackgroundWorkerUnblockSignals();
 
 	/* Connect to our database */
-	BackgroundWorkerInitializeConnection(DB_FOR_COMMON_ACCESS, NULL);
+	BackgroundWorkerInitializeConnection(DB_FOR_COMMON_ACCESS, NULL, 0);
 
 	/* main loop */
 	FtsLoop();
@@ -131,12 +135,11 @@ FtsProbeMain(Datum main_arg)
 }
 
 /*
- * Populate cdb_component_dbs object by reading from catalog.  Use
- * probeContext instead of current memory context because current
- * context will be destroyed by CommitTransactionCommand().
+ * Populate cdb_component_dbs object by reading from catalog.
+ * Internally, the object is allocated in CdbComponentsContext.
  */
 static
-CdbComponentDatabases *readCdbComponentInfoAndUpdateStatus(MemoryContext probeContext)
+CdbComponentDatabases *readCdbComponentInfoAndUpdateStatus(void)
 {
 	int i;
 	CdbComponentDatabases *cdbs = cdbcomponent_getCdbComponents();
@@ -181,8 +184,8 @@ probeWalRepUpdateConfig(int16 dbid, int16 segindex, char role,
 		bool histnulls[Natts_gp_configuration_history] = { false };
 		char desc[SQL_CMD_BUF_SIZE];
 
-		histrel = heap_open(GpConfigHistoryRelationId,
-							RowExclusiveLock);
+		histrel = table_open(GpConfigHistoryRelationId,
+							 RowExclusiveLock);
 
 		histvals[Anum_gp_configuration_history_time-1] =
 				TimestampTzGetDatum(GetCurrentTimestamp());
@@ -199,12 +202,11 @@ probeWalRepUpdateConfig(int16 dbid, int16 segindex, char role,
 		histvals[Anum_gp_configuration_history_desc-1] =
 				CStringGetTextDatum(desc);
 		histtuple = heap_form_tuple(RelationGetDescr(histrel), histvals, histnulls);
-		simple_heap_insert(histrel, histtuple);
-		CatalogUpdateIndexes(histrel, histtuple);
+		CatalogTupleInsert(histrel, histtuple);
 
 		SIMPLE_FAULT_INJECTOR("fts_update_config");
 
-		heap_close(histrel, RowExclusiveLock);
+		table_close(histrel, RowExclusiveLock);
 	}
 
 	/*
@@ -223,8 +225,8 @@ probeWalRepUpdateConfig(int16 dbid, int16 segindex, char role,
 		ScanKeyData scankey;
 		SysScanDesc sscan;
 
-		configrel = heap_open(GpSegmentConfigRelationId,
-							  RowExclusiveLock);
+		configrel = table_open(GpSegmentConfigRelationId,
+							   RowExclusiveLock);
 
 		ScanKeyInit(&scankey,
 					Anum_gp_segment_configuration_dbid,
@@ -256,13 +258,12 @@ probeWalRepUpdateConfig(int16 dbid, int16 segindex, char role,
 
 		newtuple = heap_modify_tuple(configtuple, RelationGetDescr(configrel),
 									 configvals, confignulls, repls);
-		simple_heap_update(configrel, &configtuple->t_self, newtuple);
-		CatalogUpdateIndexes(configrel, newtuple);
+		CatalogTupleUpdate(configrel, &configtuple->t_self, newtuple);
 
 		systable_endscan(sscan);
 		pfree(newtuple);
 
-		heap_close(configrel, RowExclusiveLock);
+		table_close(configrel, RowExclusiveLock);
 	}
 }
 
@@ -304,7 +305,7 @@ void FtsLoop()
 		/* Need a transaction to access the catalogs */
 		StartTransactionCommand();
 
-		cdbs = readCdbComponentInfoAndUpdateStatus(probeContext);
+		cdbs = readCdbComponentInfoAndUpdateStatus();
 
 		/* Check here gp_segment_configuration if has mirror's */
 		has_mirrors = gp_segment_config_has_mirrors();
@@ -354,7 +355,7 @@ void FtsLoop()
 				/*
 				 * File GPSEGCONFIGDUMPFILE under $PGDATA is used by other
 				 * components to fetch latest gp_segment_configuration outside
-				 * of a transaction. FTS update this file in the first probe
+				 * of a transaction. FTS updates this file in the first probe
 				 * and every probe which updated gp_segment_configuration.
 				 */
 				StartTransactionCommand();
@@ -387,7 +388,7 @@ void FtsLoop()
 		 * MyLatch also in SyncRepWaitForLSN(). The set latch introduced by
 		 * outside fts probe trigger (e.g. gp_request_fts_probe_scan() or
 		 * FtsNotifyProber()) might be consumed by it so we do not WaitLatch()
-		 * here with a long timout here else we may block for that long
+		 * here with a long timeout here else we may block for that long
 		 * timeout, so we recheck probe_requested here before waitLatch().
 		 */
 		if (probe_requested)
@@ -395,7 +396,8 @@ void FtsLoop()
 
 		rc = WaitLatch(&MyProc->procLatch,
 					   WL_LATCH_SET | WL_TIMEOUT | WL_POSTMASTER_DEATH,
-					   timeout * 1000L);
+					   timeout * 1000L,
+					   WAIT_EVENT_FTS_PROBE_MAIN);
 
 		SIMPLE_FAULT_INJECTOR("ftsLoop_after_latch");
 

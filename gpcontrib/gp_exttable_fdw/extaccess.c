@@ -22,7 +22,7 @@
  * query will terminate.
  *
  * Portions Copyright (c) 2007-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -62,7 +62,7 @@ static void InitParseState(CopyState pstate, Relation relation,
 			   char *uri, int rejectlimit,
 			   bool islimitinrows, char logerrors);
 
-static void FunctionCallPrepareFormatter(FunctionCallInfoData *fcinfo,
+static void FunctionCallPrepareFormatter(FunctionCallInfoBaseData *fcinfo,
 							 int nArgs,
 							 CopyState pstate,
 							 FmgrInfo *formatter_func,
@@ -75,7 +75,7 @@ static void FunctionCallPrepareFormatter(FunctionCallInfoData *fcinfo,
 
 static void open_external_readable_source(FileScanDesc scan, ExternalSelectDesc desc);
 static void open_external_writable_source(ExternalInsertDesc extInsertDesc);
-static int	external_getdata_callback(void *outbuf, int datasize, void *extra);
+static int	external_getdata_callback(void *outbuf, int minread, int maxread, void *extra);
 static int	external_getdata(URL_FILE *extfile, CopyState pstate, void *outbuf, int maxread);
 static void external_senddata(URL_FILE *extfile, CopyState pstate);
 static void external_scan_error_callback(void *arg);
@@ -143,20 +143,18 @@ external_beginscan(Relation relation, uint32 scancounter,
 	scan->fs_formatter = NULL;
 	scan->fs_constraintExprs = NULL;
 	if (relation->rd_att->constr != NULL && relation->rd_att->constr->num_check > 0)
-	{
 		scan->fs_hasConstraints = true;
-	}
 	else
-	{
 		scan->fs_hasConstraints = false;
-	}
+
+	scan->fs_isPartition = relation->rd_rel->relispartition;
 
 
 	/*
 	 * get the external URI assigned to us.
 	 *
 	 * The URI assigned for this segment is normally in the uriList list at
-	 * the index of this segment id. However, if we are executing on MASTER
+	 * the index of this segment id. However, if we are executing on COORDINATOR
 	 * ONLY the (one and only) entry which is destined for the master will be
 	 * at the first entry of the uriList list.
 	 */
@@ -188,7 +186,7 @@ external_beginscan(Relation relation, uint32 scancounter,
 	}
 	else if (Gp_role == GP_ROLE_DISPATCH && isMasterOnly)
 	{
-		/* this is a ON MASTER table. Only get uri if we are the master */
+		/* this is a ON COORDINATOR table. Only get uri if we are the master */
 		if (segindex == -1)
 		{
 			Value	   *v = list_nth(uriList, 0);
@@ -225,7 +223,7 @@ external_beginscan(Relation relation, uint32 scancounter,
 
 	tupDesc = RelationGetDescr(relation);
 	scan->fs_tupDesc = tupDesc;
-	scan->attr = tupDesc->attrs;
+	//scan->attr = tupDesc->attrs;
 	scan->num_phys_attrs = tupDesc->natts;
 
 	scan->values = (Datum *) palloc(scan->num_phys_attrs * sizeof(Datum));
@@ -242,10 +240,12 @@ external_beginscan(Relation relation, uint32 scancounter,
 	for (attnum = 1; attnum <= scan->num_phys_attrs; attnum++)
 	{
 		/* We don't need info for dropped attributes */
-		if (scan->attr[attnum - 1]->attisdropped)
+		Form_pg_attribute attr = TupleDescAttr(scan->fs_tupDesc, attnum - 1);
+
+		if (attr->attisdropped)
 			continue;
 
-		getTypeInputInfo(scan->attr[attnum - 1]->atttypid,
+		getTypeInputInfo(attr->atttypid,
 						 &scan->in_func_oid, &scan->typioparams[attnum - 1]);
 		fmgr_info(scan->in_func_oid, &scan->in_functions[attnum - 1]);
 	}
@@ -263,11 +263,18 @@ external_beginscan(Relation relation, uint32 scancounter,
 	/*
 	 * Allocate and init our structure that keeps track of data parsing state
 	 */
-	scan->fs_pstate = BeginCopyFrom(relation, NULL, false,
+	scan->fs_pstate = BeginCopyFrom(NULL,
+									relation, NULL, false,
 									external_getdata_callback,
 									(void *) scan,
 									NIL,
 									(fmttype_is_custom(fmtType) ? NIL : extOptions));
+
+	if (scan->fs_pstate->header_line && Gp_role == GP_ROLE_DISPATCH)
+	{
+		ereport(NOTICE,
+				(errmsg("HEADER means that each one of the data files has a header row")));
+	}
 
 	/* Initialize all the parsing and state variables */
 	InitParseState(scan->fs_pstate, relation, false, fmtType,
@@ -311,8 +318,13 @@ external_rescan(FileScanDesc scan)
 
 	/* The first call to external_getnext will re-open the scan */
 
+	if (!scan->fs_pstate)
+			ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("The file parse state of external scan is invalid")));
+
 	/* reset some parse state variables */
-	scan->fs_pstate->fe_eof = false;
+	scan->fs_pstate->reached_eof = false;
 	scan->fs_pstate->cur_lineno = 0;
 	scan->fs_pstate->cur_attname = NULL;
 	scan->fs_pstate->raw_buf_len = 0;
@@ -577,8 +589,6 @@ external_insert_init(Relation rel)
 	 */
 	extInsertDesc->ext_pstate = (CopyStateData *) palloc0(sizeof(CopyStateData));
 	extInsertDesc->ext_tupDesc = RelationGetDescr(rel);
-	extInsertDesc->ext_values = (Datum *) palloc(extInsertDesc->ext_tupDesc->natts * sizeof(Datum));
-	extInsertDesc->ext_nulls = (bool *) palloc(extInsertDesc->ext_tupDesc->natts * sizeof(bool));
 
 	/*
 	 * Writing to an external table is like COPY TO: we get tuples from the executor,
@@ -639,17 +649,15 @@ external_insert_init(Relation rel)
  *
  * Like heap_insert(), this function can modify the input tuple!
  */
-Oid
-external_insert(ExternalInsertDesc extInsertDesc, HeapTuple instup)
+void
+external_insert(ExternalInsertDesc extInsertDesc, TupleTableSlot *slot)
 {
 	TupleDesc	tupDesc = extInsertDesc->ext_tupDesc;
-	Datum	   *values = extInsertDesc->ext_values;
-	bool	   *nulls = extInsertDesc->ext_nulls;
 	CopyStateData *pstate = extInsertDesc->ext_pstate;
 	bool		customFormat = (extInsertDesc->ext_custom_formatter_func != NULL);
 
 	if (extInsertDesc->ext_noop)
-		return InvalidOid;
+		return;
 
 	/* Open our output file or output stream if not yet open */
 	if (!extInsertDesc->ext_file && !extInsertDesc->ext_noop)
@@ -661,8 +669,7 @@ external_insert(ExternalInsertDesc extInsertDesc, HeapTuple instup)
 	if (!customFormat)
 	{
 		/* TEXT or CSV */
-		heap_deform_tuple(instup, tupDesc, values, nulls);
-		CopyOneRowTo(pstate, HeapTupleGetOid(instup), values, nulls);
+		CopyOneRowTo(pstate, slot);
 		CopySendEndOfRow(pstate);
 	}
 	else
@@ -670,7 +677,8 @@ external_insert(ExternalInsertDesc extInsertDesc, HeapTuple instup)
 		/* custom format. convert tuple using user formatter */
 		Datum		d;
 		bytea	   *b;
-		FunctionCallInfoData fcinfo;
+		LOCAL_FCINFO(fcinfo, 1);
+		HeapTuple instup;
 
 		/*
 		 * There is some redundancy between FormatterData and
@@ -683,7 +691,7 @@ external_insert(ExternalInsertDesc extInsertDesc, HeapTuple instup)
 		Assert(formatter);
 
 		/* per call formatter prep */
-		FunctionCallPrepareFormatter(&fcinfo,
+		FunctionCallPrepareFormatter(fcinfo,
 									 1,
 									 pstate,
 									 extInsertDesc->ext_custom_formatter_func,
@@ -695,23 +703,32 @@ external_insert(ExternalInsertDesc extInsertDesc, HeapTuple instup)
 									 NULL);
 
 		/* Mark the correct record type in the passed tuple */
+
+		/*
+		 * get the heap tuple out of the tuple table slot, making sure we have a
+		 * writable copy. (the function can scribble on the tuple)
+		 */
+		instup = ExecCopySlotHeapTuple(slot);
+
 		HeapTupleHeaderSetDatumLength(instup->t_data, instup->t_len);
 		HeapTupleHeaderSetTypeId(instup->t_data, tupDesc->tdtypeid);
 		HeapTupleHeaderSetTypMod(instup->t_data, tupDesc->tdtypmod);
 
-		fcinfo.arg[0] = HeapTupleGetDatum(instup);
-		fcinfo.argnull[0] = false;
+		fcinfo->args[0].value = HeapTupleGetDatum(instup);
+		fcinfo->args[0].isnull = false;
 
-		d = FunctionCallInvoke(&fcinfo);
+		d = FunctionCallInvoke(fcinfo);
 		MemoryContextReset(formatter->fmt_perrow_ctx);
 
 		/* We do not expect a null result */
-		if (fcinfo.isnull)
-			elog(ERROR, "function %u returned NULL", fcinfo.flinfo->fn_oid);
+		if (fcinfo->isnull)
+			elog(ERROR, "function %u returned NULL", fcinfo->flinfo->fn_oid);
 
 		b = DatumGetByteaP(d);
 
 		CopyOneCustomRowTo(pstate, b);
+
+		heap_freetuple(instup);
 	}
 
 	/* Write the data into the external source */
@@ -720,8 +737,6 @@ external_insert(ExternalInsertDesc extInsertDesc, HeapTuple instup)
 	/* Reset our buffer to start clean next round */
 	pstate->fe_msgbuf->len = 0;
 	pstate->fe_msgbuf->data[0] = '\0';
-
-	return HeapTupleGetOid(instup);
 }
 
 /*
@@ -830,7 +845,6 @@ externalgettup_defined(FileScanDesc scan)
 {
 	HeapTuple	tuple = NULL;
 	CopyState	pstate = scan->fs_pstate;
-	Oid			loaded_oid;
 	MemoryContext oldcontext;
 
 	MemoryContextReset(pstate->rowcontext);
@@ -840,8 +854,7 @@ externalgettup_defined(FileScanDesc scan)
 	if (!NextCopyFrom(pstate,
 					  NULL,
 					  scan->values,
-					  scan->nulls,
-					  &loaded_oid))
+					  scan->nulls))
 	{
 		MemoryContextSwitchTo(oldcontext);
 		return NULL;
@@ -874,7 +887,7 @@ externalgettup_custom(FileScanDesc scan)
 
 	/* while didn't finish processing the entire file */
 	/* raw_buf_len was set to 0 in BeginCopyFrom() or external_rescan() */
-	while (pstate->raw_buf_len != 0 || !pstate->fe_eof)
+	while (pstate->raw_buf_len != 0 || !pstate->reached_eof)
 	{
 		/* need to fill our buffer with data? */
 		if (pstate->raw_buf_len == 0)
@@ -902,10 +915,10 @@ externalgettup_custom(FileScanDesc scan)
 			 */
 			PG_TRY();
 			{
-				FunctionCallInfoData fcinfo;
+				LOCAL_FCINFO(fcinfo, 0);
 
 				/* per call formatter prep */
-				FunctionCallPrepareFormatter(&fcinfo,
+				FunctionCallPrepareFormatter(fcinfo,
 						0,
 						pstate,
 						scan->fs_custom_formatter_func,
@@ -915,7 +928,7 @@ externalgettup_custom(FileScanDesc scan)
 						scan->fs_tupDesc,
 						scan->in_functions,
 						scan->typioparams);
-				(void) FunctionCallInvoke(&fcinfo);
+				(void) FunctionCallInvoke(fcinfo);
 
 			}
 			PG_CATCH();
@@ -1005,7 +1018,7 @@ externalgettup_custom(FileScanDesc scan)
 		 * EOF. This is an error.
 		 */
 		ereport(WARNING,
-				(ERRCODE_DATA_EXCEPTION,
+				(errcode(ERRCODE_DATA_EXCEPTION),
 				 errmsg("unexpected end of file")));
 	}
 
@@ -1183,22 +1196,22 @@ InitParseState(CopyState pstate, Relation relation,
 	/* Initialize 'out_functions', like CopyTo() would. */
 	CopyState cstate = pstate;
 	TupleDesc tupDesc = RelationGetDescr(cstate->rel);
-	Form_pg_attribute *attr = tupDesc->attrs;
 	int num_phys_attrs = tupDesc->natts;
 	cstate->out_functions = (FmgrInfo *) palloc(num_phys_attrs * sizeof(FmgrInfo));
 	ListCell *cur;
 	foreach(cur, cstate->attnumlist)
 	{
 		int			attnum = lfirst_int(cur);
+		Form_pg_attribute attr = TupleDescAttr(tupDesc, attnum - 1);
 		Oid			out_func_oid;
 		bool		isvarlena;
 
 		if (cstate->binary)
-			getTypeBinaryOutputInfo(attr[attnum - 1]->atttypid,
+			getTypeBinaryOutputInfo(attr->atttypid,
 									&out_func_oid,
 									&isvarlena);
 		else
-			getTypeOutputInfo(attr[attnum - 1]->atttypid,
+			getTypeOutputInfo(attr->atttypid,
 							  &out_func_oid,
 							  &isvarlena);
 		fmgr_info(out_func_oid, &cstate->out_functions[attnum - 1]);
@@ -1231,7 +1244,7 @@ InitParseState(CopyState pstate, Relation relation,
  * Also, set up the function call context.
  */
 static void
-FunctionCallPrepareFormatter(FunctionCallInfoData *fcinfo,
+FunctionCallPrepareFormatter(FunctionCallInfoBaseData *fcinfo,
 							 int nArgs,
 							 CopyState pstate,
 							 FmgrInfo *formatter_func,
@@ -1250,7 +1263,7 @@ FunctionCallPrepareFormatter(FunctionCallInfoData *fcinfo,
 	formatter->fmt_badrow_num = 0;
 	formatter->fmt_args = formatter_params;
 	formatter->fmt_conv_funcs = convFuncs;
-	formatter->fmt_saw_eof = pstate->fe_eof;
+	formatter->fmt_saw_eof = pstate->reached_eof;
 	formatter->fmt_typioparams = typioparams;
 	formatter->fmt_perrow_ctx = pstate->rowcontext;
 	formatter->fmt_needs_transcoding = pstate->need_transcoding;
@@ -1337,11 +1350,11 @@ open_external_writable_source(ExternalInsertDesc extInsertDesc)
  * for parsing.
  */
 static int
-external_getdata_callback(void *outbuf, int datasize, void *extra)
+external_getdata_callback(void *outbuf, int minread, int maxread, void *extra)
 {
 	FileScanDesc scan = (FileScanDesc) extra;
 
-	return external_getdata(scan->fs_file, scan->fs_pstate, outbuf, datasize);
+	return external_getdata(scan->fs_file, scan->fs_pstate, outbuf, maxread);
 }
 
 /*
@@ -1355,14 +1368,14 @@ external_getdata(URL_FILE *extfile, CopyState pstate, void *outbuf, int maxread)
 	/*
 	 * CK: this code is very delicate. The caller expects this: - if url_fread
 	 * returns something, and the EOF is reached, it this call must return
-	 * with both the content and the fe_eof flag set. - failing to do so will
+	 * with both the content and the reached_eof flag set. - failing to do so will
 	 * result in skipping the last line.
 	 */
 	bytesread = url_fread((void *) outbuf, maxread, extfile, pstate);
 
 	if (url_feof(extfile, bytesread))
 	{
-		pstate->fe_eof = true;
+		pstate->reached_eof = true;
 	}
 
 	if (bytesread <= 0)
@@ -1534,5 +1547,8 @@ justifyDatabuf(StringInfo buf)
 List *
 appendCopyEncodingOption(List *copyFmtOpts, int encoding)
 {
-	return lappend(copyFmtOpts, makeDefElem("encoding", (Node *)makeString((char *)pg_encoding_to_char(encoding))));
+	return lappend(copyFmtOpts,
+				   makeDefElem("encoding",
+							   (Node *)makeString((char *)pg_encoding_to_char(encoding)),
+							   -1));
 }

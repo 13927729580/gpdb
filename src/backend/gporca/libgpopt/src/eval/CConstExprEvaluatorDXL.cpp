@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CConstExprEvaluatorDXL.cpp
@@ -9,19 +9,20 @@
 //		Constant expression evaluator implementation that delegats to a DXL evaluator
 //
 //	@owner:
-//		
+//
 //
 //	@test:
 //
 //---------------------------------------------------------------------------
 
 #include "gpopt/eval/CConstExprEvaluatorDXL.h"
-#include "gpopt/eval/IConstDXLNodeEvaluator.h"
 
 #include "gpopt/base/CDrvdPropScalar.h"
+#include "gpopt/eval/IConstDXLNodeEvaluator.h"
 #include "gpopt/exception.h"
 #include "gpopt/mdcache/CMDAccessor.h"
 #include "gpopt/operators/CExpression.h"
+#include "gpopt/operators/CPredicateUtils.h"
 
 using namespace gpdxl;
 using namespace gpmd;
@@ -37,16 +38,13 @@ using namespace gpos;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CConstExprEvaluatorDXL::CConstExprEvaluatorDXL
-	(
-	CMemoryPool *mp,
-	CMDAccessor *md_accessor,
-	IConstDXLNodeEvaluator *pconstdxleval
-	)
-	:
-	m_pconstdxleval(pconstdxleval),
-	m_trexpr2dxl(mp, md_accessor, NULL /*pdrgpiSegments*/, false /*fInitColumnFactory*/),
-	m_trdxl2expr(mp, md_accessor, false /*fInitColumnFactory*/)
+CConstExprEvaluatorDXL::CConstExprEvaluatorDXL(
+	CMemoryPool *mp, CMDAccessor *md_accessor,
+	IConstDXLNodeEvaluator *pconstdxleval)
+	: m_pconstdxleval(pconstdxleval),
+	  m_trexpr2dxl(mp, md_accessor, nullptr /*pdrgpiSegments*/,
+				   false /*fInitColumnFactory*/),
+	  m_trdxl2expr(mp, md_accessor, false /*fInitColumnFactory*/)
 {
 }
 
@@ -58,9 +56,7 @@ CConstExprEvaluatorDXL::CConstExprEvaluatorDXL
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CConstExprEvaluatorDXL::~CConstExprEvaluatorDXL()
-{
-}
+CConstExprEvaluatorDXL::~CConstExprEvaluatorDXL() = default;
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -72,12 +68,9 @@ CConstExprEvaluatorDXL::~CConstExprEvaluatorDXL()
 //
 //---------------------------------------------------------------------------
 CExpression *
-CConstExprEvaluatorDXL::PexprEval
-	(
-	CExpression *pexpr
-	)
+CConstExprEvaluatorDXL::PexprEval(CExpression *pexpr)
 {
-	GPOS_ASSERT(NULL != pexpr);
+	GPOS_ASSERT(nullptr != pexpr);
 
 	if (!CPredicateUtils::FCompareConstToConstIgnoreCast(pexpr))
 	{
@@ -86,9 +79,11 @@ CConstExprEvaluatorDXL::PexprEval
 	CDXLNode *pdxlnExpr = m_trexpr2dxl.PdxlnScalar(pexpr);
 	CDXLNode *pdxlnResult = m_pconstdxleval->EvaluateExpr(pdxlnExpr);
 
-	GPOS_ASSERT(EdxloptypeScalar == pdxlnResult->GetOperator()->GetDXLOperatorType());
+	GPOS_ASSERT(EdxloptypeScalar ==
+				pdxlnResult->GetOperator()->GetDXLOperatorType());
 
-	CExpression *pexprResult = m_trdxl2expr.PexprTranslateScalar(pdxlnResult, NULL /*colref_array*/);
+	CExpression *pexprResult = m_trdxl2expr.PexprTranslateScalar(
+		pdxlnResult, nullptr /*colref_array*/);
 	pdxlnResult->Release();
 	pdxlnExpr->Release();
 
@@ -103,7 +98,8 @@ CConstExprEvaluatorDXL::PexprEval
 //		Returns true, since this evaluator always attempts to evaluate the expression and compute a datum
 //
 //---------------------------------------------------------------------------
-BOOL CConstExprEvaluatorDXL::FCanEvalExpressions()
+BOOL
+CConstExprEvaluatorDXL::FCanEvalExpressions()
 {
 	return m_pconstdxleval->FCanEvalExpressions();
 }

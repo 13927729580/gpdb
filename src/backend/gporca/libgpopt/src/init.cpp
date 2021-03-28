@@ -10,20 +10,21 @@
 //		libgpopt.
 //---------------------------------------------------------------------------
 
+#include "gpopt/init.h"
+
+#include "gpos/_api.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/task/CWorker.h"
 
-#include "gpopt/init.h"
-#include "gpopt/mdcache/CMDCache.h"
 #include "gpopt/exception.h"
+#include "gpopt/mdcache/CMDCache.h"
 #include "gpopt/xforms/CXformFactory.h"
-#include "gpos/_api.h"
 #include "naucrates/init.h"
 
 using namespace gpos;
 using namespace gpopt;
 
-static CMemoryPool *mp = NULL;
+static CMemoryPool *mp = nullptr;
 
 
 //---------------------------------------------------------------------------
@@ -37,7 +38,8 @@ static CMemoryPool *mp = NULL;
 //              are NULL, gpopt with be initialized with the default allocator.
 //
 //---------------------------------------------------------------------------
-void gpopt_init()
+void
+gpopt_init()
 {
 	{
 		CAutoMemoryPool amp;
@@ -45,7 +47,7 @@ void gpopt_init()
 
 		// add standard exception messages
 		(void) gpopt::EresExceptionInit(mp);
-	
+
 		// detach safety
 		(void) amp.Detach();
 	}
@@ -64,15 +66,16 @@ void gpopt_init()
 //              Destroy the memory pool
 //
 //---------------------------------------------------------------------------
-void gpopt_terminate()
+void
+gpopt_terminate()
 {
 #ifdef GPOS_DEBUG
 	CMDCache::Shutdown();
 
 	CMemoryPoolManager::GetMemoryPoolMgr()->Destroy(mp);
 
-	CXformFactory::Pxff()->Shutdown();
-#endif // GPOS_DEBUG
+	CXformFactory::Shutdown();
+#endif	// GPOS_DEBUG
 }
 
 // EOF

@@ -10,6 +10,7 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
+
 #include "naucrates/dxl/parser/CParseHandlerFactory.h"
 
 
@@ -26,14 +27,10 @@ XERCES_CPP_NAMESPACE_USE
 //		Constructor
 //
 //---------------------------------------------------------------------------
-CParseHandlerScalarOp::CParseHandlerScalarOp
-	(
-	CMemoryPool *mp,
-	CParseHandlerManager *parse_handler_mgr,
-	CParseHandlerBase *parse_handler_root
-	)
-	:
-	CParseHandlerOp(mp, parse_handler_mgr, parse_handler_root)
+CParseHandlerScalarOp::CParseHandlerScalarOp(
+	CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+	CParseHandlerBase *parse_handler_root)
+	: CParseHandlerOp(mp, parse_handler_mgr, parse_handler_root)
 {
 }
 
@@ -45,9 +42,7 @@ CParseHandlerScalarOp::CParseHandlerScalarOp
 //		Destructor
 //
 //---------------------------------------------------------------------------
-CParseHandlerScalarOp::~CParseHandlerScalarOp()
-{
-}
+CParseHandlerScalarOp::~CParseHandlerScalarOp() = default;
 
 
 //---------------------------------------------------------------------------
@@ -61,24 +56,25 @@ CParseHandlerScalarOp::~CParseHandlerScalarOp()
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerScalarOp::StartElement
-	(
-	const XMLCh* const element_uri,
-	const XMLCh* const element_local_name,
-	const XMLCh* const element_qname,
-	const Attributes& attrs
-	)
+CParseHandlerScalarOp::StartElement(const XMLCh *const element_uri,
+									const XMLCh *const element_local_name,
+									const XMLCh *const element_qname,
+									const Attributes &attrs)
 {
 	// instantiate the parse handler
-	CParseHandlerBase *parse_handler_base = CParseHandlerFactory::GetParseHandler(m_mp, element_local_name, m_parse_handler_mgr, this);
-	
-	GPOS_ASSERT(NULL != parse_handler_base);
-	
+	CParseHandlerBase *parse_handler_base =
+		CParseHandlerFactory::GetParseHandler(m_mp, element_local_name,
+											  m_parse_handler_mgr, this);
+
+	GPOS_ASSERT(nullptr != parse_handler_base);
+
 	// activate the specialized parse handler
-	m_parse_handler_mgr->ReplaceHandler(parse_handler_base, m_parse_handler_root);
-	
+	m_parse_handler_mgr->ReplaceHandler(parse_handler_base,
+										m_parse_handler_root);
+
 	// pass the startElement message for the specialized parse handler to process
-	parse_handler_base->startElement(element_uri, element_local_name, element_qname, attrs);
+	parse_handler_base->startElement(element_uri, element_local_name,
+									 element_qname, attrs);
 }
 
 //---------------------------------------------------------------------------
@@ -92,17 +88,15 @@ CParseHandlerScalarOp::StartElement
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerScalarOp::EndElement
-	(
-	const XMLCh* const, //= element_uri,
-	const XMLCh* const element_local_name,
-	const XMLCh* const // element_qname,
-	)
+CParseHandlerScalarOp::EndElement(const XMLCh *const,  //= element_uri,
+								  const XMLCh *const element_local_name,
+								  const XMLCh *const  // element_qname,
+)
 {
-	CWStringDynamic *str = CDXLUtils::CreateDynamicStringFromXMLChArray(m_parse_handler_mgr->GetDXLMemoryManager(), element_local_name);
+	CWStringDynamic *str = CDXLUtils::CreateDynamicStringFromXMLChArray(
+		m_parse_handler_mgr->GetDXLMemoryManager(), element_local_name);
 	GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiDXLUnexpectedTag, str->GetBuffer());
 }
 
 
 // EOF
-

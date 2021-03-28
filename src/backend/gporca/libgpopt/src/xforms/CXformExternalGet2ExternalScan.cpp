@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2013 Pivotal, Inc.
+//	Copyright (C) 2013 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformExternalGet2ExternalScan.cpp
@@ -9,12 +9,13 @@
 //		Implementation of transform
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
 #include "gpopt/xforms/CXformExternalGet2ExternalScan.h"
 
+#include "gpos/base.h"
+
+#include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/operators/CLogicalExternalGet.h"
 #include "gpopt/operators/CPhysicalExternalScan.h"
-#include "gpopt/metadata/CTableDescriptor.h"
 
 using namespace gpopt;
 
@@ -27,21 +28,12 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformExternalGet2ExternalScan::CXformExternalGet2ExternalScan
-	(
-	CMemoryPool *mp
-	)
-	:
-	CXformImplementation
-		(
-		 // pattern
-		GPOS_NEW(mp) CExpression
-				(
-				mp,
-				GPOS_NEW(mp) CLogicalExternalGet(mp)
-				)
-		)
-{}
+CXformExternalGet2ExternalScan::CXformExternalGet2ExternalScan(CMemoryPool *mp)
+	: CXformImplementation(
+		  // pattern
+		  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CLogicalExternalGet(mp)))
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -52,11 +44,8 @@ CXformExternalGet2ExternalScan::CXformExternalGet2ExternalScan
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformExternalGet2ExternalScan::Exfp
-	(
-	CExpressionHandle & //exprhdl
-	)
-	const
+CXformExternalGet2ExternalScan::Exfp(CExpressionHandle &  //exprhdl
+) const
 {
 	return CXform::ExfpHigh;
 }
@@ -70,15 +59,11 @@ CXformExternalGet2ExternalScan::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformExternalGet2ExternalScan::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformExternalGet2ExternalScan::Transform(CXformContext *pxfctxt,
+										  CXformResult *pxfres,
+										  CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
@@ -92,21 +77,17 @@ CXformExternalGet2ExternalScan::Transform
 	ptabdesc->AddRef();
 
 	CColRefArray *pdrgpcrOutput = popGet->PdrgpcrOutput();
-	GPOS_ASSERT(NULL != pdrgpcrOutput);
+	GPOS_ASSERT(nullptr != pdrgpcrOutput);
 
 	pdrgpcrOutput->AddRef();
 
 	// create alternative expression
-	CExpression *pexprAlt =
-		GPOS_NEW(mp) CExpression
-			(
-			mp,
-			GPOS_NEW(mp) CPhysicalExternalScan(mp, pname, ptabdesc, pdrgpcrOutput)
-			);
+	CExpression *pexprAlt = GPOS_NEW(mp) CExpression(
+		mp,
+		GPOS_NEW(mp) CPhysicalExternalScan(mp, pname, ptabdesc, pdrgpcrOutput));
 
 	// add alternative to transformation result
 	pxfres->Add(pexprAlt);
 }
 
 // EOF
-

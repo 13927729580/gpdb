@@ -2,21 +2,27 @@ set allow_system_table_mods = true;
 create temp table random_2_0 (a int, b int, c int, d int) distributed randomly;
 update gp_distribution_policy set numsegments = 2 where localoid = 'random_2_0'::regclass;
 insert into random_2_0 select i,i,i,i from generate_series(1, 10)i;
+analyze random_2_0;
 create temp table replicate_2_1 (a int, b int, c int, d int) distributed replicated;
 update gp_distribution_policy set numsegments = 2 where localoid = 'replicate_2_1'::regclass;
 insert into replicate_2_1 select i,i,i,i from generate_series(1, 10)i;
+analyze replicate_2_1;
 create temp table hash_3_3_2 (a int, b int, c int, d int) distributed by (a,b,c);
 update gp_distribution_policy set numsegments = 3 where localoid = 'hash_3_3_2'::regclass;
 insert into hash_3_3_2 select i,i,i,i from generate_series(1, 10)i;
+analyze hash_3_3_2;
 create temp table replicate_3_3 (a int, b int, c int, d int) distributed replicated;
 update gp_distribution_policy set numsegments = 3 where localoid = 'replicate_3_3'::regclass;
 insert into replicate_3_3 select i,i,i,i from generate_series(1, 10)i;
+analyze replicate_3_3;
 create temp table hash_2_3_4 (a int, b int, c int, d int) distributed by (a,b,c);
 update gp_distribution_policy set numsegments = 2 where localoid = 'hash_2_3_4'::regclass;
 insert into hash_2_3_4 select i,i,i,i from generate_series(1, 10)i;
+analyze hash_2_3_4;
 create temp table replicate_2_5 (a int, b int, c int, d int) distributed replicated;
 update gp_distribution_policy set numsegments = 2 where localoid = 'replicate_2_5'::regclass;
 insert into replicate_2_5 select i,i,i,i from generate_series(1, 10)i;
+analyze replicate_2_5;
 set Test_print_direct_dispatch_info = true;
 \o /dev/null
 -- This test focuses on the whether slices' corresponding gang size in runtime.
@@ -35,8 +41,8 @@ INFO:  (slice 5) Dispatch command to PARTIAL contents: 0 1
 INFO:  (slice 1) Dispatch command to PARTIAL contents: 0 1
 INFO:  (slice 2) Dispatch command to SINGLE content
 select hash_3_3_2.b, replicate_2_5.d, sum(replicate_2_1.d), sum(replicate_3_3.a) from (((random_2_0 left join replicate_2_1 on random_2_0.b <> replicate_2_1.d) left join hash_3_3_2 on random_2_0.c = hash_3_3_2.b) inner join (replicate_3_3 inner join hash_2_3_4 on replicate_3_3.d = hash_2_3_4.d) on hash_3_3_2.a <> hash_2_3_4.a) right join replicate_2_5 on random_2_0.d <> replicate_2_5.c group by hash_3_3_2.b, replicate_2_5.d order by 1,2;
-INFO:  (slice 3) Dispatch command to ALL contents: 0 1 2
-INFO:  (slice 4) Dispatch command to PARTIAL contents: 0 1
+INFO:  (slice 4) Dispatch command to ALL contents: 0 1 2
+INFO:  (slice 3) Dispatch command to PARTIAL contents: 0 1
 INFO:  (slice 2) Dispatch command to PARTIAL contents: 0 1
 INFO:  (slice 1) Dispatch command to SINGLE content
 select replicate_3_3.a, hash_2_3_4.d, sum(replicate_2_1.a), max(hash_3_3_2.d) from (((random_2_0 right join replicate_2_1 on random_2_0.d >= replicate_2_1.c) left join (hash_3_3_2 full join replicate_3_3 on hash_3_3_2.b = replicate_3_3.a) on replicate_2_1.a < hash_3_3_2.c) full join hash_2_3_4 on random_2_0.a >= hash_2_3_4.b) inner join replicate_2_5 on hash_3_3_2.c < replicate_2_5.d group by replicate_3_3.a, hash_2_3_4.d order by 1,2;

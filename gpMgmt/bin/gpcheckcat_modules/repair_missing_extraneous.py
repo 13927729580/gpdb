@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from gppylib.utils import escapeDoubleQuoteInSQLString
 
 class RepairMissingExtraneous:
@@ -59,13 +59,13 @@ class RepairMissingExtraneous:
             seg_ids = issue[-1]
 
             # if an oid is missing from a segment(s) , then it is considered to be extra
-            # on all the other segments/master
+            # on all the other segments/coordinator
             if issue_type == "missing":
                 seg_ids = all_seg_ids - set(seg_ids)
 
             for seg_id in seg_ids:
 
-                if not oids_to_segment_mapping.has_key(seg_id):
+                if seg_id not in oids_to_segment_mapping:
                     oids_to_segment_mapping[seg_id] = set()
 
                 oids_to_segment_mapping[seg_id].add(oid)

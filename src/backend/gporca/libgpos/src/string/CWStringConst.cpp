@@ -9,9 +9,10 @@
 //		Implementation of the wide character constant string class
 //---------------------------------------------------------------------------
 
+#include "gpos/string/CWStringConst.h"
+
 #include "gpos/base.h"
 #include "gpos/common/clibwrapper.h"
-#include "gpos/string/CWStringConst.h"
 
 using namespace gpos;
 
@@ -25,19 +26,13 @@ using namespace gpos;
 //		does not own the memory
 //
 //---------------------------------------------------------------------------
-CWStringConst::CWStringConst
-	(
-	const WCHAR *w_str_buffer
-	)
-	:
-	CWStringBase
-		(
-		GPOS_WSZ_LENGTH(w_str_buffer),
-		false // owns_memory
-		),
-	m_w_str_buffer(w_str_buffer)
+CWStringConst::CWStringConst(const WCHAR *w_str_buffer)
+	: CWStringBase(GPOS_WSZ_LENGTH(w_str_buffer),
+				   false  // owns_memory
+				   ),
+	  m_w_str_buffer(w_str_buffer)
 {
-	GPOS_ASSERT(NULL != w_str_buffer);
+	GPOS_ASSERT(nullptr != w_str_buffer);
 	GPOS_ASSERT(IsValid());
 }
 
@@ -50,21 +45,14 @@ CWStringConst::CWStringConst
 //		The string owns the memory.
 //
 //---------------------------------------------------------------------------
-CWStringConst::CWStringConst
-	(
-	CMemoryPool *mp,
-	const WCHAR *w_str_buffer
-	)
-	:
-	CWStringBase
-		(
-		GPOS_WSZ_LENGTH(w_str_buffer),
-		true // owns_memory
-		),
-	m_w_str_buffer(NULL)
+CWStringConst::CWStringConst(CMemoryPool *mp, const WCHAR *w_str_buffer)
+	: CWStringBase(GPOS_WSZ_LENGTH(w_str_buffer),
+				   true	 // owns_memory
+				   ),
+	  m_w_str_buffer(nullptr)
 {
-	GPOS_ASSERT(NULL != mp);
-	GPOS_ASSERT(NULL != w_str_buffer);
+	GPOS_ASSERT(nullptr != mp);
+	GPOS_ASSERT(nullptr != w_str_buffer);
 
 	if (0 == m_length)
 	{
@@ -90,19 +78,13 @@ CWStringConst::CWStringConst
 //		Shallow copy constructor.
 //
 //---------------------------------------------------------------------------
-CWStringConst::CWStringConst
-	(
-	const CWStringConst& str
-	)
-	:
-	CWStringBase
-		(
-		str.Length(),
-		false // owns_memory
-		),
-	m_w_str_buffer(str.GetBuffer())
+CWStringConst::CWStringConst(const CWStringConst &str)
+	: CWStringBase(str.Length(),
+				   false  // owns_memory
+				   ),
+	  m_w_str_buffer(str.GetBuffer())
 {
-	GPOS_ASSERT(NULL != m_w_str_buffer);
+	GPOS_ASSERT(nullptr != m_w_str_buffer);
 	GPOS_ASSERT(IsValid());
 }
 //---------------------------------------------------------------------------
@@ -130,11 +112,10 @@ CWStringConst::~CWStringConst()
 //		Returns the wide character buffer
 //
 //---------------------------------------------------------------------------
-const WCHAR*
+const WCHAR *
 CWStringConst::GetBuffer() const
 {
 	return m_w_str_buffer;
 }
 
 // EOF
-

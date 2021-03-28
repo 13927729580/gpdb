@@ -9,17 +9,18 @@
 //		Implementation of base scan operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CPhysicalScan.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/base/CUtils.h"
 #include "gpopt/base/CCastUtils.h"
 #include "gpopt/base/CDistributionSpec.h"
 #include "gpopt/base/CDistributionSpecRandom.h"
-
-#include "gpopt/operators/CPhysicalScan.h"
-#include "gpopt/operators/CPredicateUtils.h"
-#include "gpopt/metadata/CTableDescriptor.h"
+#include "gpopt/base/COptCtxt.h"
+#include "gpopt/base/CUtils.h"
 #include "gpopt/metadata/CName.h"
+#include "gpopt/metadata/CTableDescriptor.h"
+#include "gpopt/operators/CPredicateUtils.h"
 
 using namespace gpopt;
 
@@ -32,24 +33,19 @@ using namespace gpopt;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CPhysicalScan::CPhysicalScan
-	(
-	CMemoryPool *mp,
-	const CName *pnameAlias,
-	CTableDescriptor *ptabdesc,
-	CColRefArray *pdrgpcrOutput
-	)
-	:
-	CPhysical(mp),
-	m_pnameAlias(pnameAlias),
-	m_ptabdesc(ptabdesc),
-	m_pdrgpcrOutput(pdrgpcrOutput),
-	m_pds(NULL),
-	m_pstatsBaseTable(NULL)
+CPhysicalScan::CPhysicalScan(CMemoryPool *mp, const CName *pnameAlias,
+							 CTableDescriptor *ptabdesc,
+							 CColRefArray *pdrgpcrOutput)
+	: CPhysical(mp),
+	  m_pnameAlias(pnameAlias),
+	  m_ptabdesc(ptabdesc),
+	  m_pdrgpcrOutput(pdrgpcrOutput),
+	  m_pds(nullptr),
+	  m_pstatsBaseTable(nullptr)
 {
-	GPOS_ASSERT(NULL != ptabdesc);
-	GPOS_ASSERT(NULL != pnameAlias);
-	GPOS_ASSERT(NULL != pdrgpcrOutput);
+	GPOS_ASSERT(nullptr != ptabdesc);
+	GPOS_ASSERT(nullptr != pnameAlias);
+	GPOS_ASSERT(nullptr != pdrgpcrOutput);
 
 	if (ptabdesc->ConvertHashToRandom())
 	{
@@ -81,7 +77,7 @@ CPhysicalScan::~CPhysicalScan()
 	GPOS_DELETE(m_pnameAlias);
 }
 
-	
+
 //---------------------------------------------------------------------------
 //	@function:
 //		CPhysicalScan::FInputOrderSensitive
@@ -107,22 +103,19 @@ CPhysicalScan::FInputOrderSensitive() const
 //
 //---------------------------------------------------------------------------
 BOOL
-CPhysicalScan::FProvidesReqdCols
-	(
-	CExpressionHandle &, // exprhdl
-	CColRefSet *pcrsRequired,
-	ULONG // ulOptReq
-	)
-	const
+CPhysicalScan::FProvidesReqdCols(CExpressionHandle &,  // exprhdl
+								 CColRefSet *pcrsRequired,
+								 ULONG	// ulOptReq
+) const
 {
-	GPOS_ASSERT(NULL != pcrsRequired);
+	GPOS_ASSERT(nullptr != pcrsRequired);
 
-	CColRefSet 	*pcrs = GPOS_NEW(m_mp) CColRefSet(m_mp);
+	CColRefSet *pcrs = GPOS_NEW(m_mp) CColRefSet(m_mp);
 	pcrs->Include(m_pdrgpcrOutput);
 
 	BOOL result = pcrs->ContainsAll(pcrsRequired);
 	pcrs->Release();
-	
+
 	return result;
 }
 
@@ -136,17 +129,14 @@ CPhysicalScan::FProvidesReqdCols
 //
 //---------------------------------------------------------------------------
 CEnfdProp::EPropEnforcingType
-CPhysicalScan::EpetOrder
-	(
-	CExpressionHandle &, // exprhdl
-	const CEnfdOrder *
+CPhysicalScan::EpetOrder(CExpressionHandle &,  // exprhdl
+						 const CEnfdOrder *
 #ifdef GPOS_DEBUG
-	peo
-#endif // GPOS_DEBUG
-	)
-	const
+							 peo
+#endif	// GPOS_DEBUG
+) const
 {
-	GPOS_ASSERT(NULL != peo);
+	GPOS_ASSERT(nullptr != peo);
 	GPOS_ASSERT(!peo->PosRequired()->IsEmpty());
 
 	return CEnfdProp::EpetRequired;
@@ -161,19 +151,14 @@ CPhysicalScan::EpetOrder
 //
 //---------------------------------------------------------------------------
 CDistributionSpec *
-CPhysicalScan::PdsDerive
-	(
-	CMemoryPool *mp,
-	CExpressionHandle &exprhdl
-	)
-	const
+CPhysicalScan::PdsDerive(CMemoryPool *mp, CExpressionHandle &exprhdl) const
 {
-	BOOL fIndexOrBitmapScan = COperator::EopPhysicalIndexScan == Eopid() ||
-				COperator::EopPhysicalBitmapTableScan == Eopid() ||
-				COperator::EopPhysicalDynamicIndexScan == Eopid() ||
-				COperator::EopPhysicalDynamicBitmapTableScan == Eopid();
-	if (fIndexOrBitmapScan &&
-		CDistributionSpec::EdtHashed == m_pds->Edt() &&
+	BOOL fIndexOrBitmapScan =
+		COperator::EopPhysicalIndexScan == Eopid() ||
+		COperator::EopPhysicalBitmapTableScan == Eopid() ||
+		COperator::EopPhysicalDynamicIndexScan == Eopid() ||
+		COperator::EopPhysicalDynamicBitmapTableScan == Eopid();
+	if (fIndexOrBitmapScan && CDistributionSpec::EdtHashed == m_pds->Edt() &&
 		exprhdl.HasOuterRefs())
 	{
 		// If index conditions have outer references and the index relation is hashed,
@@ -196,24 +181,27 @@ CPhysicalScan::PdsDerive
 		//
 		// This way the equiv spec stays incomplete only as long as it needs to be.
 
-		CExpression *pexprIndexPred = exprhdl.PexprScalarChild(0 /*child_index*/);
+		CExpression *pexprIndexPred =
+			exprhdl.PexprScalarExactChild(0 /*child_index*/);
 
-		CDistributionSpecHashed *pdshashed = CDistributionSpecHashed::PdsConvert(m_pds);
-		CDistributionSpecHashed *pdshashedEquiv = CDistributionSpecHashed::CompleteEquivSpec(mp, pdshashed, pexprIndexPred);
+		CDistributionSpecHashed *pdshashed =
+			CDistributionSpecHashed::PdsConvert(m_pds);
+		CDistributionSpecHashed *pdshashedEquiv =
+			CDistributionSpecHashed::TryToCompleteEquivSpec(
+				mp, pdshashed, pexprIndexPred, exprhdl.DeriveOuterReferences());
 
-		if (NULL != pdshashedEquiv)
+		if (nullptr != pdshashedEquiv)
 		{
 			CExpressionArray *pdrgpexprHashed = pdshashed->Pdrgpexpr();
 			pdrgpexprHashed->AddRef();
-			if (NULL != pdshashed->Opfamilies())
+			if (nullptr != pdshashed->Opfamilies())
 			{
 				pdshashed->Opfamilies()->AddRef();
 			}
 			CDistributionSpecHashed *pdshashedResult =
-				GPOS_NEW(mp) CDistributionSpecHashed(pdrgpexprHashed,
-													 pdshashed->FNullsColocated(),
-													 pdshashedEquiv,
-													 pdshashed->Opfamilies());
+				GPOS_NEW(mp) CDistributionSpecHashed(
+					pdrgpexprHashed, pdshashed->FNullsColocated(),
+					pdshashedEquiv, pdshashed->Opfamilies());
 
 			return pdshashedResult;
 		}
@@ -226,40 +214,6 @@ CPhysicalScan::PdsDerive
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CPhysicalScan::PpimDeriveFromDynamicScan
-//
-//	@doc:
-//		Derive partition index map from a dynamic scan operator
-//
-//---------------------------------------------------------------------------
-CPartIndexMap *
-CPhysicalScan::PpimDeriveFromDynamicScan
-	(
-	CMemoryPool *mp,
-	ULONG part_idx_id,
-	IMDId *rel_mdid,
-	CColRef2dArray *pdrgpdrgpcrPart,
-	ULONG ulSecondaryPartIndexId,
-	CPartConstraint *ppartcnstr,
-	CPartConstraint *ppartcnstrRel,
-	ULONG ulExpectedPropagators
-	)
-{
-	CPartIndexMap *ppim = GPOS_NEW(mp) CPartIndexMap(mp);
-	UlongToPartConstraintMap *ppartcnstrmap = GPOS_NEW(mp) UlongToPartConstraintMap(mp);
-	
-	(void) ppartcnstrmap->Insert(GPOS_NEW(mp) ULONG(ulSecondaryPartIndexId), ppartcnstr);
-
-	CPartKeysArray *pdrgppartkeys = GPOS_NEW(mp) CPartKeysArray(mp);
-	pdrgppartkeys->Append(GPOS_NEW(mp) CPartKeys(pdrgpdrgpcrPart));
-
-	ppim->Insert(part_idx_id, ppartcnstrmap, CPartIndexMap::EpimConsumer, ulExpectedPropagators, rel_mdid, pdrgppartkeys, ppartcnstrRel);
-
-	return ppim;
-}
-
-//---------------------------------------------------------------------------
-//	@function:
 //		CPhysicalScan::EpetDistribution
 //
 //	@doc:
@@ -268,14 +222,10 @@ CPhysicalScan::PpimDeriveFromDynamicScan
 //
 //---------------------------------------------------------------------------
 CEnfdProp::EPropEnforcingType
-CPhysicalScan::EpetDistribution
-	(
-	CExpressionHandle &/*exprhdl*/,
-	const CEnfdDistribution *ped
-	)
-	const
+CPhysicalScan::EpetDistribution(CExpressionHandle & /*exprhdl*/,
+								const CEnfdDistribution *ped) const
 {
-	GPOS_ASSERT(NULL != ped);
+	GPOS_ASSERT(nullptr != ped);
 
 	if (ped->FCompatible(m_pds))
 	{
@@ -298,19 +248,17 @@ CPhysicalScan::EpetDistribution
 //
 //---------------------------------------------------------------------------
 void
-CPhysicalScan::ComputeTableStats
-	(
-	CMemoryPool *mp
-	)
+CPhysicalScan::ComputeTableStats(CMemoryPool *mp)
 {
-	GPOS_ASSERT(NULL == m_pstatsBaseTable);
+	GPOS_ASSERT(nullptr == m_pstatsBaseTable);
 
 	CColRefSet *pcrsHist = GPOS_NEW(mp) CColRefSet(mp);
 	CColRefSet *pcrsWidth = GPOS_NEW(mp) CColRefSet(mp, m_pdrgpcrOutput);
 
 	CMDAccessor *md_accessor = COptCtxt::PoctxtFromTLS()->Pmda();
-	m_pstatsBaseTable = md_accessor->Pstats(mp, m_ptabdesc->MDId(), pcrsHist, pcrsWidth);
-	GPOS_ASSERT(NULL != m_pstatsBaseTable);
+	m_pstatsBaseTable =
+		md_accessor->Pstats(mp, m_ptabdesc->MDId(), pcrsHist, pcrsWidth);
+	GPOS_ASSERT(nullptr != m_pstatsBaseTable);
 
 	pcrsHist->Release();
 	pcrsWidth->Release();
@@ -326,17 +274,13 @@ CPhysicalScan::ComputeTableStats
 //
 //---------------------------------------------------------------------------
 CPhysicalScan *
-CPhysicalScan::PopConvert
-	(
-	COperator *pop
-	)
+CPhysicalScan::PopConvert(COperator *pop)
 {
-	GPOS_ASSERT(NULL != pop);
+	GPOS_ASSERT(nullptr != pop);
 	GPOS_ASSERT(CUtils::FPhysicalScan(pop));
 
-	return dynamic_cast<CPhysicalScan*>(pop);
+	return dynamic_cast<CPhysicalScan *>(pop);
 }
 
 
 // EOF
-

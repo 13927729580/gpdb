@@ -9,8 +9,9 @@
 //		Implementation of bitset iterator
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
 #include "gpos/common/CBitSetIter.h"
+
+#include "gpos/base.h"
 #include "gpos/common/CAutoRef.h"
 
 using namespace gpos;
@@ -24,15 +25,8 @@ using namespace gpos;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CBitSetIter::CBitSetIter
-	(
-	const CBitSet &bs
-	)
-	:
-	m_bs(bs),
-	m_cursor((ULONG)-1),
-	m_bsl(NULL),
-	m_active(true)
+CBitSetIter::CBitSetIter(const CBitSet &bs)
+	: m_bs(bs), m_cursor((ULONG) -1), m_bsl(nullptr), m_active(true)
 {
 }
 
@@ -49,13 +43,13 @@ BOOL
 CBitSetIter::Advance()
 {
 	GPOS_ASSERT(m_active && "called advance on exhausted iterator");
-	
-	if (NULL == m_bsl)
+
+	if (nullptr == m_bsl)
 	{
 		m_bsl = m_bs.m_bsllist.First();
 	}
-	
-	while (NULL != m_bsl)
+
+	while (nullptr != m_bsl)
 	{
 		if (m_cursor + 1 <= m_bs.m_vector_size &&
 			m_bsl->GetVec()->GetNextSetBit(m_cursor + 1, m_cursor))
@@ -64,13 +58,13 @@ CBitSetIter::Advance()
 		}
 
 		m_bsl = m_bs.m_bsllist.Next(m_bsl);
-		m_cursor = (ULONG)-1;
+		m_cursor = (ULONG) -1;
 	}
 
-	m_active = (NULL != m_bsl);
+	m_active = (nullptr != m_bsl);
 	return m_active;
 }
-	
+
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -83,11 +77,10 @@ CBitSetIter::Advance()
 ULONG
 CBitSetIter::Bit() const
 {
-	GPOS_ASSERT(m_active && NULL != m_bsl && "iterator uninitialized");
+	GPOS_ASSERT(m_active && nullptr != m_bsl && "iterator uninitialized");
 	GPOS_ASSERT(m_bsl->GetVec()->Get(m_cursor));
-	
+
 	return m_bsl->GetOffset() + m_cursor;
 }
 
 // EOF
-

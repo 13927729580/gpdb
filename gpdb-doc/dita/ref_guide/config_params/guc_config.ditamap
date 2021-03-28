@@ -107,8 +107,8 @@
             <topicref href="guc-list.xml#gp_external_enable_filter_pushdown"/>
             <topicref href="guc-list.xml#gp_fts_probe_interval"/>
             <topicref href="guc-list.xml#gp_fts_probe_retries"/>
-            <topicref href="guc-list.xml#gp_fts_probe_threadcount"/>
             <topicref href="guc-list.xml#gp_fts_probe_timeout"/>
+            <topicref href="guc-list.xml#gp_fts_replication_attempt_count"/>
             <topicref href="guc-list.xml#gp_global_deadlock_detector_period"/>
             <topicref href="guc-list.xml#gp_hashjoin_tuples_per_bucket"/>
             <topicref href="guc-list.xml#gp_ignore_error_table"/>
@@ -116,9 +116,11 @@
             <topicref href="guc-list.xml#gp_instrument_shmem_size"/>
             <topicref href="guc-list.xml#gp_interconnect_debug_retry_interval"/>
             <topicref href="guc-list.xml#gp_interconnect_fc_method"/>
+            <topicref href="guc-list.xml#gp_interconnect_proxy_addresses"/>
             <topicref href="guc-list.xml#gp_interconnect_queue_depth"/>
             <topicref href="guc-list.xml#gp_interconnect_setup_timeout"/>
             <topicref href="guc-list.xml#gp_interconnect_snd_queue_depth"/>
+            <topicref href="guc-list.xml#gp_interconnect_transmit_timeout"/>
             <topicref href="guc-list.xml#gp_interconnect_type"/>
             <topicref href="guc-list.xml#gp_log_format"/>
             <topicref href="guc-list.xml#gp_log_fts"/>
@@ -162,6 +164,7 @@
             <topicref href="guc-list.xml#gp_workfile_limit_files_per_query"/>
             <topicref href="guc-list.xml#gp_workfile_limit_per_query"/>
             <topicref href="guc-list.xml#gp_workfile_limit_per_segment"/>
+            <topicref href="guc-list.xml#gpfdist_retry_timeout"/>
             <topicref href="guc-list.xml#ignore_checksum_failure"/>
             <topicref href="guc-list.xml#integer_datetimes"/>
             <topicref href="guc-list.xml#IntervalStyle"/>
@@ -214,9 +217,12 @@
             <topicref href="guc-list.xml#optimizer_array_expansion_threshold"/>
             <topicref href="guc-list.xml#optimizer_analyze_root_partition"/>
             <topicref href="guc-list.xml#optimizer_control"/>
+            <topicref href="guc-list.xml#optimizer_cost_model"/>
             <topicref href="guc-list.xml#optimizer_cte_inlining_bound"/>
+            <topicref href="guc-list.xml#optimizer_dpe_stats"/>
             <topicref href="guc-list.xml#optimizer_enable_associativity"/>
             <topicref href="guc-list.xml#optimizer_enable_dml"/>
+            <topicref href="guc-list.xml#optimizer_enable_indexonlyscan"/>
             <topicref href="guc-list.xml#optimizer_enable_master_only_queries"/>
             <topicref href="guc-list.xml#optimizer_force_agg_skew_avoidance"/>
             <topicref href="guc-list.xml#optimizer_force_multistage_agg"/>

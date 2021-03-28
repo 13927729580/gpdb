@@ -17,40 +17,43 @@
 #include "gpos/base.h"
 
 #include "naucrates/dxl/gpdb_types.h"
-
 #include "naucrates/md/IMDType.h"
 
 namespace gpmd
 {
-	using namespace gpos;
+using namespace gpos;
 
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		IMDTypeGeneric
-	//
-	//	@doc:
-	//		Interface for generic types in the metadata cache
-	//
-	//---------------------------------------------------------------------------
-	class IMDTypeGeneric : public IMDType
-	{		
-		public:
 
-			// type id
-			static ETypeInfo GetTypeInfo()
-			{
-				return EtiGeneric;
-			}
+//---------------------------------------------------------------------------
+//	@class:
+//		IMDTypeGeneric
+//
+//	@doc:
+//		Interface for generic types in the metadata cache
+//
+//---------------------------------------------------------------------------
+class IMDTypeGeneric : public IMDType
+{
+public:
+	// type id
+	static ETypeInfo
+	GetTypeInfo()
+	{
+		return EtiGeneric;
+	}
 
-			// type id
-			virtual ETypeInfo GetDatumType() const
-			{
-				return IMDTypeGeneric::GetTypeInfo();
-			}
-	};
-}
+	// type id
+	ETypeInfo
+	GetDatumType() const override
+	{
+		return IMDTypeGeneric::GetTypeInfo();
+	}
 
-#endif // !GPMD_IMDTypeGeneric_H
+	virtual IDatum *CreateGenericNullDatum(CMemoryPool *mp,
+										   INT type_modifier) const = 0;
+};
+}  // namespace gpmd
+
+#endif	// !GPMD_IMDTypeGeneric_H
 
 // EOF

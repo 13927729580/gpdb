@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright (c) Greenplum Inc 2008. All Rights Reserved.
 #
@@ -48,7 +48,7 @@ VALID_MODE = [MODE_SYNCHRONIZED, MODE_NOT_SYNC]
 
 # These are all the valid states primary/mirror pairs can
 # be in.  Any configuration other than this will cause the
-# FTS Prober to bring down the master postmaster until the
+# FTS Prober to bring down the coordinator postmaster until the
 # configuration is corrected.  Here, primary and mirror refer
 # to the segments current role, not the preferred_role.
 #
@@ -68,7 +68,7 @@ _MODE_LABELS = {
 def getDataModeLabel(mode):
     return _MODE_LABELS[mode]
 
-MASTER_CONTENT_ID = -1
+COORDINATOR_CONTENT_ID = -1
 
 class InvalidSegmentConfiguration(Exception):
     """Exception raised when an invalid gparray configuration is
@@ -108,6 +108,10 @@ class Segment:
         self.port=port
         self.datadir=datadir
 
+        # Segments are "unreachable" if their host is not reachable.
+        # See detect_unreachable_hosts.py
+        self.unreachable = False
+
         # Todo: Remove old dead code
         self.valid = (status == 'u')
 
@@ -127,16 +131,22 @@ class Segment:
             self.status
             )
 
-    #
-    # Note that this is not an ideal comparison -- it uses the string representation
-    #   for comparison
-    #
-    def __cmp__(self,other):
-        left = repr(self)
-        right = repr(other)
-        if left < right: return -1
-        elif left > right: return 1
-        else: return 0
+    def __equal(self, other, ignoreAttr=[]):
+        if not isinstance(other, Segment):
+            return NotImplemented
+        for key in list(vars(other)):
+            if key in ignoreAttr:
+                continue
+            if vars(other)[key] != vars(self)[key]:
+                return False
+        return True
+
+    def __eq__(self, other):
+        return self.__equal(other)
+
+
+    def __hash__(self):
+        return hash(self.dbid)
 
     #
     # Moved here from system/configurationImplGpdb.py
@@ -149,21 +159,7 @@ class Segment:
         This method is used by updateSystemConfig() to know when a catalog
         change will cause removing and re-adding a mirror segment.
         """
-        firstMode = self.getSegmentMode()
-        firstStatus = self.getSegmentStatus()
-        try:
-
-            # make the elements we don't want to compare match and see if they are then equal
-            self.setSegmentMode(other.getSegmentMode())
-            self.setSegmentStatus(other.getSegmentStatus())
-
-            return self == other
-        finally:
-            #
-            # restore mode and status after comaprison
-            #
-            self.setSegmentMode(firstMode)
-            self.setSegmentStatus(firstStatus)
+        return self.__equal(other, ['mode','status'])
 
 
     # --------------------------------------------------------------------
@@ -246,8 +242,8 @@ class Segment:
     # --------------------------------------------------------------------
     # Six simple helper functions to identify what role a segment plays:
     #  + QD (Query Dispatcher)
-    #     + master
-    #     + standby master
+    #     + coordinator
+    #     + standby coordinator
     #  + QE (Query Executor)
     #     + primary
     #     + mirror
@@ -255,7 +251,7 @@ class Segment:
     def isSegmentQD(self):
         return self.content < 0
 
-    def isSegmentMaster(self, current_role=False):
+    def isSegmentCoordinator(self, current_role=False):
         role = self.role if current_role else self.preferred_role
         return self.content < 0 and role == ROLE_PRIMARY
 
@@ -451,6 +447,19 @@ class SegmentPair:
             hosts.append(self.mirrorDB.hostname)
         return hosts
 
+    def balanced(self):
+        return self.primaryDB.preferred_role == self.primaryDB.role and \
+               self.mirrorDB.preferred_role == self.mirrorDB.role
+
+    def reachable(self):
+        return not self.primaryDB.unreachable and not self.mirrorDB.unreachable
+
+    def up(self):
+        return self.primaryDB.isSegmentUp() and self.mirrorDB.isSegmentUp()
+
+    def synchronized(self):
+        return self.primaryDB.isSegmentModeSynchronized() and self.mirrorDB.isSegmentModeSynchronized()
+
     def is_segment_pair_valid(self):
         """Validates that the primary/mirror pair are in a valid state"""
         prim_status = self.primaryDB.getSegmentStatus()
@@ -566,7 +575,7 @@ def createSegmentRows( hostlist
                 else:
                     address = mirror_host
 
-                if not mirror_port.has_key(mirror_host):
+                if mirror_host not in mirror_port:
                     mirror_port[mirror_host] = mirror_portbase
 
                 rows.append( SegmentRow( content = content
@@ -700,7 +709,7 @@ def createSegmentRowsFromSegmentList( newHostlist
                 else:
                     address = mirror_host
 
-                if not mirror_port.has_key(mirror_host):
+                if mirror_host not in mirror_port:
                     mirror_port[mirror_host] = mirror_portbase
 
                 rows.append( SegmentRow( content = content
@@ -759,20 +768,6 @@ def createSegmentRowsFromSegmentList( newHostlist
 
     return rows
 
-#========================================================================
-
-# TODO: Destroy this  (MPP-7686)
-#   Now that "hostname" is a distinct field in gp_segment_configuration
-#   attempting to derive hostnames from interaface names should be eliminated.
-#
-def get_host_interface(full_hostname):
-    (host_part, inf_num) = ['-'.join(full_hostname.split('-')[:-1]),
-                            full_hostname.split('-')[-1]]
-    if host_part == '' or not inf_num.isdigit():
-        return (full_hostname, None)
-    else:
-        return (host_part, inf_num)
-
 
 # ============================================================================
 class GpArray:
@@ -780,8 +775,8 @@ class GpArray:
     GpArray is a python class that describes a Greenplum array.
 
     A Greenplum array consists of:
-      master         - The primary QD for the array
-      standby master - The mirror QD for the array [optional]
+      coordinator         - The primary QD for the array
+      standby coordinator - The mirror QD for the array [optional]
       segmentPairs array  - an array of segmentPairs within the cluster
 
     Each segmentPair has a primary and a mirror segment; if the system has no
@@ -794,8 +789,8 @@ class GpArray:
 
     # --------------------------------------------------------------------
     def __init__(self, segments, segmentsAsLoadedFromDb=None):
-        self.master = None
-        self.standbyMaster = None
+        self.coordinator = None
+        self.standbyCoordinator = None
         self.segmentPairs = []
         self.expansionSegmentPairs=[]
         self.numPrimarySegments = 0
@@ -809,17 +804,17 @@ class GpArray:
         for segdb in segments:
 
             # Handle QD nodes
-            if segdb.isSegmentMaster(True):
-                if self.master != None:
-                    logger.error("multiple master dbs defined")
-                    raise Exception("GpArray - multiple master dbs defined")
-                self.master = segdb
+            if segdb.isSegmentCoordinator(True):
+                if self.coordinator != None:
+                    logger.error("multiple coordinator dbs defined")
+                    raise Exception("GpArray - multiple coordinator dbs defined")
+                self.coordinator = segdb
 
             elif segdb.isSegmentStandby(True):
-                if self.standbyMaster != None:
-                    logger.error("multiple standby master dbs defined")
-                    raise Exception("GpArray - multiple standby master dbs defined")
-                self.standbyMaster = segdb
+                if self.standbyCoordinator != None:
+                    logger.error("multiple standby coordinator dbs defined")
+                    raise Exception("GpArray - multiple standby coordinator dbs defined")
+                self.standbyCoordinator = segdb
 
             # Handle regular segments
             elif segdb.isSegmentQE():
@@ -828,23 +823,23 @@ class GpArray:
                 self.addSegmentDb(segdb)
 
             else:
-                # Not a master, standbymaster, primary, or mirror?
+                # Not a coordinator, standbycoordinator, primary, or mirror?
                 # shouldn't even be possible.
                 logger.error("FATAL - invalid dbs defined")
                 raise Exception("Error: GpArray() - invalid dbs defined")
 
-        # Make sure we have a master db
-        if self.master is None:
-            logger.error("FATAL - no master dbs defined!")
-            raise Exception("Error: GpArray() - no master dbs defined")
+        # Make sure we have a coordinator db
+        if self.coordinator is None:
+            logger.error("FATAL - no coordinator dbs defined!")
+            raise Exception("Error: GpArray() - no coordinator dbs defined")
 
     def __str__(self):
-        return "Master: %s\nStandby: %s\nSegment Pairs: %s" % (str(self.master),
-                                                          str(self.standbyMaster) if self.standbyMaster else 'Not Configured',
+        return "Coordinator: %s\nStandby: %s\nSegment Pairs: %s" % (str(self.coordinator),
+                                                          str(self.standbyCoordinator) if self.standbyCoordinator else 'Not Configured',
                                                           "\n".join([str(segPair) for segPair in self.segmentPairs]))
 
-    def hasStandbyMaster(self):
-        return self.standbyMaster is not None
+    def hasStandbyCoordinator(self):
+        return self.standbyCoordinator is not None
 
     def addSegmentDb(self, segdb):
         """
@@ -886,10 +881,10 @@ class GpArray:
             for host in gpdbByHost:
                 gpdbList = gpdbByHost[host]
                 if len(gpdbList) == 1 and gpdbList[0].isSegmentQD() == True:
-                    # This host has one master segment and nothing else
+                    # This host has one coordinator segment and nothing else
                     continue
                 if len(gpdbList) == 2 and gpdbList[0].isSegmentQD() and gpdbList[1].isSegmentQD():
-                    # This host has the master segment and its mirror and nothing else
+                    # This host has the coordinator segment and its mirror and nothing else
                     continue
                 numPrimaries = 0
                 numMirrors   = 0
@@ -918,7 +913,7 @@ class GpArray:
             for host in gpdbByHost:
                 gpdbList = gpdbByHost[host]
                 for gpdb in gpdbList:
-                    if gpdb.isSegmentMaster() == True:
+                    if gpdb.isSegmentCoordinator() == True:
                         continue
                     address = gpdb.getSegmentAddress()
                     if address == host:
@@ -936,7 +931,7 @@ class GpArray:
                 first = False
                 if suffixList != firstSuffixList:
                     raise Exception("The address list for %s doesn't not have the same pattern as %s." % (str(suffixList), str(firstSuffixList)))
-        except Exception, e:
+        except Exception as e:
             # Assume any exception implies a non-standard array
             return False, str(e)
 
@@ -1046,9 +1041,9 @@ class GpArray:
         """
 
         dbs=[]
-        dbs.append(self.master)
-        if self.standbyMaster:
-            dbs.append(self.standbyMaster)
+        dbs.append(self.coordinator)
+        if self.standbyCoordinator:
+            dbs.append(self.standbyCoordinator)
         if includeExpansionSegs:
             dbs.extend(self.getSegDbList(True))
         else:
@@ -1061,10 +1056,10 @@ class GpArray:
         Return a list of all Hosts that make up the array
         """
         hostList = []
-        hostList.append(self.master.getSegmentHostName())
-        if (self.standbyMaster and
-            self.master.getSegmentHostName() != self.standbyMaster.getSegmentHostName()):
-            hostList.append(self.standbyMaster.getSegmentHostName())
+        hostList.append(self.coordinator.getSegmentHostName())
+        if (self.standbyCoordinator and
+            self.coordinator.getSegmentHostName() != self.standbyCoordinator.getSegmentHostName()):
+            hostList.append(self.standbyCoordinator.getSegmentHostName())
 
         dbList = self.getDbList(includeExpansionSegs = includeExpansionSegs)
         for db in dbList:
@@ -1088,7 +1083,7 @@ class GpArray:
             arr.append(seg)
 
         result = {}
-        for contentId, arr in contentIdToSegments.iteritems():
+        for contentId, arr in contentIdToSegments.items():
             if len(arr) == 1:
                 pass
             elif len(arr) != 2:
@@ -1204,23 +1199,23 @@ class GpArray:
         return dbs
 
     # --------------------------------------------------------------------
-    def get_hostlist(self, includeMaster=True):
+    def get_hostlist(self, includeCoordinator=True):
         hosts=[]
-        if includeMaster:
-            hosts.append(self.master.hostname)
-            if self.standbyMaster is not None:
-                hosts.append(self.standbyMaster.hostname)
+        if includeCoordinator:
+            hosts.append(self.coordinator.hostname)
+            if self.standbyCoordinator is not None:
+                hosts.append(self.standbyCoordinator.hostname)
         for segPair in self.segmentPairs:
             hosts.extend(segPair.get_hosts())
-        # dedupe? segPair.get_hosts() doesn't promise to dedupe itself, and there might be more deduping to do
-        return hosts
+        # dedupe
+        return list(set(hosts))
 
     # --------------------------------------------------------------------
-    def get_master_host_names(self):
-        if self.hasStandbyMaster():
-            return [self.master.hostname, self.standbyMaster.hostname]
+    def get_coordinator_host_names(self):
+        if self.hasStandbyCoordinator():
+            return [self.coordinator.hostname, self.standbyCoordinator.hostname]
         else:
-            return [self.master.hostname]
+            return [self.coordinator.hostname]
 
     # --------------------------------------------------------------------
     def get_max_dbid(self,includeExpansionSegs=False):
@@ -1366,14 +1361,11 @@ class GpArray:
            This currently assumes that all segments are configured the same
            and gets the results only from the host of segment 0
 
-        NOTE 2:
-           The determination of hostname is based on faulty logic
         """
 
         primary_datadirs = []
 
         seg0_hostname = self.segmentPairs[0].primaryDB.getSegmentAddress()
-        (seg0_hostname, inf_num) = get_host_interface(seg0_hostname)
 
         for db in self.getDbList():
             if db.isSegmentPrimary(False) and db.getSegmentAddress().startswith(seg0_hostname):
@@ -1390,7 +1382,6 @@ class GpArray:
         mirror_datadirs = []
 
         seg0_hostname = self.segmentPairs[0].primaryDB.getSegmentAddress()
-        (seg0_hostname, inf_num) = get_host_interface(seg0_hostname)
 
         for db in self.getDbList():
             if db.isSegmentMirror(False) and db.getSegmentAddress().startswith(seg0_hostname):
@@ -1404,9 +1395,9 @@ class GpArray:
         Returns the prefix portion of <prefix><contentid>
         """
 
-        start_last_dir = self.master.datadir.rfind('/') + 1
-        start_dir_content = self.master.datadir.rfind('-')
-        prefix = self.master.datadir[start_last_dir:start_dir_content]
+        start_last_dir = self.coordinator.datadir.rfind('/') + 1
+        start_dir_content = self.coordinator.datadir.rfind('-')
+        prefix = self.coordinator.datadir[start_last_dir:start_dir_content]
         return prefix
 
     # --------------------------------------------------------------------
@@ -1427,7 +1418,7 @@ class GpArray:
                     if segPair.mirrorDB and segPair.mirrorDB.dbid in self.recoveredSegmentDbids:
                         recovered_contents.append((segPair.primaryDB.content, segPair.primaryDB.dbid, segPair.mirrorDB.dbid))
 
-        with dbconn.connect(dbURL, True, allowSystemTableMods = True) as conn:
+        with closing(dbconn.connect(dbURL, True, allowSystemTableMods = True)) as conn:
             for (content_id, primary_dbid, mirror_dbid) in recovered_contents:
                 sql = "UPDATE gp_segment_configuration SET role=preferred_role where content = %d" % content_id
                 dbconn.executeUpdateOrInsert(conn, sql, 2)
@@ -1442,7 +1433,6 @@ class GpArray:
 
                 # We could attempt to update the segments-array.
                 # But the caller will re-read the configuration from the catalog.
-        conn.close()
 
     # --------------------------------------------------------------------
     def addExpansionSeg(self, content, preferred_role, dbid, role,
@@ -1563,8 +1553,8 @@ class GpArray:
             if expect_all_segments_to_have_mirror:
                 valid_content.append((i, False))
 
-        valid_content.sort(lambda x,y: cmp(x[0], y[0]) or cmp(x[1], y[1]))
-        content.sort(lambda x,y: cmp(x[0], y[0]) or cmp(x[1], y[1]))
+        valid_content.sort()
+        content.sort()
 
         if valid_content != content:
             raise Exception('Invalid content ids')
@@ -1577,7 +1567,7 @@ class GpArray:
             datadir = db.getSegmentDataDirectory()
             hostname = db.getSegmentHostName()
             port = db.getSegmentPort()
-            if datadirs.has_key(hostname):
+            if hostname in datadirs:
                 if datadir in datadirs[hostname]:
                     raise Exception('Data directory %s used multiple times on host %s' % (datadir, hostname))
                 else:
@@ -1587,7 +1577,7 @@ class GpArray:
                 datadirs[hostname].append(datadir)
 
             # Check ports
-            if used_ports.has_key(hostname):
+            if hostname in used_ports:
                 if db.port in used_ports[hostname]:
                     raise Exception('Port %d is used multiple times on host %s' % (port, hostname))
                 else:
@@ -1694,8 +1684,8 @@ class GpArray:
         interface_count = len(interface_list)
 
         mirror_dict = {}
-        # must be sorted by isprimary, then hostname
-        rows.sort(lambda a,b: (cmp(b.isprimary, a.isprimary) or cmp(a.host,b.host)))
+        # must be sorted by isprimary (primaries before mirrors), then hostname (ascending order)
+        rows.sort(key=(lambda a: (0 if a.isprimary == 't' else 1, a.host)))
         current_host = rows[0].host
         curr_dbid = self.get_max_dbid(True) + 1
         curr_content = self.get_max_contentid(True) + 1
@@ -1807,36 +1797,23 @@ class GpArray:
             """
         self.__segmentsAsLoadedFromDb = segments
 
-def get_segment_hosts(master_port):
+def get_segment_hosts(coordinator_port):
     """
     """
-    gparray = GpArray.initFromCatalog( dbconn.DbURL(port=master_port), utility=True )
+    gparray = GpArray.initFromCatalog( dbconn.DbURL(port=coordinator_port), utility=True )
     segments = GpArray.getSegmentsByHostName( gparray.getDbList() )
-    return segments.keys()
+    return list(segments.keys())
 
 
-def get_session_ids(master_port):
+def get_session_ids(coordinator_port):
     """
     """
-    conn = dbconn.connect( dbconn.DbURL(port=master_port), utility=True )
+    conn = dbconn.connect( dbconn.DbURL(port=coordinator_port), utility=True )
     try:
         rows = dbconn.query(conn, "SELECT sess_id from pg_stat_activity where sess_id > 0;")
         ids  = set(row[0] for row in rows)
         return ids
     finally:
         conn.close()
-
-
-def get_gparray_from_config():
-    # imports below, when moved to the top, seem to cause an import error in a unit test because of dependency issue
-    from gppylib.system import configurationInterface
-    from gppylib.system import configurationImplGpdb
-    from gppylib.system.environment import GpMasterEnvironment
-    master_data_dir = os.environ['MASTER_DATA_DIRECTORY']
-    gpEnv = GpMasterEnvironment(master_data_dir, False)
-    configurationInterface.registerConfigurationProvider(
-        configurationImplGpdb.GpConfigurationProviderUsingGpdbCatalog())
-    confProvider = configurationInterface.getConfigurationProvider().initializeProvider(gpEnv.getMasterPort())
-    return confProvider.loadSystemConfig(useUtilityMode=True)
 
 # === EOF ====

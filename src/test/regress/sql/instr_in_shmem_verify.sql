@@ -20,7 +20,7 @@ CREATE EXTERNAL WEB TABLE __gp_masterid
 (
     masterid    int
 )
-EXECUTE E'echo $GP_SEGMENT_ID' ON MASTER FORMAT 'TEXT';
+EXECUTE E'echo $GP_SEGMENT_ID' ON COORDINATOR FORMAT 'TEXT';
 GRANT SELECT ON TABLE __gp_masterid TO public;
 
 CREATE FUNCTION gp_instrument_shmem_detail_f()
@@ -49,7 +49,7 @@ GRANT SELECT ON gp_instrument_shmem_detail TO public;
 
 SET OPTIMIZER=OFF;
 
-SELECT count(*) FROM pg_stat_activity;
+SELECT count(*) FROM pg_stat_activity where backend_type = 'client backend';
 
 -- Expected result is 1 row, means only current query in instrument slots,
 -- If more than one row returned, means previous test has leaked slots.

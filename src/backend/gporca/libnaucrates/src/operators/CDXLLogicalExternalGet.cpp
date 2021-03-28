@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2013 Pivotal, Inc.
+//	Copyright (C) 2013 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CDXLLogicalExternalGet.cpp
@@ -10,6 +10,7 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLLogicalExternalGet.h"
+
 #include "naucrates/dxl/xml/dxltokens.h"
 
 using namespace gpos;
@@ -23,14 +24,11 @@ using namespace gpdxl;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CDXLLogicalExternalGet::CDXLLogicalExternalGet
-	(
-	CMemoryPool *mp,
-	CDXLTableDescr *table_descr
-	)
-	:
-	CDXLLogicalGet(mp, table_descr)
-{}
+CDXLLogicalExternalGet::CDXLLogicalExternalGet(CMemoryPool *mp,
+											   CDXLTableDescr *table_descr)
+	: CDXLLogicalGet(mp, table_descr)
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:

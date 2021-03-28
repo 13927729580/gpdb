@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2016 Pivotal Software
+//	Copyright (C) 2016 VMware, Inc. or its affiliates
 //
 //	@filename:
 //		CArrayExpansionTest.cpp
@@ -9,6 +9,7 @@
 //		Test for array expansion in WHERE clause
 //---------------------------------------------------------------------------
 #include "unittest/gpopt/minidump/CArrayExpansionTest.h"
+
 #include "unittest/gpopt/CTestUtils.h"
 
 
@@ -24,22 +25,14 @@
 gpos::GPOS_RESULT
 CArrayExpansionTest::EresUnittest()
 {
-
 	ULONG ulTestCounter = 0;
-	const CHAR *rgszFileNames[] =
-	{
-			"../data/dxl/minidump/ArrayCmpInList.mdp",
-			"../data/dxl/minidump/CArrayExpansionTest/JoinWithInListNoExpand.mdp",
-			"../data/dxl/minidump/CArrayExpansionTest/JoinWithInListExpand.mdp"
-	};
+	const CHAR *rgszFileNames[] = {
+		"../data/dxl/minidump/ArrayCmpInList.mdp",
+		"../data/dxl/minidump/CArrayExpansionTest/JoinWithInListNoExpand.mdp",
+		"../data/dxl/minidump/CArrayExpansionTest/JoinWithInListExpand.mdp"};
 
-	return CTestUtils::EresUnittest_RunTestsWithoutAdditionalTraceFlags
-				(
-					rgszFileNames,
-					&ulTestCounter,
-					GPOS_ARRAY_SIZE(rgszFileNames),
-					true,
-					true
-				);
+	return CTestUtils::EresUnittest_RunTestsWithoutAdditionalTraceFlags(
+		rgszFileNames, &ulTestCounter, GPOS_ARRAY_SIZE(rgszFileNames), true,
+		true);
 }
 // EOF

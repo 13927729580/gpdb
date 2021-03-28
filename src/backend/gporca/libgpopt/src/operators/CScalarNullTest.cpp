@@ -9,14 +9,14 @@
 //		Implementation of scalar null test operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CScalarNullTest.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/base/CDrvdPropScalar.h"
 #include "gpopt/base/CColRefSet.h"
-
-#include "gpopt/operators/CScalarNullTest.h"
+#include "gpopt/base/CDrvdPropScalar.h"
+#include "gpopt/base/COptCtxt.h"
 #include "gpopt/operators/CExpressionHandle.h"
-
 #include "naucrates/md/IMDTypeBool.h"
 
 using namespace gpopt;
@@ -32,11 +32,7 @@ using namespace gpmd;
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarNullTest::Matches
-	(
-	COperator *pop
-	)
-	const
+CScalarNullTest::Matches(COperator *pop) const
 {
 	return pop->Eopid() == Eopid();
 }
@@ -54,7 +50,7 @@ IMDId *
 CScalarNullTest::MdidType() const
 {
 	CMDAccessor *md_accessor = COptCtxt::PoctxtFromTLS()->Pmda();
-	
+
 	return md_accessor->PtMDType<IMDTypeBool>()->MDId();
 }
 
@@ -68,16 +64,12 @@ CScalarNullTest::MdidType() const
 //
 //---------------------------------------------------------------------------
 CScalar::EBoolEvalResult
-CScalarNullTest::Eber
-	(
-	ULongPtrArray *pdrgpulChildren
-	)
-	const
+CScalarNullTest::Eber(ULongPtrArray *pdrgpulChildren) const
 {
-	GPOS_ASSERT(NULL != pdrgpulChildren);
+	GPOS_ASSERT(nullptr != pdrgpulChildren);
 	GPOS_ASSERT(1 == pdrgpulChildren->Size());
 
-	EBoolEvalResult eber = (EBoolEvalResult) *((*pdrgpulChildren)[0]);
+	EBoolEvalResult eber = (EBoolEvalResult) * ((*pdrgpulChildren)[0]);
 	switch (eber)
 	{
 		case EberNull:
@@ -95,4 +87,3 @@ CScalarNullTest::Eber
 
 
 // EOF
-

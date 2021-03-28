@@ -3,7 +3,7 @@
  * ftsmessagehandler.c
  *	  Implementation of handling of FTS messages
  *
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -35,7 +35,7 @@
  * Check if we can smoothly read and write to data directory.
  *
  * O_DIRECT flag requires buffer to be OS/FS block aligned.
- * Best to have it IO Block alligned henece using BLCKSZ
+ * Best to have it IO Block aligned hence using BLCKSZ
  */
 static bool
 checkIODataDirectory(void)
@@ -46,15 +46,14 @@ checkIODataDirectory(void)
 	char *data = palloc0(size);
 
 	/*
-	 * Buffer needs to be alligned to BLOCK_SIZE for reads and writes if using O_DIRECT
+	 * Buffer needs to be aligned to BLOCK_SIZE for reads and writes if using O_DIRECT
 	 */
 	char* dataAligned = (char *) TYPEALIGN(BLCKSZ, data);
 
 	errno = 0;
 	bool failure = false;
 
-	fd = BasicOpenFile(FTS_PROBE_FILE_NAME, O_RDWR | PG_O_DIRECT | O_EXCL,
-                                           S_IRUSR | S_IWUSR);
+	fd = BasicOpenFile(FTS_PROBE_FILE_NAME, O_RDWR | PG_O_DIRECT);
 	do
 	{
 		if (fd < 0)
@@ -62,8 +61,7 @@ checkIODataDirectory(void)
 			if (errno == ENOENT)
 			{
 				elog(LOG, "FTS: \"%s\" file doesn't exist, creating it once.", FTS_PROBE_FILE_NAME);
-				fd = BasicOpenFile(FTS_PROBE_FILE_NAME, O_RDWR | O_CREAT | O_EXCL,
-                                           S_IRUSR | S_IWUSR);
+				fd = BasicOpenFile(FTS_PROBE_FILE_NAME, O_RDWR | O_CREAT | O_EXCL);
 				if (fd < 0)
 				{
 					failure = true;
@@ -82,6 +80,15 @@ checkIODataDirectory(void)
 						failure = true;
 					}
 				}
+			}
+			else if (errno == EINVAL)
+			{
+				ereport(WARNING, (errcode_for_file_access(),
+						errmsg("FTS: could not open file \"%s\" (%m)", FTS_PROBE_FILE_NAME)),
+						errdetail("Possibly because the file system does not "
+								  "support O_DIRECT (e.g. tmpfs does not). "
+								  "Skipping IO check anyway."));
+				failure = false;
 			}
 			else
 			{
@@ -136,7 +143,8 @@ checkIODataDirectory(void)
 		}
 	} while (0);
 
-	if (fd > 0)
+	pfree(data);
+	if (fd >= 0)
 	{
 		close(fd);
 
@@ -163,7 +171,6 @@ checkIODataDirectory(void)
 		ereport(ERROR,
 				(errmsg("disk IO check during FTS probe failed")));
 
-	pfree(data);
 	return failure;
 }
 

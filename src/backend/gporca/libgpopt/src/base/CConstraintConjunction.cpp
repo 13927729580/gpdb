@@ -9,11 +9,12 @@
 //		Implementation of conjunction constraints
 //---------------------------------------------------------------------------
 
+#include "gpopt/base/CConstraintConjunction.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/base/CUtils.h"
-#include "gpopt/base/CConstraintConjunction.h"
 #include "gpopt/base/CConstraintInterval.h"
+#include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CPredicateUtils.h"
 
 using namespace gpopt;
@@ -26,28 +27,13 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CConstraintConjunction::CConstraintConjunction
-	(
-	CMemoryPool *mp,
-	CConstraintArray *pdrgpcnstr
-	)
-	:
-	CConstraint(mp),
-	m_pdrgpcnstr(NULL)
+CConstraintConjunction::CConstraintConjunction(CMemoryPool *mp,
+											   CConstraintArray *pdrgpcnstr)
+	: CConstraint(mp, PcrsFromConstraints(mp, pdrgpcnstr)),
+	  m_pdrgpcnstr(nullptr)
 {
-	GPOS_ASSERT(NULL != pdrgpcnstr);
+	GPOS_ASSERT(nullptr != pdrgpcnstr);
 	m_pdrgpcnstr = PdrgpcnstrFlatten(mp, pdrgpcnstr, EctConjunction);
-
-	const ULONG length = m_pdrgpcnstr->Size();
-	GPOS_ASSERT(0 < length);
-
-	m_pcrsUsed = GPOS_NEW(mp) CColRefSet(mp);
-
-	for (ULONG ul = 0; ul < length; ul++)
-	{
-		CConstraint *pcnstr = (*m_pdrgpcnstr)[ul];
-		m_pcrsUsed->Include(pcnstr->PcrsUsed());
-	}
 
 	m_phmcolconstr = Phmcolconstr(mp, m_pcrsUsed, m_pdrgpcnstr);
 }
@@ -63,7 +49,6 @@ CConstraintConjunction::CConstraintConjunction
 CConstraintConjunction::~CConstraintConjunction()
 {
 	m_pdrgpcnstr->Release();
-	m_pcrsUsed->Release();
 	m_phmcolconstr->Release();
 }
 
@@ -98,14 +83,10 @@ CConstraintConjunction::FContradiction() const
 //
 //---------------------------------------------------------------------------
 BOOL
-CConstraintConjunction::FConstraint
-	(
-	const CColRef *colref
-	)
-	const
+CConstraintConjunction::FConstraint(const CColRef *colref) const
 {
 	CConstraintArray *pdrgpcnstrCol = m_phmcolconstr->Find(colref);
-	return (NULL != pdrgpcnstrCol && 0 < pdrgpcnstrCol->Size());
+	return (nullptr != pdrgpcnstrCol && 0 < pdrgpcnstrCol->Size());
 }
 
 //---------------------------------------------------------------------------
@@ -120,19 +101,16 @@ CConstraintConjunction::FConstraint
 //
 //---------------------------------------------------------------------------
 CConstraint *
-CConstraintConjunction::PcnstrCopyWithRemappedColumns
-	(
-	CMemoryPool *mp,
-	UlongToColRefMap *colref_mapping,
-	BOOL must_exist
-	)
+CConstraintConjunction::PcnstrCopyWithRemappedColumns(
+	CMemoryPool *mp, UlongToColRefMap *colref_mapping, BOOL must_exist)
 {
 	CConstraintArray *pdrgpcnstr = GPOS_NEW(mp) CConstraintArray(mp);
 	const ULONG length = m_pdrgpcnstr->Size();
 	for (ULONG ul = 0; ul < length; ul++)
 	{
 		CConstraint *pcnstr = (*m_pdrgpcnstr)[ul];
-		CConstraint *pcnstrCopy = pcnstr->PcnstrCopyWithRemappedColumns(mp, colref_mapping, must_exist);
+		CConstraint *pcnstrCopy = pcnstr->PcnstrCopyWithRemappedColumns(
+			mp, colref_mapping, must_exist);
 		pdrgpcnstr->Append(pcnstrCopy);
 	}
 	return GPOS_NEW(mp) CConstraintConjunction(mp, pdrgpcnstr);
@@ -147,17 +125,13 @@ CConstraintConjunction::PcnstrCopyWithRemappedColumns
 //
 //---------------------------------------------------------------------------
 CConstraint *
-CConstraintConjunction::Pcnstr
-	(
-	CMemoryPool *mp,
-	const CColRef *colref
-	)
+CConstraintConjunction::Pcnstr(CMemoryPool *mp, const CColRef *colref)
 {
 	// all children referencing given column
 	CConstraintArray *pdrgpcnstrCol = m_phmcolconstr->Find(colref);
-	if (NULL == pdrgpcnstrCol)
+	if (nullptr == pdrgpcnstrCol)
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	CConstraintArray *pdrgpcnstr = GPOS_NEW(mp) CConstraintArray(mp);
@@ -167,7 +141,7 @@ CConstraintConjunction::Pcnstr
 	{
 		// the part of the child that references this column
 		CConstraint *pcnstrCol = (*pdrgpcnstrCol)[ul]->Pcnstr(mp, colref);
-		if (NULL == pcnstrCol || pcnstrCol->IsConstraintUnbounded())
+		if (nullptr == pcnstrCol || pcnstrCol->IsConstraintUnbounded())
 		{
 			CRefCount::SafeRelease(pcnstrCol);
 			continue;
@@ -187,11 +161,7 @@ CConstraintConjunction::Pcnstr
 //
 //---------------------------------------------------------------------------
 CConstraint *
-CConstraintConjunction::Pcnstr
-	(
-	CMemoryPool *mp,
-	CColRefSet *pcrs
-	)
+CConstraintConjunction::Pcnstr(CMemoryPool *mp, CColRefSet *pcrs)
 {
 	const ULONG length = m_pdrgpcnstr->Size();
 
@@ -207,7 +177,7 @@ CConstraintConjunction::Pcnstr
 
 		// the part of the child that references these columns
 		CConstraint *pcnstrCol = pcnstr->Pcnstr(mp, pcrs);
-		if (NULL != pcnstrCol)
+		if (nullptr != pcnstrCol)
 		{
 			pdrgpcnstr->Append(pcnstrCol);
 		}
@@ -225,14 +195,11 @@ CConstraintConjunction::Pcnstr
 //
 //---------------------------------------------------------------------------
 CConstraint *
-CConstraintConjunction::PcnstrRemapForColumn
-	(
-	CMemoryPool *mp,
-	CColRef *colref
-	)
-	const
+CConstraintConjunction::PcnstrRemapForColumn(CMemoryPool *mp,
+											 CColRef *colref) const
 {
-	return PcnstrConjDisjRemapForColumn(mp, colref, m_pdrgpcnstr, true /*fConj*/);
+	return PcnstrConjDisjRemapForColumn(mp, colref, m_pdrgpcnstr,
+										true /*fConj*/);
 }
 
 //---------------------------------------------------------------------------
@@ -244,20 +211,19 @@ CConstraintConjunction::PcnstrRemapForColumn
 //
 //---------------------------------------------------------------------------
 CExpression *
-CConstraintConjunction::PexprScalar
-	(
-	CMemoryPool *mp
-	)
+CConstraintConjunction::PexprScalar(CMemoryPool *mp)
 {
-	if (NULL == m_pexprScalar)
+	if (nullptr == m_pexprScalar)
 	{
 		if (FContradiction())
 		{
-			m_pexprScalar = CUtils::PexprScalarConstBool(mp, false /*fval*/, false /*is_null*/);
+			m_pexprScalar = CUtils::PexprScalarConstBool(mp, false /*fval*/,
+														 false /*is_null*/);
 		}
 		else
 		{
-			m_pexprScalar = PexprScalarConjDisj(mp, m_pdrgpcnstr, true /*fConj*/);
+			m_pexprScalar =
+				PexprScalarConjDisj(mp, m_pdrgpcnstr, true /*fConj*/);
 		}
 	}
 

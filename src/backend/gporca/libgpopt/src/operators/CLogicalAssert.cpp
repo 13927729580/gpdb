@@ -9,14 +9,14 @@
 //		Implementation of assert operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CLogicalAssert.h"
+
 #include "gpos/base.h"
 
 #include "gpopt/base/CColRefSet.h"
+#include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CExpressionHandle.h"
-#include "gpopt/operators/CLogicalAssert.h"
-#include "gpopt/base/CColRefSet.h"
-#include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/operators/CPatternTree.h"
 #include "gpopt/operators/CPredicateUtils.h"
 #include "naucrates/statistics/CStatisticsUtils.h"
@@ -31,13 +31,8 @@ using namespace gpopt;
 //		Ctor - for pattern
 //
 //---------------------------------------------------------------------------
-CLogicalAssert::CLogicalAssert
-	(
-	CMemoryPool *mp
-	)
-	:
-	CLogicalUnary(mp),
-	m_pexc(NULL)
+CLogicalAssert::CLogicalAssert(CMemoryPool *mp)
+	: CLogicalUnary(mp), m_pexc(nullptr)
 {
 	m_fPattern = true;
 }
@@ -50,16 +45,10 @@ CLogicalAssert::CLogicalAssert
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CLogicalAssert::CLogicalAssert
-	(
-	CMemoryPool *mp,
-	CException *pexc
-	)
-	:
-	CLogicalUnary(mp),
-	m_pexc(pexc)
+CLogicalAssert::CLogicalAssert(CMemoryPool *mp, CException *pexc)
+	: CLogicalUnary(mp), m_pexc(pexc)
 {
-	GPOS_ASSERT(NULL != pexc);
+	GPOS_ASSERT(nullptr != pexc);
 }
 
 //---------------------------------------------------------------------------
@@ -71,18 +60,14 @@ CLogicalAssert::CLogicalAssert
 //
 //---------------------------------------------------------------------------
 BOOL
-CLogicalAssert::Matches
-	(
-	COperator *pop
-	)
-	const
+CLogicalAssert::Matches(COperator *pop) const
 {
 	if (Eopid() != pop->Eopid())
 	{
 		return false;
 	}
-	
-	CLogicalAssert *popAssert = CLogicalAssert::PopConvert(pop); 
+
+	CLogicalAssert *popAssert = CLogicalAssert::PopConvert(pop);
 	return CException::Equals(*(popAssert->Pexc()), *m_pexc);
 }
 
@@ -95,11 +80,8 @@ CLogicalAssert::Matches
 //
 //---------------------------------------------------------------------------
 CColRefSet *
-CLogicalAssert::DeriveOutputColumns
-	(
-	CMemoryPool *, // mp
-	CExpressionHandle &exprhdl
-	)
+CLogicalAssert::DeriveOutputColumns(CMemoryPool *,	// mp
+									CExpressionHandle &exprhdl)
 {
 	return PcrsDeriveOutputPassThru(exprhdl);
 }
@@ -114,12 +96,8 @@ CLogicalAssert::DeriveOutputColumns
 //
 //---------------------------------------------------------------------------
 CKeyCollection *
-CLogicalAssert::DeriveKeyCollection
-	(
-	CMemoryPool *, // mp
-	CExpressionHandle &exprhdl
-	)
-	const
+CLogicalAssert::DeriveKeyCollection(CMemoryPool *,	// mp
+									CExpressionHandle &exprhdl) const
 {
 	return PkcDeriveKeysPassThru(exprhdl, 0 /* ulChild */);
 }
@@ -134,11 +112,7 @@ CLogicalAssert::DeriveKeyCollection
 //
 //---------------------------------------------------------------------------
 CXformSet *
-CLogicalAssert::PxfsCandidates
-	(
-	CMemoryPool *mp
-	) 
-	const
+CLogicalAssert::PxfsCandidates(CMemoryPool *mp) const
 {
 	CXformSet *xform_set = GPOS_NEW(mp) CXformSet(mp);
 	(void) xform_set->ExchangeSet(CXform::ExfImplementAssert);
@@ -154,18 +128,13 @@ CLogicalAssert::PxfsCandidates
 //
 //---------------------------------------------------------------------------
 CMaxCard
-CLogicalAssert::DeriveMaxCard
-	(
-	CMemoryPool *, // mp
-	CExpressionHandle &exprhdl
-	)
-	const
+CLogicalAssert::DeriveMaxCard(CMemoryPool *,  // mp
+							  CExpressionHandle &exprhdl) const
 {
 	// in case of a false condition or a contradiction, maxcard should be 1
-	CExpression *pexprScalar = exprhdl.PexprScalarChild(1);
-	GPOS_ASSERT(NULL != pexprScalar);
+	CExpression *pexprScalar = exprhdl.PexprScalarExactChild(1);
 
-	if (CUtils::FScalarConstFalse(pexprScalar) ||
+	if ((nullptr != pexprScalar && CUtils::FScalarConstFalse(pexprScalar)) ||
 		exprhdl.DerivePropertyConstraint()->FContradiction())
 	{
 		return CMaxCard(1 /*ull*/);
@@ -173,7 +142,7 @@ CLogicalAssert::DeriveMaxCard
 
 	// if Assert operator was generated from MaxOneRow operator,
 	// then a max cardinality of 1 is expected
-	if (NULL != exprhdl.Pgexpr() &&
+	if (nullptr != exprhdl.Pgexpr() &&
 		CXform::ExfMaxOneRow2Assert == exprhdl.Pgexpr()->ExfidOrigin())
 	{
 		return CMaxCard(1 /*ull*/);
@@ -193,20 +162,17 @@ CLogicalAssert::DeriveMaxCard
 //
 //---------------------------------------------------------------------------
 IStatistics *
-CLogicalAssert::PstatsDerive
-	(
-	CMemoryPool *mp,
-	CExpressionHandle &exprhdl,
-	IStatisticsArray * // not used
-	)
-	const
+CLogicalAssert::PstatsDerive(CMemoryPool *mp, CExpressionHandle &exprhdl,
+							 IStatisticsArray *	 // not used
+) const
 {
-	CMaxCard maxcard = CLogicalAssert::PopConvert(exprhdl.Pop())->DeriveMaxCard(mp, exprhdl);
+	CMaxCard maxcard =
+		CLogicalAssert::PopConvert(exprhdl.Pop())->DeriveMaxCard(mp, exprhdl);
 	if (1 == maxcard.Ull())
 	{
 		// a max card of one requires re-scaling stats
 		IStatistics *stats = exprhdl.Pstats(0);
-		return  stats->ScaleStats(mp, CDouble(1.0 / stats->Rows()));
+		return stats->ScaleStats(mp, CDouble(1.0 / stats->Rows()));
 	}
 
 	return PstatsPassThruOuter(exprhdl);
@@ -221,20 +187,15 @@ CLogicalAssert::PstatsDerive
 //
 //---------------------------------------------------------------------------
 IOstream &
-CLogicalAssert::OsPrint
-	(
-	IOstream &os
-	)
-	const
+CLogicalAssert::OsPrint(IOstream &os) const
 {
 	if (m_fPattern)
 	{
 		return COperator::OsPrint(os);
 	}
-	
+
 	os << SzId() << " (Error code: " << m_pexc->GetSQLState() << ")";
 	return os;
 }
 
 // EOF
-

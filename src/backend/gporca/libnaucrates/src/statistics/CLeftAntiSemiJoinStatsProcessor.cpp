@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright 2018 Pivotal, Inc.
+//	Copyright 2018 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CLeftAntiSemiJoinStatsProcessor.cpp
@@ -9,35 +9,31 @@
 //		Statistics helper routines for processing Left Anti-Semi Join
 //---------------------------------------------------------------------------
 
-#include "naucrates/statistics/CStatisticsUtils.h"
 #include "naucrates/statistics/CLeftAntiSemiJoinStatsProcessor.h"
+
 #include "naucrates/statistics/CScaleFactorUtils.h"
+#include "naucrates/statistics/CStatisticsUtils.h"
 
 using namespace gpmd;
 
 // helper for LAS-joining histograms
 void
-CLeftAntiSemiJoinStatsProcessor::JoinHistogramsLASJ
-			(
-			const CHistogram *histogram1,
-			const CHistogram *histogram2,
-			CStatsPredJoin *join_stats,
-			CDouble num_rows1,
-			CDouble ,//num_rows2,
-			CHistogram **result_hist1, // output: histogram 1 after join
-			CHistogram **result_hist2, // output: histogram 2 after join
-			CDouble *scale_factor, // output: scale factor based on the join
-			BOOL is_input_empty,
-			IStatistics::EStatsJoinType,
-			BOOL DoIgnoreLASJHistComputation
-			)
+CLeftAntiSemiJoinStatsProcessor::JoinHistogramsLASJ(
+	const CHistogram *histogram1, const CHistogram *histogram2,
+	CStatsPredJoin *join_stats, CDouble num_rows1,
+	CDouble,					//num_rows2,
+	CHistogram **result_hist1,	// output: histogram 1 after join
+	CHistogram **result_hist2,	// output: histogram 2 after join
+	CDouble *scale_factor,		// output: scale factor based on the join
+	BOOL is_input_empty, IStatistics::EStatsJoinType,
+	BOOL DoIgnoreLASJHistComputation)
 {
-	GPOS_ASSERT(NULL != histogram1);
-	GPOS_ASSERT(NULL != histogram2);
-	GPOS_ASSERT(NULL != join_stats);
-	GPOS_ASSERT(NULL != result_hist1);
-	GPOS_ASSERT(NULL != result_hist2);
-	GPOS_ASSERT(NULL != scale_factor);
+	GPOS_ASSERT(nullptr != histogram1);
+	GPOS_ASSERT(nullptr != histogram2);
+	GPOS_ASSERT(nullptr != join_stats);
+	GPOS_ASSERT(nullptr != result_hist1);
+	GPOS_ASSERT(nullptr != result_hist2);
+	GPOS_ASSERT(nullptr != scale_factor);
 
 	// anti-semi join should give the full outer side.
 	// use 1.0 as scale factor if anti semi join
@@ -48,23 +44,19 @@ CLeftAntiSemiJoinStatsProcessor::JoinHistogramsLASJ
 	if (is_input_empty)
 	{
 		*result_hist1 = histogram1->CopyHistogram();
-		*result_hist2 = NULL;
+		*result_hist2 = nullptr;
 
 		return;
 	}
 
 	BOOL empty_histograms = histogram1->IsEmpty() || histogram2->IsEmpty();
-	if (!empty_histograms && CHistogram::JoinPredCmpTypeIsSupported(stats_cmp_type))
+	if (!empty_histograms &&
+		CHistogram::JoinPredCmpTypeIsSupported(stats_cmp_type))
 	{
-		*result_hist1 = histogram1->MakeLASJHistogramNormalize
-				(
-				stats_cmp_type,
-				num_rows1,
-				histogram2,
-				scale_factor,
-				DoIgnoreLASJHistComputation
-				);
-		*result_hist2 = NULL;
+		*result_hist1 = histogram1->MakeLASJHistogramNormalize(
+			stats_cmp_type, num_rows1, histogram2, scale_factor,
+			DoIgnoreLASJHistComputation);
+		*result_hist2 = nullptr;
 
 		if ((*result_hist1)->IsEmpty())
 		{
@@ -80,48 +72,36 @@ CLeftAntiSemiJoinStatsProcessor::JoinHistogramsLASJ
 	// copy input histograms and use default scale factor
 	*scale_factor = CDouble(CScaleFactorUtils::DefaultJoinPredScaleFactor);
 	*result_hist1 = histogram1->CopyHistogram();
-	*result_hist2 = NULL;
+	*result_hist2 = nullptr;
 }
 
 //	Return statistics object after performing LASJ
 CStatistics *
-CLeftAntiSemiJoinStatsProcessor::CalcLASJoinStatsStatic
-		(
-		CMemoryPool *mp,
-		const IStatistics *outer_stats_input,
-		const IStatistics *inner_stats_input,
-		CStatsPredJoinArray *join_preds_stats,
-		BOOL DoIgnoreLASJHistComputation
-		)
+CLeftAntiSemiJoinStatsProcessor::CalcLASJoinStatsStatic(
+	CMemoryPool *mp, const IStatistics *outer_stats_input,
+	const IStatistics *inner_stats_input, CStatsPredJoinArray *join_preds_stats,
+	BOOL DoIgnoreLASJHistComputation)
 {
-	GPOS_ASSERT(NULL != inner_stats_input);
-	GPOS_ASSERT(NULL != outer_stats_input);
-	GPOS_ASSERT(NULL != join_preds_stats);
-	const CStatistics *outer_stats = dynamic_cast<const CStatistics *> (outer_stats_input);
+	GPOS_ASSERT(nullptr != inner_stats_input);
+	GPOS_ASSERT(nullptr != outer_stats_input);
+	GPOS_ASSERT(nullptr != join_preds_stats);
+	const CStatistics *outer_stats =
+		dynamic_cast<const CStatistics *>(outer_stats_input);
 
-	return CJoinStatsProcessor::SetResultingJoinStats
-			(
-			mp,
-			outer_stats->GetStatsConfig(),
-			outer_stats_input,
-			inner_stats_input,
-			join_preds_stats,
-			IStatistics::EsjtLeftAntiSemiJoin /* esjt */,
-			DoIgnoreLASJHistComputation
-			);
+	return CJoinStatsProcessor::SetResultingJoinStats(
+		mp, outer_stats->GetStatsConfig(), outer_stats_input, inner_stats_input,
+		join_preds_stats, IStatistics::EsjtLeftAntiSemiJoin /* esjt */,
+		DoIgnoreLASJHistComputation);
 }
 
 // Compute the null frequency for LASJ
 CDouble
-CLeftAntiSemiJoinStatsProcessor::NullFreqLASJ
-		(
-		CStatsPred::EStatsCmpType stats_cmp_type,
-		const CHistogram *outer_histogram,
-		const CHistogram *inner_histogram
-		)
+CLeftAntiSemiJoinStatsProcessor::NullFreqLASJ(
+	CStatsPred::EStatsCmpType stats_cmp_type, const CHistogram *outer_histogram,
+	const CHistogram *inner_histogram)
 {
-	GPOS_ASSERT(NULL != outer_histogram);
-	GPOS_ASSERT(NULL != inner_histogram);
+	GPOS_ASSERT(nullptr != outer_histogram);
+	GPOS_ASSERT(nullptr != inner_histogram);
 
 	if (CStatsPred::EstatscmptINDF != stats_cmp_type)
 	{

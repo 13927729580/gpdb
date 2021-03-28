@@ -3,7 +3,7 @@
  * cdbpath.c
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -22,9 +22,10 @@
 #include "catalog/pg_trigger.h"
 #include "commands/trigger.h"
 #include "nodes/makefuncs.h"	/* makeFuncExpr() */
-#include "nodes/relation.h"		/* PlannerInfo, RelOptInfo */
-#include "optimizer/clauses.h"
-#include "optimizer/cost.h"		/* cpu_tuple_cost */
+#include "nodes/nodeFuncs.h"	/* exprType() */
+#include "nodes/pathnodes.h"	/* PlannerInfo, RelOptInfo */
+#include "optimizer/cost.h"		/* set_rel_width() */
+#include "optimizer/optimizer.h"	/* cpu_tuple_cost */
 #include "optimizer/pathnode.h" /* Path, pathnode_walker() */
 #include "optimizer/paths.h"
 #include "optimizer/planmain.h"
@@ -74,11 +75,52 @@ cdbpath_cost_motion(PlannerInfo *root, CdbMotionPath *motionpath)
 	Cost		motioncost;
 	double		recvrows;
 	double		sendrows;
+	double		send_segments;
+	double		recv_segments;
+	double		total_rows;
 
-	if (CdbPathLocus_IsReplicated(motionpath->path.locus))
-		motionpath->path.rows = subpath->rows * CdbPathLocus_NumSegments(motionpath->path.locus);
+	if (CdbPathLocus_IsPartitioned(motionpath->path.locus))
+		recv_segments = CdbPathLocus_NumSegments(motionpath->path.locus);
 	else
-		motionpath->path.rows = subpath->rows;
+		recv_segments = 1;
+
+	if (CdbPathLocus_IsPartitioned(subpath->locus))
+		send_segments = CdbPathLocus_NumSegments(subpath->locus);
+	else
+		send_segments = 1;
+
+	/*
+	 * Estimate the total number of rows being sent.
+	 *
+	 * The base estimate is computed by multiplying the subpath's rows with
+	 * the number of sending segments. But in some cases, that leads to too
+	 * large estimates, if the subpath's estimate was "clamped" to 1 row. The
+	 * typical example is a single-row select like "SELECT * FROM table WHERE
+	 * key = 123. The Scan on the table returns only one row, on one segment,
+	 * and the estimate on the Scan node is 1 row. If you have e.g. 3
+	 * segments, and we just multiplied the subpath's row estimate by 3, we
+	 * would estimate that the Gather returns 3 rows, even though there is
+	 * only one matching row in the table. Using the 'rows' estimate on the
+	 * RelOptInfo is more accurate in such cases. To correct that, if the
+	 * subpath's estimate is 1 row, but the underlying relation's estimate is
+	 * smaller, use the underlying relation's estimate.
+	 *
+	 * We don't always use the relation's estimate, because there might be
+	 * nodes like ProjectSet or Limit in the subpath, in which case the
+	 * subpath's estimate is more accurate. Also, the relation might not have
+	 * a valid 'rows' estimate; upper rels, for example, do not. So check for
+	 * that too.
+	 */
+	total_rows = subpath->rows * send_segments;
+	if (subpath->rows == 1.0 &&
+		motionpath->path.parent->rows > 0 &&
+		motionpath->path.parent->rows < total_rows)
+	{
+		/* use the RelOptInfo's estimate */
+		total_rows = motionpath->path.parent->rows;
+	}
+
+	motionpath->path.rows = clamp_row_est(total_rows / recv_segments);
 
 	cost_per_row = (gp_motion_cost_per_row > 0.0)
 		? gp_motion_cost_per_row
@@ -2389,6 +2431,13 @@ create_motion_path_for_upddel(PlannerInfo *root, Index rti, GpPolicy *policy,
 	}
 	else if (policyType == POLICYTYPE_REPLICATED)
 	{
+		/*
+		 * The statement that update or delete on replicated table has to
+		 * be dispatched to each segment and executed on each segment. Thus
+		 * the targetlist cannot contain volatile functions.
+		 */
+		if (contain_volatile_functions((Node *) (subpath->pathtarget->exprs)))
+			elog(ERROR, "could not devise a plan.");
 	}
 	else
 		elog(ERROR, "unrecognized policy type %u", policyType);
@@ -2493,6 +2542,58 @@ create_split_update_path(PlannerInfo *root, Index rti, GpPolicy *policy, Path *s
 	return subpath;
 }
 
+/*
+ * turn_volatile_seggen_to_singleqe
+ *
+ * This function is the key tool to build correct plan
+ * for general or segmentgeneral locus paths that contain
+ * volatile functions.
+ *
+ * If we find such a pattern:
+ *    1. if we are update or delete statement on replicated table
+ *       simply reject the query
+ *    2. if it is general locus, simply change it to singleQE
+ *    3. if it is segmentgeneral, use a motion to bring it to
+ *       singleQE and then create a projection path
+ *
+ * If we do not find the pattern, simply return the input path.
+ *
+ * The last parameter of this function is the part that we want to
+ * check volatile functions.
+ */
+Path *
+turn_volatile_seggen_to_singleqe(PlannerInfo *root, Path *path, Node *node)
+{
+	if ((CdbPathLocus_IsSegmentGeneral(path->locus) || CdbPathLocus_IsGeneral(path->locus)) &&
+		(contain_volatile_functions(node) || IsA(path, LimitPath)))
+	{
+		CdbPathLocus     singleQE;
+		Path            *mpath;
+		ProjectionPath  *ppath;
+
+		if (root->upd_del_replicated_table > 0 &&
+			bms_is_member(root->upd_del_replicated_table,
+						  path->parent->relids))
+			elog(ERROR, "could not devise a plan");
+
+		if (CdbPathLocus_IsGeneral(path->locus))
+		{
+			CdbPathLocus_MakeSingleQE(&(path->locus),
+									  getgpsegmentCount());
+			return path;
+		}
+
+		CdbPathLocus_MakeSingleQE(&singleQE,
+								  CdbPathLocus_NumSegments(path->locus));
+		mpath = cdbpath_create_motion_path(root, path, NIL, false, singleQE);
+		ppath =  create_projection_path_with_quals(root, mpath->parent, mpath,
+												   mpath->pathtarget, NIL, false);
+		ppath->force = true;
+		return (Path *) ppath;
+	}
+	else
+		return path;
+}
 
 static SplitUpdatePath *
 make_splitupdate_path(PlannerInfo *root, Path *subpath, Index rti)
@@ -2506,6 +2607,10 @@ make_splitupdate_path(PlannerInfo *root, Path *subpath, Index rti)
 	rte = planner_rt_fetch(rti, root);
 
 	/* GPDB_96_MERGE_FIXME: Why is this not allowed? */
+	/* GPDB_12_MERGE_FIXME: PostgreSQL fires the DELETE+INSERT trigger, if
+	 * you UPDATE a partitioning key column. We could probably do the same with
+	 * update on the distribution key column.
+	 */
 	if (has_update_triggers(rte->relid))
 		ereport(ERROR,
 				(errcode(ERRCODE_GP_FEATURE_NOT_YET),

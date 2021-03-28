@@ -9,9 +9,11 @@
 //		Implementation of scalar SwitchCase operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CScalarSwitchCase.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/operators/CScalarSwitchCase.h"
+#include "gpopt/base/COptCtxt.h"
 
 using namespace gpopt;
 using namespace gpmd;
@@ -24,12 +26,7 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CScalarSwitchCase::CScalarSwitchCase
-	(
-	CMemoryPool *mp
-	)
-	:
-	CScalar(mp)
+CScalarSwitchCase::CScalarSwitchCase(CMemoryPool *mp) : CScalar(mp)
 {
 }
 
@@ -42,14 +39,9 @@ CScalarSwitchCase::CScalarSwitchCase
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarSwitchCase::Matches
-	(
-	COperator *pop
-	)
-	const
+CScalarSwitchCase::Matches(COperator *pop) const
 {
 	return (pop->Eopid() == Eopid());
 }
 
 // EOF
-

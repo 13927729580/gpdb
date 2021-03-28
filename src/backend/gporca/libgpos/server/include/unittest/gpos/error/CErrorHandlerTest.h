@@ -11,38 +11,34 @@
 #ifndef GPOS_CErrorHandlerTest_H
 #define GPOS_CErrorHandlerTest_H
 
-#include "gpos/types.h"
 #include "gpos/assert.h"
+#include "gpos/types.h"
 
 namespace gpos
 {
+//---------------------------------------------------------------------------
+//	@class:
+//		CErrorHandlerTest
+//
+//	@doc:
+//		Static unit tests for error handler base class
+//
+//---------------------------------------------------------------------------
+class CErrorHandlerTest
+{
+public:
+	// unittests
+	static GPOS_RESULT EresUnittest();
+	static GPOS_RESULT EresUnittest_Basic();
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CErrorHandlerTest
-	//
-	//	@doc:
-	//		Static unit tests for error handler base class
-	//
-	//---------------------------------------------------------------------------
-	class CErrorHandlerTest
-	{
-		public:
-
-			// unittests
-			static GPOS_RESULT EresUnittest();
-			static GPOS_RESULT EresUnittest_Basic();
-			
 #ifdef GPOS_DEBUG
-			static GPOS_RESULT EresUnittest_BadRethrow();
-			static GPOS_RESULT EresUnittest_BadReset();
-			static GPOS_RESULT EresUnittest_Unhandled();
-#endif // GPOS_DEBUG
+	static GPOS_RESULT EresUnittest_BadRethrow();
+	static GPOS_RESULT EresUnittest_BadReset();
+	static GPOS_RESULT EresUnittest_Unhandled();
+#endif	// GPOS_DEBUG
+};
+}  // namespace gpos
 
-	};
-}
-
-#endif // !GPOS_CErrorHandlerTest_H
+#endif	// !GPOS_CErrorHandlerTest_H
 
 // EOF
-

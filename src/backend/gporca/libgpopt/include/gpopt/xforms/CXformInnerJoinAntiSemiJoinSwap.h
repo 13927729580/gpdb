@@ -19,68 +19,57 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformInnerJoinAntiSemiJoinSwap
-	//
-	//	@doc:
-	//		Swap cascaded inner join and anti semi-join
-	//
-	//---------------------------------------------------------------------------
-	class CXformInnerJoinAntiSemiJoinSwap : public CXformJoinSwap<CLogicalInnerJoin, CLogicalLeftAntiSemiJoin>
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformInnerJoinAntiSemiJoinSwap
+//
+//	@doc:
+//		Swap cascaded inner join and anti semi-join
+//
+//---------------------------------------------------------------------------
+class CXformInnerJoinAntiSemiJoinSwap
+	: public CXformJoinSwap<CLogicalInnerJoin, CLogicalLeftAntiSemiJoin>
+{
+private:
+public:
+	CXformInnerJoinAntiSemiJoinSwap(const CXformInnerJoinAntiSemiJoinSwap &) =
+		delete;
+
+	// ctor
+	explicit CXformInnerJoinAntiSemiJoinSwap(CMemoryPool *mp)
+		: CXformJoinSwap<CLogicalInnerJoin, CLogicalLeftAntiSemiJoin>(mp)
 	{
+	}
 
-		private:
+	// dtor
+	~CXformInnerJoinAntiSemiJoinSwap() override = default;
 
-			// private copy ctor
-			CXformInnerJoinAntiSemiJoinSwap(const CXformInnerJoinAntiSemiJoinSwap &);
+	// Compatibility function
+	BOOL
+	FCompatible(CXform::EXformId exfid) override
+	{
+		return ExfAntiSemiJoinInnerJoinSwap != exfid;
+	}
 
-		public:
+	// ident accessors
+	EXformId
+	Exfid() const override
+	{
+		return ExfInnerJoinAntiSemiJoinSwap;
+	}
 
-			// ctor
-			explicit
-			CXformInnerJoinAntiSemiJoinSwap
-				(
-				CMemoryPool *mp
-				)
-				:
-				CXformJoinSwap<CLogicalInnerJoin, CLogicalLeftAntiSemiJoin>(mp)
-			{}
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformInnerJoinAntiSemiJoinSwap";
+	}
 
-			// dtor
-			virtual
-			~CXformInnerJoinAntiSemiJoinSwap()
-			{}
+};	// class CXformInnerJoinAntiSemiJoinSwap
 
-			// Compatibility function
-			virtual
-			BOOL FCompatible
-				(
-				CXform::EXformId exfid
-				)
-			{
-				return ExfAntiSemiJoinInnerJoinSwap != exfid;
-			}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfInnerJoinAntiSemiJoinSwap;
-			}
-
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformInnerJoinAntiSemiJoinSwap";
-			}
-
-	}; // class CXformInnerJoinAntiSemiJoinSwap
-
-}
-
-#endif // !GPOPT_CXformInnerJoinAntiSemiJoinSwap_H
+#endif	// !GPOPT_CXformInnerJoinAntiSemiJoinSwap_H
 
 // EOF

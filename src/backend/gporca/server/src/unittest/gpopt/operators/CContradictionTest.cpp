@@ -8,17 +8,24 @@
 //	@doc:
 //		Tests for contradiction detection
 //---------------------------------------------------------------------------
+#include "unittest/gpopt/operators/CContradictionTest.h"
+
 #include "gpos/io/COstreamString.h"
 #include "gpos/string/CWStringDynamic.h"
 
 #include "gpopt/eval/CConstExprEvaluatorDefault.h"
-#include "gpopt/operators/ops.h"
+#include "gpopt/operators/CLogicalInnerApply.h"
+#include "gpopt/operators/CLogicalInnerJoin.h"
+#include "gpopt/operators/CLogicalLeftAntiSemiApply.h"
+#include "gpopt/operators/CLogicalLeftAntiSemiJoin.h"
+#include "gpopt/operators/CLogicalLeftOuterApply.h"
+#include "gpopt/operators/CLogicalLeftOuterJoin.h"
+#include "gpopt/operators/CLogicalLeftSemiApply.h"
+#include "gpopt/operators/CLogicalLeftSemiJoin.h"
+#include "naucrates/md/IMDScalarOp.h"
 
 #include "unittest/base.h"
-#include "unittest/gpopt/operators/CContradictionTest.h"
 #include "unittest/gpopt/CTestUtils.h"
-
-#include "naucrates/md/IMDScalarOp.h"
 
 
 
@@ -33,10 +40,9 @@
 GPOS_RESULT
 CContradictionTest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
+	CUnittest rgut[] = {
 		GPOS_UNITTEST_FUNC(CContradictionTest::EresUnittest_Constraint),
-		};
+	};
 
 	return CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 }
@@ -61,10 +67,9 @@ CContradictionTest::EresUnittest_Constraint()
 	CMDAccessor mda(mp, CMDCache::Pcache(), CTestUtils::m_sysidDefault, pmdp);
 
 
-	typedef CExpression *(*Pfpexpr)(CMemoryPool*);
+	typedef CExpression *(*Pfpexpr)(CMemoryPool *);
 
-	Pfpexpr rgpf[] =
-		{
+	Pfpexpr rgpf[] = {
 		CTestUtils::PexprLogicalApplyWithOuterRef<CLogicalInnerApply>,
 		CTestUtils::PexprLogicalApply<CLogicalLeftSemiApply>,
 		CTestUtils::PexprLogicalApply<CLogicalLeftAntiSemiApply>,
@@ -89,18 +94,13 @@ CContradictionTest::EresUnittest_Constraint()
 		CTestUtils::PexprLogicalDynamicGet,
 		CTestUtils::PexprLogicalSequence,
 		CTestUtils::PexprLogicalTVFTwoArgs,
-		};
+	};
 
 	for (ULONG i = 0; i < GPOS_ARRAY_SIZE(rgpf); i++)
 	{
 		// install opt context in TLS
-		CAutoOptCtxt aoc
-						(
-						mp,
-						&mda,
-						NULL,  /* pceeval */
-						CTestUtils::GetCostModel(mp)
-						);
+		CAutoOptCtxt aoc(mp, &mda, nullptr, /* pceeval */
+						 CTestUtils::GetCostModel(mp));
 
 		// generate simple expression
 		CExpression *pexpr = rgpf[i](mp);
@@ -125,10 +125,13 @@ CContradictionTest::EresUnittest_Constraint()
 		GPOS_TRACE(str.GetBuffer());
 		str.Reset();
 		pexpr->DbgPrint();
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
- 		CExpression *pexprPreprocessed = CExpressionPreprocessor::PexprPreprocess(mp, pexpr);
-		oss	<< std::endl << "PREPROCESSED EXPR:" << std::endl << *pexprPreprocessed << std::endl;
+		CExpression *pexprPreprocessed =
+			CExpressionPreprocessor::PexprPreprocess(mp, pexpr);
+		oss << std::endl
+			<< "PREPROCESSED EXPR:" << std::endl
+			<< *pexprPreprocessed << std::endl;
 		GPOS_TRACE(str.GetBuffer());
 		str.Reset();
 

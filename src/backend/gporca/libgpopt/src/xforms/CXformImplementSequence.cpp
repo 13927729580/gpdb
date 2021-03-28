@@ -9,13 +9,14 @@
 //		Implementation of transform
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
 #include "gpopt/xforms/CXformImplementSequence.h"
 
+#include "gpos/base.h"
+
+#include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/operators/CLogicalSequence.h"
 #include "gpopt/operators/CPatternMultiLeaf.h"
 #include "gpopt/operators/CPhysicalSequence.h"
-#include "gpopt/metadata/CTableDescriptor.h"
 
 using namespace gpopt;
 
@@ -28,22 +29,14 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformImplementSequence::CXformImplementSequence
-	(
-	CMemoryPool *mp
-	)
-	:
-	CXformImplementation
-		(
-		 // pattern
-		GPOS_NEW(mp) CExpression
-				(
-				mp,
-				GPOS_NEW(mp) CLogicalSequence(mp),
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternMultiLeaf(mp))
-				)
-		)
-{}
+CXformImplementSequence::CXformImplementSequence(CMemoryPool *mp)
+	: CXformImplementation(
+		  // pattern
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CLogicalSequence(mp),
+			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternMultiLeaf(mp))))
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -55,15 +48,10 @@ CXformImplementSequence::CXformImplementSequence
 //
 //---------------------------------------------------------------------------
 void
-CXformImplementSequence::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformImplementSequence::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+								   CExpression *pexpr) const
 {
-	GPOS_ASSERT(NULL != pxfctxt);
+	GPOS_ASSERT(nullptr != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
 	GPOS_ASSERT(FCheckPattern(pexpr));
 
@@ -71,19 +59,13 @@ CXformImplementSequence::Transform
 
 	CExpressionArray *pdrgpexpr = pexpr->PdrgPexpr();
 	pdrgpexpr->AddRef();
-	
+
 	// create alternative expression
-	CExpression *pexprAlt = 
-		GPOS_NEW(mp) CExpression
-			(
-			mp,
-			GPOS_NEW(mp) CPhysicalSequence(mp),
-			pdrgpexpr
-			);
+	CExpression *pexprAlt = GPOS_NEW(mp)
+		CExpression(mp, GPOS_NEW(mp) CPhysicalSequence(mp), pdrgpexpr);
 	// add alternative to transformation result
 	pxfres->Add(pexprAlt);
 }
 
 
 // EOF
-

@@ -31,7 +31,7 @@ function configure() {
       # The full set of configure options which were used for building the
       # tree must be used here as well since the toplevel Makefile depends
       # on these options for deciding what to test. Since we don't ship
-      ./configure --prefix=/usr/local/greenplum-db-devel --with-perl --with-python --with-libxml --enable-mapreduce --enable-orafce --enable-tap-tests --disable-orca --with-openssl ${CONFIGURE_FLAGS}
+      ./configure --prefix=/usr/local/greenplum-db-devel --disable-orca --enable-gpcloud --enable-mapreduce --enable-orafce --enable-tap-tests --with-gssapi --with-libxml --with-openssl --with-perl --with-python PYTHON=python3 PKG_CONFIG_PATH="${GPHOME}/lib/pkgconfig" ${CONFIGURE_FLAGS}
 
   popd
 }
@@ -47,7 +47,30 @@ function make_cluster() {
   export BLDWRAP_POSTGRES_CONF_ADDONS=${BLDWRAP_POSTGRES_CONF_ADDONS}
   export STATEMENT_MEM=250MB
   pushd gpdb_src/gpAux/gpdemo
-  su gpadmin -c "source /usr/local/greenplum-db-devel/greenplum_path.sh; make create-demo-cluster"
+  su gpadmin -c "source /usr/local/greenplum-db-devel/greenplum_path.sh; LANG=en_US.utf8 make create-demo-cluster"
+
+  if [[ "$MAKE_TEST_COMMAND" =~ gp_interconnect_type=proxy ]]; then
+    # generate the addresses for proxy mode
+    su gpadmin -c bash -- -e <<EOF
+      source /usr/local/greenplum-db-devel/greenplum_path.sh
+      source $PWD/gpdemo-env.sh
+
+      delta=-3000
+
+      psql -tqA -d postgres -P pager=off -F: -R, \
+          -c "select dbid, content, address, port+\$delta as port
+                from gp_segment_configuration
+               order by 1" \
+      | xargs -rI'{}' \
+        gpconfig --skipvalidation -c gp_interconnect_proxy_addresses -v "'{}'"
+
+      # also have to enlarge gp_interconnect_tcp_listener_backlog
+      gpconfig -c gp_interconnect_tcp_listener_backlog -v 1024
+
+      gpstop -u
+EOF
+  fi
+
   popd
 }
 
@@ -62,7 +85,7 @@ function install_python_requirements_on_single_host() {
     local requirements_txt="$1"
 
     export PIP_CACHE_DIR=${PWD}/pip-cache-dir
-    pip --retries 10 install -r ${requirements_txt}
+    pip3 --retries 10 install -r ${requirements_txt}
 }
 
 function install_python_requirements_on_multi_host() {
@@ -74,10 +97,10 @@ function install_python_requirements_on_multi_host() {
     # Set PIP Download cache directory
     export PIP_CACHE_DIR=/home/gpadmin/pip-cache-dir
 
-    pip --retries 10 install --user -r ${requirements_txt}
+    pip3 --retries 10 install --user -r ${requirements_txt}
     while read -r host; do
        scp ${requirements_txt} "$host":/tmp/requirements.txt
-       ssh $host PIP_CACHE_DIR=${PIP_CACHE_DIR} pip --retries 10 install --user -r /tmp/requirements.txt
+       ssh $host PIP_CACHE_DIR=${PIP_CACHE_DIR} pip3 --retries 10 install --user -r /tmp/requirements.txt
     done < /tmp/hostfile_all
 }
 
@@ -130,4 +153,42 @@ function tar_coverage() {
         # Compress coverage files and remove the originals
         tar --remove-files -cf "$prefix.tar" *
     popd
+}
+
+function add_ccache_support(){
+
+    _TARGET_OS=$1
+
+    ## Add CCache support
+    if [[ "${USE_CCACHE}" = "true" ]]; then
+        if [[ "${_TARGET_OS}" = "centos" ]]; then
+            # Enable CCache use
+            export PATH=/usr/lib64/ccache:$PATH
+        fi
+
+        export CCACHE_DIR=$(pwd)/ccache_dir
+        export CCACHE_BASEDIR=$(pwd)
+
+        ## Display current Ccache Stats
+        display_ccache_stats
+
+        ## Zero the cache statistics
+        ccache -z
+    fi
+}
+
+function display_ccache_stats(){
+    if [[ "${USE_CCACHE}" = "true" ]]; then
+        cat <<EOF
+
+======================================================================
+                            CCACHE STATS
+----------------------------------------------------------------------
+
+$( ccache --show-stats)
+
+======================================================================
+
+EOF
+    fi
 }

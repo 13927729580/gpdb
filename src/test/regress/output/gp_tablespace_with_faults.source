@@ -1,8 +1,4 @@
 -- CREATE TABLESPACE
--- start_matchsubs
--- m/^DETAIL:.*gid=.*/
--- s/gid=\d+-\d+/gid DUMMY/
--- end_matchsubs
 --
 -- We need to update the restart point on the mirrors
 -- so downstream tests do not attempt to replay records
@@ -21,7 +17,7 @@
 20190628:12:33:29:008863 gpstop:Adams-MBP:adamberlin-[INFO]:-Greenplum Version: 'postgres (Greenplum Database) 7.0.0-alpha.0+dev.479.gb6a83cfcde build dev'
 20190628:12:33:29:008863 gpstop:Adams-MBP:adamberlin-[INFO]:-Signalling all postmaster processes to reload
 -- end_ignore
-create or replace language plpythonu;
+create or replace language plpython3u;
 create or replace function remove_tablespace_location_directory(tablespace_location_dir text) returns void as $$
 	import shutil
 	import os
@@ -51,11 +47,11 @@ create or replace function remove_tablespace_location_directory(tablespace_locat
 		shutil.rmtree(tablespace_location_dir);
 	except OSError:
 		pass
-$$ LANGUAGE plpythonu;
+$$ LANGUAGE plpython3u;
 create or replace function setup_tablespace_location_dir_for_test(tablespace_location_dir text) returns void as $$
 	import os;
 	os.mkdir(tablespace_location_dir);
-$$ LANGUAGE plpythonu;
+$$ LANGUAGE plpython3u;
 create or replace function disable_fts() returns void as $$
 	declare
 		master_content_id integer = -1;
@@ -120,7 +116,7 @@ create or replace function list_tablespace_dbid_dirs(expected_number_of_tablespa
 	for row in rows:
 		result.append(str(row))
 	return result
-$$ language plpythonu;
+$$ language plpython3u;
 create or replace function wait_for_primaries_to_restart() returns boolean as $$
 	select count(gp_segment_id) > 0 from gp_dist_random('pg_tablespace');
 $$ language sql;
@@ -867,7 +863,7 @@ select gp_inject_fault(:'fault_name', :'fault_type', dbid) from gp_segment_confi
 
 DROP TABLESPACE my_tablespace_for_testing;
 WARNING:  the distributed transaction 'Commit Prepared' broadcast failed to one or more segments. Retrying ... try 1
-DETAIL:  gid=1564560606-0000000899, state=Retry Commit Prepared
+DETAIL:  gid=41608220, state=Retry Commit Prepared
 NOTICE:  Releasing segworker group to retry broadcast.
 select wait_for_primaries_to_restart();
  wait_for_primaries_to_restart 

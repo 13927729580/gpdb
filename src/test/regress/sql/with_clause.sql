@@ -1,10 +1,12 @@
 drop table if exists with_test1 cascade;
 create table with_test1 (i int, t text, value int) distributed by (i);
 insert into with_test1 select i%10, 'text' || i%20, i%30 from generate_series(0, 99) i;
+analyze with_test1;
 
 drop table if exists with_test2 cascade;
 create table with_test2 (i int, t text, value int);
 insert into with_test2 select i%100, 'text' || i%200, i%300 from generate_series(0, 999) i;
+analyze with_test2;
 
 -- With clause with one common table expression
 --begin_equivalent
@@ -62,10 +64,17 @@ select sum(total) from (select sum(value) as total from with_test1 group by i) m
 --end_equivalent
 
 -- pathkeys
+explain (costs off)
 with my_order as (select * from with_test1 order by i)
 select i, count(*)
 from my_order
 group by i order by i;
+
+with my_order as (select * from with_test1 order by i)
+select i, count(*)
+from my_order
+group by i order by i;
+
 
 -- WITH query used in InitPlan
 --begin_equivalent
@@ -236,7 +245,7 @@ from my_sum;
 
 -- Test behavior with an unknown-type literal in the WITH
 WITH q AS (SELECT 'foo' AS x)
-SELECT x, x IS OF (unknown) as is_unknown FROM q;
+SELECT x, x IS OF (unknown) as is_unknown, x IS OF (text) as is_text FROM q;
 
 with cte(foo) as ( select 42 ) select * from ((select foo from cte)) q;
 
@@ -366,6 +375,7 @@ set gp_cte_sharing=on;
 
 CREATE TEMP TABLE foo (i int, j int);
 INSERT INTO foo SELECT g, g FROM generate_series(1, 2) g;
+ANALYZE foo;
 
 WITH a1 as (select * from foo),
      a2 as (select * from foo)

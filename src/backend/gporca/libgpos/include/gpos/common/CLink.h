@@ -8,36 +8,27 @@
 #define GPOS_CLink_H
 
 
+#include <cstddef>
 namespace gpos
 {
+// Generic link to be embedded in all classes before they can use
+// allocation-less lists, e.g. in synchronized hashtables etc.
+struct SLink
+{
+private:
+public:
+	SLink(const SLink &) = delete;
 
+	// link forward/backward
+	void *m_next{nullptr};
+	void *m_prev{nullptr};
 
-	// Generic link to be embedded in all classes before they can use
-	// allocation-less lists, e.g. in synchronized hashtables etc.
-	struct SLink
-	{
+	// ctor
+	SLink() = default;
+};
 
-		private:
+}  // namespace gpos
 
-			SLink(const SLink&) = delete;
-
-		public:
-
-			// link forward/backward
-			void *m_next;
-			void *m_prev;
-
-			// ctor
-			SLink()
-				:
-				m_next(NULL),
-				m_prev(NULL)
-			{}
-	};
-
-}
-
-#endif // !GPOS_CLink_H
+#endif	// !GPOS_CLink_H
 
 // EOF
-

@@ -12,76 +12,63 @@
 #define GPOPT_CXformSubqNAryJoin2Apply_H
 
 #include "gpos/base.h"
-#include "gpopt/operators/CPatternMultiLeaf.h"
-#include "gpopt/operators/CPatternTree.h"
+
 #include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CLogicalNAryJoin.h"
+#include "gpopt/operators/CPatternMultiLeaf.h"
+#include "gpopt/operators/CPatternTree.h"
 #include "gpopt/xforms/CXformSubqJoin2Apply.h"
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformSubqNAryJoin2Apply
-	//
-	//	@doc:
-	//		Transform NAry Join with subquery predicates to Apply
-	//
-	//---------------------------------------------------------------------------
-	class CXformSubqNAryJoin2Apply : public CXformSubqJoin2Apply
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformSubqNAryJoin2Apply
+//
+//	@doc:
+//		Transform NAry Join with subquery predicates to Apply
+//
+//---------------------------------------------------------------------------
+class CXformSubqNAryJoin2Apply : public CXformSubqJoin2Apply
+{
+private:
+public:
+	CXformSubqNAryJoin2Apply(const CXformSubqNAryJoin2Apply &) = delete;
+
+	// ctor
+	explicit CXformSubqNAryJoin2Apply(CMemoryPool *mp)
+		: CXformSubqJoin2Apply(
+			  // pattern
+			  GPOS_NEW(mp) CExpression(
+				  mp, GPOS_NEW(mp) CLogicalNAryJoin(mp),
+				  GPOS_NEW(mp)
+					  CExpression(mp, GPOS_NEW(mp) CPatternMultiLeaf(mp)),
+				  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))))
 	{
+	}
 
-		private:
+	// dtor
+	~CXformSubqNAryJoin2Apply() override = default;
 
-			// private copy ctor
-			CXformSubqNAryJoin2Apply(const CXformSubqNAryJoin2Apply &);
+	// ident accessors
+	EXformId
+	Exfid() const override
+	{
+		return ExfSubqNAryJoin2Apply;
+	}
 
-		public:
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformSubqNAryJoin2Apply";
+	}
 
-			// ctor
-			explicit
-			CXformSubqNAryJoin2Apply
-				(
-				CMemoryPool *mp
-				)
-				:
-				CXformSubqJoin2Apply
-					(
-					 // pattern
-					GPOS_NEW(mp) CExpression
-						(
-						mp,
-						GPOS_NEW(mp) CLogicalNAryJoin(mp),
-						GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternMultiLeaf(mp)),
-						GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))
-						)
-					)
-			{}
+};	// class CXformSubqNAryJoin2Apply
 
-			// dtor
-			virtual
-			~CXformSubqNAryJoin2Apply()
-			{}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfSubqNAryJoin2Apply;
-			}
-
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformSubqNAryJoin2Apply";
-			}
-
-	}; // class CXformSubqNAryJoin2Apply
-
-}
-
-#endif // !GPOPT_CXformSubqNAryJoin2Apply_H
+#endif	// !GPOPT_CXformSubqNAryJoin2Apply_H
 
 // EOF

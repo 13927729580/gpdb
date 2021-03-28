@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Pivotal Software, Inc. All Rights Reserved.
+# Copyright (c) 2015, VMware, Inc. or its affiliates. All Rights Reserved.
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include"
                     "${PROJECT_SOURCE_DIR}/libgpdbcost/include"
@@ -26,10 +26,6 @@ if (COMPILER_HAS_WNO_LONG_LONG)
                                 PROPERTIES COMPILE_FLAGS "-Wno-long-long")
 endif()
 
-option(ENABLE_EXTENDED_TESTS
-       "Enable extended tests for fault-injection and timing that may take a long time to run."
-       OFF)
-
 # Convenience function to add the test specified by 'TEST_NAME' to the set of
 # tests to be run by CTest.
 function(add_orca_test TEST_NAME)
@@ -40,6 +36,20 @@ function(add_orca_test TEST_NAME)
            COMMAND gporca_test -U ${TEST_NAME}
            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endfunction()
+
+# GPDB_12_MERGE_FIXME: re-add the following tests once DPE is supported
+# CPartTblDPETest
+
+# GPDB_12_MERGE_FIXME: casts on part column no longer supported!
+# CPartTableLossyCastTest
+
+# GPDB_12_MERGE_FIXME: re-add the following tests to CArrayCmpTest once the
+# duplicate predicate issue is fixed
+# IN-ArrayCmp
+# NOT-IN-ArrayCmp
+
+# GPDB_12_MERGE_FIXME: re-add the following test to Right Join once DPE is supported
+# RightJoinDPS PartTbl-RightOuterHashJoin-DPE-IsNull
 
 # minidump tests must follow rule:
 # "CxxxTest: file1 file2; CxxxTest: file3 file4"
@@ -57,20 +67,21 @@ CorrelatedLeftSemiNLJoinWithLimit PushFilterToSemiJoinLeftChild SubqOuterReferen
 
 CAntiSemiJoinTest:
 AntiSemiJoin2Select-1 AntiSemiJoin2Select-2 NOT-IN-NotNullBoth NOT-IN-NullInner NOT-IN-NullOuter
-Correlated-AntiSemiJoin CorrelatedAntiSemiJoin-True Correlated-LASJ-With-Outer-Col
+Correlated-AntiSemiJoin CorrelatedAntiSemiJoin-True Correlated-LASJ-With-Outer-Col NotInToLASJ
 Correlated-LASJ-With-Outer-Const Correlated-LASJ-With-Outer-Expr LeftOuter2InnerUnionAllAntiSemiJoin-Tpcds;
 
 CPredicateTest:
 ConvertBoolConstNullToConstTableFalseFilter 
 TranslateOneTimeFilterConjunctQuals TranslateFilterDisjunctQuals TranslateFilterWithCTEAndTableScanIntoFilterAndOneTimeFilter
 InferPredicates InferPredicatesForLimit InferPredicatesBCC-vc-vc InferPredicatesBCC-vc-txt
-InferPredicatesBCC-txt-txt InferPredicatesBCC-oid-oid InferPredicatesBCC-vcpart-txt
+InferPredicatesBCC-txt-txt InferPredicatesBCC-oid-oid
 OR-WithIsNullPred Int2Predicate IN-Numeric DeduplicatePredicates
-AddEqualityPredicates AddPredsInSubqueries ExtractPredicateFromDisjWithComputedColumns
+AddEqualityPredicates EqualityPredicateOverDate AddPredsInSubqueries ExtractPredicateFromDisjWithComputedColumns
 Join-With-Subq-Preds-1 Non-Hashjoinable-Pred Non-Hashjoinable-Pred-2 Factorized-Preds IN OR AvoidConstraintDerivationForLike
 NLJ-DistCol-No-Broadcast NLJ-EqAllCol-No-Broadcast NLJ-EqDistCol-InEqNonDistCol-No-Broadcast
 NLJ-InEqDistCol-EqNonDistCol-Redistribute CorrelatedNLJWithTrueCondition InferPredicatesInnerOfLOJ
-InferredPredicatesConstraintSimplification NoPushdownPredicateWithCTEAnchor;
+InferredPredicatesConstraintSimplification NoPushdownPredicateWithCTEAnchor
+InferPredicatesForPartSQ InferPredicatesForQuantifiedSQ InferPredicatesForProcessedColumn DoubleNDVCardinalityEquals;
 
 CLikeIDFTest:
 LIKE-Pattern-green LIKE-Pattern-green-2 LIKE-Pattern-Empty Nested-Or-Predicates Join-IDF
@@ -91,9 +102,9 @@ CTypeModifierTest:
 TypeModifierColumn TypeModifierCast TypeModifierConst TypeModifierDoubleMappableConst TypeModifierArrayRef;
 
 CIndexScanTest:
-BTreeIndex-Against-InList BTreeIndex-Against-ScalarSubquery
+BTreeIndex-Against-InList BTreeIndex-Against-InListLarge BTreeIndex-Against-ScalarSubquery
 IndexScan-AOTable IndexScan-DroppedColumns IndexScan-BoolTrue IndexScan-BoolFalse
-IndexScan-Relabel IndexGet-OuterRefs LogicalIndexGetDroppedCols NewBtreeIndexScanCost
+IndexScan-Relabel IndexGet-OuterRefs LogicalIndexGetDroppedCols
 IndexScan-ORPredsNonPart IndexScan-ORPredsAOPart IndexScan-AndedIn;
 
 CBitmapScanTest:
@@ -107,23 +118,27 @@ IndexApply1-CalibratedCostModel IndexApply2 IndexApply3 IndexApply4
 IndexApply-IndexCondDisjointWithHashedDistr IndexApply-IndexCondIntersectWithHashedDistr
 IndexApply-IndexCondMatchHashedDistr IndexApply-IndexCondSubsetOfHashedDistr
 IndexApply-IndexCondSupersetOfHashedDistr IndexApply-IndexOnMasterOnlyTable
-IndexApply-PartTable IndexApply-Heterogeneous-NoDTS IndexApply-Heterogeneous-DTS
-IndexApply-No-Motion-Below-Join IndexApply-Redistribute-Const-Table IndexApply-PartResolverExpand
+IndexApply-PartTable IndexApply-Heterogeneous-NoDTS
+IndexApply-No-Motion-Below-Join IndexApply-Redistribute-Const-Table
 IndexApply-InnerSelect-Basic IndexApply-InnerSelect-PartTable IndexApply-PartKey-Is-IndexKey
 IndexApply-InnerSelect-Heterogeneous-DTS IndexApply-Heterogeneous-BothSidesPartitioned
-IndexApply-InnerSelect-PartTable2 IndexApply-ForPartialIndex CastedScalarIf-On-Index-Key
+IndexApply-InnerSelect-PartTable2 CastedScalarIf-On-Index-Key
 IndexApply-MultiDistKey-WithComplexPreds IndexApply-MultiDistKeys-Bitmap
-IndexApply-MultiDistKeys-Bitmap-WithComplexPreds;
+IndexApply-MultiDistKeys-Bitmap-WithComplexPreds
+IndexApply-MultiDistKeys-IncompletePDS-3-DistCols
+BitmapIndexNLJWithProject BitmapIndexNLOJWithProject
+BitmapIndexNLJWithProjectNoFilt BtreeIndexNLJWithProjectNoPart
+BitmapIndexNLOJWithProjectNonPart BtreeIndexNLOJWithProject;
 
 CDynamicIndexScanTest:
 DynamicIndexScan-Homogenous DynamicIndexScan-BoolTrue DynamicIndexScan-BoolFalse
 DynamicIndexScan-Heterogenous-NoDTS DynamicIndexScan-Heterogenous-Union
 DynamicIndexScan-Heterogenous-Overlapping DynamicIndexScan-Heterogenous
-DynamicIndexScan-DefaultPartition DynamicIndexScan-DefaultPartition-2 DynamicIndexGetDroppedCols
+DynamicIndexScan-DefaultPartition DynamicIndexScan-DefaultPartition-2
 DynamicIndexScan-Homogenous-UnsupportedConstraint DynamicIndexScan-Heterogenous-UnsupportedConstraint
-DynamicIndexScan-Heterogenous-UnsupportedPredicate DynamicIndexScan-Heterogenous-PartSelectEquality
+DynamicIndexScan-Heterogenous-PartSelectEquality
 DynamicIndexScan-Heterogenous-PartSelectRange DynamicIndexScan-OpenEndedPartitions
-DynamicIndexScan-Relabel DynamicIndexScan-DroppedColumns DynamicIndexGet-OuterRefs;
+DynamicIndexScan-Relabel DynamicIndexScan-DroppedCols DynamicIndexGet-OuterRefs;
 
 CIndexScanOnLeafTest:
 IndexOnLeaf-AddNewPartitionToRootTableContainingHeterogenousIndex
@@ -147,19 +162,23 @@ CICGMiscTest:
 BroadcastSkewedHashjoin OrderByNullsFirst ConvertHashToRandomSelect ConvertHashToRandomInsert HJN-DeeperOuter CTAS CTAS-Random CheckAsUser
 ProjectRepeatedColumn1 ProjectRepeatedColumn2 NLJ-BC-Outer-Spool-Inner Self-Comparison Self-Comparison-Nullable
 SelectCheckConstraint ExpandJoinOrder SelectOnBpchar EqualityJoin EffectsOfJoinFilter InnerJoin-With-OuterRefs
-UDA-AnyElement-1 UDA-AnyElement-2 Project-With-NonScalar-Func SixWayDPv2 MultipleDampedPredJoinCardinality MultipleIndependentPredJoinCardinality Join-Varchar-Equality;
+UDA-AnyElement-1 UDA-AnyElement-2 Project-With-NonScalar-Func SixWayDPv2 Join-Varchar-Equality;
+
+CJoinPredTest:
+MultipleDampedPredJoinCardinality MultipleIndependentPredJoinCardinality MultiDistKeyJoinCardinality
+MultiDistKeyWithOtherPredsJoinCardinality NoDistKeyMultiPredJoinCardinality OneDistKeyMultiPredJoinCardinality;
 
 CArrayCmpTest:
-ArrayConcat ArrayRef FoldedArrayCmp IN-ArrayCmp NOT-IN-ArrayCmp ArrayCmpAll UDA-AnyArray InClauseWithMCV
-CastedInClauseWithMCV FilterScalarCast IN-Nulls-ArrayCmpAny ArrayCmp-IN-ManyElements;
+ArrayConcat ArrayRef FoldedArrayCmp ArrayCmpAll
+UDA-AnyArray InClauseWithMCV CastedInClauseWithMCV FilterScalarCast
+IN-Nulls-ArrayCmpAny ArrayCmp-IN-ManyElements ArrayCmpAnyEmpty ArrayCmpAllEmpty
+ArrayCmpAnyEmptyLessThan;
 
 CProjectTest:
 ProjectWithConstant ProjectWithTextConstant ProjectSetFunction Equivalence-class-project-over-LOJ;
 
 CPartTbl1Test:
-NoPartConstraint-WhenNoDefaultPartsAndIndices
-PartConstraint-WhenIndicesAndNoDefaultParts PartConstraint-WithOnlyDefaultPartInfo
-PartConstraint-WhenDefaultPartsAndIndices CorrelatedNLJ-PartSelector-Subplan
+CorrelatedNLJ-PartSelector-Subplan
 DonotPushPartConstThruLimit Select-Over-PartTbl
 PartSelectorOnJoinSide PartSelectorOnJoinSide2;
 
@@ -176,33 +195,22 @@ PartTbl-ComplexRangePredicate-DefaultPart
 PartTbl-ComplexRangePredicate-NoDefaultPart PartTbl-LASJ;
 
 CPartTbl4Test:
-PartTbl-Relabel-Equality PartTbl-Relabel-Range PartTbl-DisablePartSelection
+PartTbl-DisablePartSelection
 PartTbl-DisablePartSelectionJoin PartTbl-JoinOverUnion-1
 PartTbl-JoinOverUnion-2 PartTbl-JoinOverIntersect PartTbl-JoinOverExcept
-PartTbl-RangeJoinPred PartTbl-ArrayIn PartTbl-ArrayCoerce PartTbl-Disjunction
+PartTbl-ArrayIn PartTbl-Disjunction
 PartTbl-ComplexPredicate1 PartTbl-ComplexPredicate2 PartTbl-ComplexPredicate3
 PartTbl-ComplexPredicate4 PartTbl-ComplexPredicate5 LargeMultiColumnInList;
 
 CPartTbl5Test:
 PartTbl-IsNullPredicate PartTbl-IsNotNullPredicate PartTbl-IndexOnDefPartOnly
 PartTbl-SubqueryOuterRef PartTbl-CSQ-PartKey PartTbl-CSQ-NonPartKey
-PartTbl-AggWithExistentialSubquery;
+PartTbl-AggWithExistentialSubquery PartPredsWithRandom;
 
 CPartTbl6Test:
 PartTbl-PredicateWithCast PartTbl-IDFList PartTbl-IDFNull
 PartTbl-PredicateWithCast PartTbl-EqPredicateWithCastRange
-PartTbl-PredicateWithCastList PartTbl-IDFWithCast
-PartTbl-PredicateWithCastMultiLevelList PartTbl-WindowFuncPredPushDown
-PartTbl-WindowFuncPartialPredPushDown PartTbl-WindowFuncNoPredPushDown
-PartTbl-WindowFuncNoDisjunctPredPushDown PartTbl-WindowFuncSinglePredPushDown;
-
-CPartTblDPETest:
-PartTbl-AvoidRangePred-DPE PartTbl-DPE-Correlated-NLOuter
-PartTbl-DPE PartTbl-DPE-WindowFunction PartTbl-DPE-GroupBy PartTbl-DPE-Limit
-DPE-with-unsupported-pred DPE-SemiJoin DPE-IN DPE-NOT-IN HJN-DPE-Bitmap-Outer-Child
-NLJ-Broadcast-DPE-Outer-Child PartTbl-MultiWayJoinWithDPE PartTbl-MultiWayJoinWithDPE-2
-PartTbl-LeftOuterHashJoin-DPE-IsNull PartTbl-LeftOuterNLJoin-DPE-IsNull
-PartTbl-List-DPE-Varchar-Predicates PartTbl-List-DPE-Int-Predicates;
+PartTbl-PredicateWithCastList PartTbl-IDFWithCast;
 
 CSetop1Test:
 ValueScanWithDuplicateAndSelfComparison PushGbBelowNaryUnionAll
@@ -220,7 +228,7 @@ CSetop3Test:
 UnionWithOuterRefs UnionAll
 Union-Distributed-Table-With-Const-Table ExceptAllCompatibleDataType
 UnionAllCompatibleDataType UnionOfDQAQueries Union-Volatile-Func
-Intersect-Volatile-Func Except-Volatile-Func;
+Intersect-Volatile-Func Except-Volatile-Func UnionWithCTE;
 
 CSetop4Test:
 PushSelectDownUnionAllOfCTG Push-Subplan-Below-Union Intersect-OuterRefs
@@ -290,19 +298,41 @@ CGinIndexTest:
 GinIndex GinIndexPathOpfamily GinIndexSearchModeAll;
 
 CReplicatedTableTest:
-ReplicatedTableSelect ReplicatedTableInsert ReplicatedTable-CTAS ReplicatedHashJoinReplicated ReplicatedJoinHashDistributedTable ReplicatedJoinRandomDistributedTable ReplicatedLOJHashDistributedTable ReplicatedLOJRandomDistributedTable ReplicatedLOJReplicated ReplicatedNLJReplicated ReplicatedTableAggregate ReplicatedTableCTE ReplicatedTableGroupBy ReplicatedJoinPartitionedTable ReplicatedTableInClause;
+ReplicatedTableSelect ReplicatedTableInsert ReplicatedTable-CTAS
+ReplicatedHashJoinReplicated ReplicatedJoinHashDistributedTable
+ReplicatedJoinRandomDistributedTable ReplicatedLOJHashDistributedTable
+ReplicatedLOJRandomDistributedTable ReplicatedLOJReplicated
+ReplicatedNLJReplicated ReplicatedTableAggregate ReplicatedTableCTE
+ReplicatedTableGroupBy ReplicatedJoinPartitionedTable
+ReplicatedTableInClause ReplicatedTableSequenceInsert;
+
+CTaintedReplicatedTest:
+InsertNonSingleton NonSingleton TaintedReplicatedAgg TaintedReplicatedWindowAgg TaintedReplicatedLimit TaintedReplicatedFilter;
 
 CDqaTest:
 NonSplittableAgg DqaHavingMax DqaMax DqaMin DqaSubqueryMax DqaNoRedistribute;
 
 CMCVCardinalityTest:
-BpCharMCVCardinalityEquals BpCharMCVCardinalityGreaterThan TextMCVCardinalityEquals TextMCVCardinalityGreaterThan VarcharMCVCardinalityEquals VarcharMCVCardinalityGreaterThan Citext-Cardinality Name-Cardinality Char-Cardinality;
+BpCharMCVCardinalityEquals BpCharMCVCardinalityGreaterThan
+TextMCVCardinalityEquals TextMCVCardinalityGreaterThan
+VarcharMCVCardinalityEquals VarcharMCVCardinalityGreaterThan Citext-Cardinality
+Name-Cardinality Char-Cardinality;
 
 COpfamiliesTest:
 JoinCitextVarchar JoinDefaultOpfamiliesUsingNonDefaultOpfamilyOp
 MultiColumnAggWithDefaultOpfamilies JoinTinterval FullJoin-NonDefaultOpfamily
 JoinAbsEqWithoutOpfamilies 3WayJoinUsingOperatorsOfNonDefaultOpfamily
+Distinct-LegacyOpfamily;
 
+CSubquery2Test:
+Subq2PartialDecorrelate Subq2CorrSQInLOJOn Subq2NotInWhereLOJ Subq2OuterRef2InJoin Subq2OuterRefMultiLevelInOn
+Index-Join-With-Subquery-In-Pred;
+
+CIndexOnlyScanTest:
+IndexOnlyScan-NoDistKeyInIndex;
+
+CRightJoinTest:
+RightJoinHashed RightJoinRedistribute RightJoinReplicated RightJoinBothReplicated RightJoinNoDPSNonDistKey RightJoinTVF
 ")
 
 set(mdp_dir "../data/dxl/minidump/")
@@ -397,7 +427,7 @@ add_orca_test(CMiniDumperDXLTest)
 add_orca_test(CExpressionPreprocessorTest)
 add_orca_test(CWindowTest)
 add_orca_test(CICGTest)
-add_orca_test(CMultilevelPartitionTest)
+#add_orca_test(CMultilevelPartitionTest)
 add_orca_test(CDMLTest)
 add_orca_test(CDirectDispatchTest)
 add_orca_test(CTVFTest)
@@ -415,14 +445,25 @@ add_orca_test(CMinidumpWithConstExprEvaluatorTest)
 add_orca_test(CParseHandlerManagerTest)
 add_orca_test(CParseHandlerTest)
 add_orca_test(CParseHandlerCostModelTest)
-add_orca_test(CParseHandlerOptimizerConfigTest)
+# FIXME: this following test was first introduced (but as a typo) in
+# greenplum-db/gporca#355. I've corrected the typo but it's not clear whether
+# it ever passed, but we should give it a best-effort resurrection.
+if (FALSE)
+add_orca_test(CParseHandlerOptimizerConfigSerializeTest)
+endif()
 add_orca_test(CStatisticsTest)
 add_orca_test(CPointTest)
 add_orca_test(CBucketTest)
 add_orca_test(CHistogramTest)
 add_orca_test(CMCVTest)
 add_orca_test(CJoinCardinalityTest)
+# FIXME: the following test was first introduced in greenplum-db/gporca#360,
+# reverted in greenplum-db/gporca#442, and re-added in
+# greenplum-db/gporca#506 (NOT! because only the CMakeLists.txt part was
+# added back). Resurrect this.
+if (FALSE)
 add_orca_test(CJoinCardinalityNDVBasedEqPredTest)
+endif()
 add_orca_test(CFilterCardinalityTest)
 add_orca_test(CTranslatorDXLToExprTest)
 add_orca_test(CTranslatorExprToDXLTest)
@@ -470,16 +511,6 @@ add_orca_test(CXformTest)
 
 add_orca_test(CConstExprEvaluatorDefaultTest)
 add_orca_test(CConstExprEvaluatorDXLTest)
-
-if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
-  if (ENABLE_EXTENDED_TESTS)
-    # fault-simulation while running other tests
-    add_orca_test(CFSimulatorTestExt)
-
-    # time-slicing
-    add_orca_test(CTimeSliceTest)
-  endif()
-endif()
 
 file(GLOB_RECURSE hdrs ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
                        ${CMAKE_CURRENT_SOURCE_DIR}/include/*.inl

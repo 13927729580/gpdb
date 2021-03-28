@@ -5,12 +5,6 @@
 -- m/ERROR:.*server closed the connection unexpectedly/
 -- s/ERROR:.*server closed the connection unexpectedly/ERROR: server closed the connection unexpectedly/gm
 -- end_matchsubs
-include: helpers/server_helpers.sql;
-CREATE
-
-create or replace function wait_for_replication_replay (retries int) returns bool as $$ declare i int; /* in func */ result bool; /* in func */ begin /* in func */ i := 0; /* in func */ -- Wait until the mirror (content 0) has replayed up to flush location loop /* in func */ SELECT flush_location = replay_location INTO result from gp_stat_replication where gp_segment_id = 0; /* in func */ if result then /* in func */ return true; /* in func */ end if; /* in func */ 
-if i >= retries then /* in func */ return false; /* in func */ end if; /* in func */ perform pg_sleep(0.1); /* in func */ i := i + 1; /* in func */ end loop; /* in func */ end; /* in func */ $$ language plpgsql;
-CREATE
 
 3:SELECT role, preferred_role, content, mode, status FROM gp_segment_configuration;
  role | preferred_role | content | mode | status 
@@ -29,12 +23,12 @@ CREATE
 --
 -- Setup tables to test crash at different points
 -- for crash_before_cleanup_phase
-3:set gp_default_storage_options="appendonly=true,orientation=column";
+3:set default_table_access_method = ao_column;
 SET
-3:show gp_default_storage_options;
- gp_default_storage_options                                                         
-------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column 
+3:show default_table_access_method;
+ default_table_access_method 
+-----------------------------
+ ao_column                   
 (1 row)
 3:DROP TABLE IF EXISTS crash_before_cleanup_phase CASCADE;
 DROP
@@ -135,12 +129,12 @@ ERROR:  Error on receive from seg0 127.0.0.1:7002 pid=18463: server closed the c
  1     | 2          | 257            | 1        | 2        | 2     
  1     | 2          | 257            | 4        | 1        | 1     
  1     | 2          | 257            | 5        | 2        | 2     
- 2     | 0          | 2              | 0        | 1        | 1     
- 2     | 0          | 2              | 3        | 1        | 1     
- 2     | 1          | 130            | 0        | 1        | 1     
- 2     | 1          | 130            | 3        | 1        | 1     
- 2     | 2          | 258            | 0        | 1        | 1     
- 2     | 2          | 258            | 3        | 1        | 1     
+ 2     | 0          | 2              | 0        | 0        | 1     
+ 2     | 0          | 2              | 3        | 0        | 1     
+ 2     | 1          | 130            | 0        | 0        | 1     
+ 2     | 1          | 130            | 3        | 0        | 1     
+ 2     | 2          | 258            | 0        | 0        | 1     
+ 2     | 2          | 258            | 3        | 0        | 1     
 (15 rows)
 1:INSERT INTO crash_before_cleanup_phase VALUES(1, 1, 'c'), (25, 6, 'c');
 INSERT 2
@@ -171,12 +165,12 @@ UPDATE 1
  1     | 2          | 257            | 1        | 2        | 2     
  1     | 2          | 257            | 5        | 2        | 2     
  1     | 2          | 257            | 6        | 3        | 1     
- 2     | 0          | 2              | 1        | 2        | 1     
- 2     | 0          | 2              | 3        | 1        | 1     
- 2     | 1          | 130            | 1        | 2        | 1     
- 2     | 1          | 130            | 3        | 1        | 1     
- 2     | 2          | 258            | 1        | 2        | 1     
- 2     | 2          | 258            | 3        | 1        | 1     
+ 2     | 0          | 2              | 1        | 1        | 1     
+ 2     | 0          | 2              | 3        | 0        | 1     
+ 2     | 1          | 130            | 1        | 1        | 1     
+ 2     | 1          | 130            | 3        | 0        | 1     
+ 2     | 2          | 258            | 1        | 1        | 1     
+ 2     | 2          | 258            | 3        | 0        | 1     
 (15 rows)
 -- This VACUUM removes the previous drop pending state for segment file 1 which
 -- will make it available for future inserts.
@@ -194,15 +188,15 @@ VACUUM
  1     | 2          | 257            | 0        | 2        | 1     
  1     | 2          | 257            | 0        | 2        | 1     
  1     | 2          | 257            | 0        | 3        | 1     
- 2     | 0          | 2              | 1        | 2        | 1     
- 2     | 0          | 2              | 3        | 1        | 1     
- 2     | 0          | 2              | 5        | 1        | 1     
- 2     | 1          | 130            | 1        | 2        | 1     
- 2     | 1          | 130            | 3        | 1        | 1     
- 2     | 1          | 130            | 5        | 1        | 1     
- 2     | 2          | 258            | 1        | 2        | 1     
- 2     | 2          | 258            | 3        | 1        | 1     
- 2     | 2          | 258            | 5        | 1        | 1     
+ 2     | 0          | 2              | 1        | 1        | 1     
+ 2     | 0          | 2              | 3        | 0        | 1     
+ 2     | 0          | 2              | 5        | 0        | 1     
+ 2     | 1          | 130            | 1        | 1        | 1     
+ 2     | 1          | 130            | 3        | 0        | 1     
+ 2     | 1          | 130            | 5        | 0        | 1     
+ 2     | 2          | 258            | 1        | 1        | 1     
+ 2     | 2          | 258            | 3        | 0        | 1     
+ 2     | 2          | 258            | 5        | 0        | 1     
 (18 rows)
 1:INSERT INTO crash_before_cleanup_phase VALUES(21, 1, 'c'), (26, 1, 'c');
 INSERT 2
@@ -224,7 +218,8 @@ UPDATE 1
  26 | 11 | c                    
 (11 rows)
 -- crash_vacuum_in_appendonly_insert
-1:SELECT segno,column_num,physical_segno,tupcount,modcount,state FROM gp_toolkit.__gp_aocsseg('crash_vacuum_in_appendonly_insert');
+-- verify the old segment files are still visible after the vacuum is aborted.
+1:SELECT segno,column_num,physical_segno,tupcount,modcount,state FROM gp_toolkit.__gp_aocsseg('crash_vacuum_in_appendonly_insert') where segno = 1;
  segno | column_num | physical_segno | tupcount | modcount | state 
 -------+------------+----------------+----------+----------+-------
  1     | 0          | 1              | 10       | 2        | 1     
@@ -236,13 +231,13 @@ UPDATE 1
  1     | 2          | 257            | 10       | 2        | 1     
  1     | 2          | 257            | 2        | 2        | 1     
  1     | 2          | 257            | 8        | 2        | 1     
- 2     | 0          | 2              | 0        | 0        | 1     
- 2     | 0          | 2              | 0        | 0        | 1     
- 2     | 1          | 130            | 0        | 0        | 1     
- 2     | 1          | 130            | 0        | 0        | 1     
- 2     | 2          | 258            | 0        | 0        | 1     
- 2     | 2          | 258            | 0        | 0        | 1     
-(15 rows)
+(9 rows)
+-- verify the new segment files contain no tuples.
+1:SELECT sum(tupcount) FROM gp_toolkit.__gp_aocsseg('crash_vacuum_in_appendonly_insert') where segno = 2;
+ sum 
+-----
+ 0   
+(1 row)
 1:VACUUM crash_vacuum_in_appendonly_insert;
 VACUUM
 1:SELECT segno,column_num,physical_segno,tupcount,modcount,state FROM gp_toolkit.__gp_aocsseg('crash_vacuum_in_appendonly_insert');
@@ -257,15 +252,15 @@ VACUUM
  1     | 2          | 257            | 0        | 2        | 1     
  1     | 2          | 257            | 0        | 2        | 1     
  1     | 2          | 257            | 0        | 2        | 1     
- 2     | 0          | 2              | 1        | 1        | 1     
- 2     | 0          | 2              | 4        | 1        | 1     
- 2     | 0          | 2              | 5        | 1        | 1     
- 2     | 1          | 130            | 1        | 1        | 1     
- 2     | 1          | 130            | 4        | 1        | 1     
- 2     | 1          | 130            | 5        | 1        | 1     
- 2     | 2          | 258            | 1        | 1        | 1     
- 2     | 2          | 258            | 4        | 1        | 1     
- 2     | 2          | 258            | 5        | 1        | 1     
+ 2     | 0          | 2              | 1        | 0        | 1     
+ 2     | 0          | 2              | 4        | 0        | 1     
+ 2     | 0          | 2              | 5        | 0        | 1     
+ 2     | 1          | 130            | 1        | 0        | 1     
+ 2     | 1          | 130            | 4        | 0        | 1     
+ 2     | 1          | 130            | 5        | 0        | 1     
+ 2     | 2          | 258            | 1        | 0        | 1     
+ 2     | 2          | 258            | 4        | 0        | 1     
+ 2     | 2          | 258            | 5        | 0        | 1     
 (18 rows)
 1:INSERT INTO crash_vacuum_in_appendonly_insert VALUES(21, 1, 'c'), (26, 1, 'c');
 INSERT 2
@@ -292,12 +287,12 @@ UPDATE 1
 -- Setup tables to test crash at different points on master now
 --
 -- for crash_master_before_cleanup_phase
-2:set gp_default_storage_options="appendonly=true,orientation=column";
+2:set default_table_access_method = ao_column;
 SET
-2:show gp_default_storage_options;
- gp_default_storage_options                                                         
-------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column 
+2:show default_table_access_method;
+ default_table_access_method 
+-----------------------------
+ ao_column                   
 (1 row)
 2:DROP TABLE IF EXISTS crash_master_before_cleanup_phase CASCADE;
 DROP
@@ -343,12 +338,12 @@ server closed the connection unexpectedly
  1     | 2          | 257            | 1        | 2        | 2     
  1     | 2          | 257            | 4        | 1        | 1     
  1     | 2          | 257            | 5        | 2        | 2     
- 2     | 0          | 2              | 0        | 1        | 1     
- 2     | 0          | 2              | 3        | 1        | 1     
- 2     | 1          | 130            | 0        | 1        | 1     
- 2     | 1          | 130            | 3        | 1        | 1     
- 2     | 2          | 258            | 0        | 1        | 1     
- 2     | 2          | 258            | 3        | 1        | 1     
+ 2     | 0          | 2              | 0        | 0        | 1     
+ 2     | 0          | 2              | 3        | 0        | 1     
+ 2     | 1          | 130            | 0        | 0        | 1     
+ 2     | 1          | 130            | 3        | 0        | 1     
+ 2     | 2          | 258            | 0        | 0        | 1     
+ 2     | 2          | 258            | 3        | 0        | 1     
 (15 rows)
 4:INSERT INTO crash_master_before_cleanup_phase VALUES(1, 1, 'c'), (25, 6, 'c');
 INSERT 2
@@ -379,12 +374,12 @@ UPDATE 1
  1     | 2          | 257            | 1        | 2        | 2     
  1     | 2          | 257            | 5        | 2        | 2     
  1     | 2          | 257            | 6        | 3        | 1     
- 2     | 0          | 2              | 1        | 2        | 1     
- 2     | 0          | 2              | 3        | 1        | 1     
- 2     | 1          | 130            | 1        | 2        | 1     
- 2     | 1          | 130            | 3        | 1        | 1     
- 2     | 2          | 258            | 1        | 2        | 1     
- 2     | 2          | 258            | 3        | 1        | 1     
+ 2     | 0          | 2              | 1        | 1        | 1     
+ 2     | 0          | 2              | 3        | 0        | 1     
+ 2     | 1          | 130            | 1        | 1        | 1     
+ 2     | 1          | 130            | 3        | 0        | 1     
+ 2     | 2          | 258            | 1        | 1        | 1     
+ 2     | 2          | 258            | 3        | 0        | 1     
 (15 rows)
 4:VACUUM crash_master_before_cleanup_phase;
 VACUUM
@@ -400,15 +395,15 @@ VACUUM
  1     | 2          | 257            | 0        | 2        | 1     
  1     | 2          | 257            | 0        | 2        | 1     
  1     | 2          | 257            | 0        | 3        | 1     
- 2     | 0          | 2              | 1        | 2        | 1     
- 2     | 0          | 2              | 3        | 1        | 1     
- 2     | 0          | 2              | 5        | 1        | 1     
- 2     | 1          | 130            | 1        | 2        | 1     
- 2     | 1          | 130            | 3        | 1        | 1     
- 2     | 1          | 130            | 5        | 1        | 1     
- 2     | 2          | 258            | 1        | 2        | 1     
- 2     | 2          | 258            | 3        | 1        | 1     
- 2     | 2          | 258            | 5        | 1        | 1     
+ 2     | 0          | 2              | 1        | 1        | 1     
+ 2     | 0          | 2              | 3        | 0        | 1     
+ 2     | 0          | 2              | 5        | 0        | 1     
+ 2     | 1          | 130            | 1        | 1        | 1     
+ 2     | 1          | 130            | 3        | 0        | 1     
+ 2     | 1          | 130            | 5        | 0        | 1     
+ 2     | 2          | 258            | 1        | 1        | 1     
+ 2     | 2          | 258            | 3        | 0        | 1     
+ 2     | 2          | 258            | 5        | 0        | 1     
 (18 rows)
 4:INSERT INTO crash_master_before_cleanup_phase VALUES(21, 1, 'c'), (26, 1, 'c');
 INSERT 2
@@ -448,7 +443,7 @@ UPDATE 1
 -------------------------------
  Success:                      
 (1 row)
-4:SET gp_default_storage_options="appendonly=true,orientation=column";
+4:SET default_table_access_method = ao_column;
 SET
 4:CREATE TABLE crash_vacuum_in_appendonly_insert_1 (a INT, b INT, c CHAR(20));
 CREATE
@@ -509,7 +504,7 @@ VACUUM
 -- Make sure mirror is able to successfully replay all the truncate
 -- records generated and doesn't encounter the "WAL contains
 -- references to invalid pages" PANIC.
-6:SELECT * from wait_for_replication_replay(5000);
+6:SELECT * from wait_for_replication_replay(0, 5000);
  wait_for_replication_replay 
 -----------------------------
  t                           

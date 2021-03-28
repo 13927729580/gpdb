@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal, Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CScalarAssertConstraint.cpp
@@ -9,10 +9,12 @@
 //		Implementation of scalar assert constraint
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CScalarAssertConstraint.h"
+
 #include "gpos/base.h"
 
+#include "gpopt/base/COptCtxt.h"
 #include "naucrates/md/IMDTypeBool.h"
-#include "gpopt/operators/CScalarAssertConstraint.h"
 
 using namespace gpopt;
 using namespace gpmd;
@@ -25,16 +27,11 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CScalarAssertConstraint::CScalarAssertConstraint
-	(
-	CMemoryPool *mp,
-	CWStringBase *pstrErrorMsg
-	)
-	:
-	CScalar(mp),
-	m_pstrErrorMsg(pstrErrorMsg)
+CScalarAssertConstraint::CScalarAssertConstraint(CMemoryPool *mp,
+												 CWStringBase *pstrErrorMsg)
+	: CScalar(mp), m_pstrErrorMsg(pstrErrorMsg)
 {
-	GPOS_ASSERT(NULL != pstrErrorMsg);
+	GPOS_ASSERT(nullptr != pstrErrorMsg);
 }
 
 //---------------------------------------------------------------------------
@@ -60,18 +57,15 @@ CScalarAssertConstraint::~CScalarAssertConstraint()
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarAssertConstraint::Matches
-	(
-	COperator *pop
-	)
-	const
+CScalarAssertConstraint::Matches(COperator *pop) const
 {
 	if (pop->Eopid() != Eopid())
 	{
 		return false;
 	}
-	
-	return m_pstrErrorMsg->Equals(CScalarAssertConstraint::PopConvert(pop)->PstrErrorMsg());
+
+	return m_pstrErrorMsg->Equals(
+		CScalarAssertConstraint::PopConvert(pop)->PstrErrorMsg());
 }
 
 //---------------------------------------------------------------------------
@@ -83,16 +77,12 @@ CScalarAssertConstraint::Matches
 //
 //---------------------------------------------------------------------------
 IOstream &
-CScalarAssertConstraint::OsPrint
-	(
-	IOstream &os
-	)
-	const
+CScalarAssertConstraint::OsPrint(IOstream &os) const
 {
 	os << SzId() << " (ErrorMsg: ";
 	os << PstrErrorMsg()->GetBuffer();
 	os << ")";
-	
+
 	return os;
 }
 
@@ -113,4 +103,3 @@ CScalarAssertConstraint::MdidType() const
 
 
 // EOF
-

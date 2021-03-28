@@ -9,11 +9,12 @@
 //		Implementation of Sequence Project to Apply transform
 //---------------------------------------------------------------------------
 
+#include "gpopt/xforms/CXformSequenceProject2Apply.h"
+
 #include "gpos/base.h"
 
 #include "gpopt/operators/CLogicalSequenceProject.h"
 #include "gpopt/operators/CPatternLeaf.h"
-#include "gpopt/xforms/CXformSequenceProject2Apply.h"
 
 using namespace gpopt;
 
@@ -26,23 +27,16 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformSequenceProject2Apply::CXformSequenceProject2Apply
-	(
-	CMemoryPool *mp
-	)
-	:
-	// pattern
-	CXformSubqueryUnnest
-		(
-		GPOS_NEW(mp) CExpression
-				(
-				mp,
-				GPOS_NEW(mp) CLogicalSequenceProject(mp),
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp)),	// relational child
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))	// project list
-				)
-		)
-{}
+CXformSequenceProject2Apply::CXformSequenceProject2Apply(CMemoryPool *mp)
+	:  // pattern
+	  CXformSubqueryUnnest(GPOS_NEW(mp) CExpression(
+		  mp, GPOS_NEW(mp) CLogicalSequenceProject(mp),
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CPatternLeaf(mp)),  // relational child
+		  GPOS_NEW(mp)
+			  CExpression(mp, GPOS_NEW(mp) CPatternTree(mp))  // project list
+		  ))
+{
+}
 
 // EOF
-

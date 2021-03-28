@@ -9,10 +9,11 @@
 //		Task implementation
 //---------------------------------------------------------------------------
 
+#include "gpos/task/CTask.h"
+
 #include "gpos/error/CErrorContext.h"
 #include "gpos/error/CErrorHandlerStandard.h"
 #include "gpos/task/CAutoSuspendAbort.h"
-#include "gpos/task/CTask.h"
 #include "gpos/task/CWorker.h"
 
 using namespace gpos;
@@ -30,32 +31,26 @@ const CTaskId CTaskId::m_invalid_tid;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CTask::CTask
-	(
-	CMemoryPool *mp,
-	CTaskContext *task_ctxt,
-	IErrorContext *err_ctxt,
-	BOOL *cancel
-	)
-	:
-	m_mp(mp),
-	m_task_ctxt(task_ctxt),
-	m_err_ctxt(err_ctxt),
-	m_err_handle(NULL),
-	m_func(NULL),
-	m_arg(NULL),
-	m_res(NULL),
-	m_status(EtsInit),
-	m_cancel(cancel),
-	m_cancel_local(false),
-	m_abort_suspend_count(false),
-	m_reported(false)
+CTask::CTask(CMemoryPool *mp, CTaskContext *task_ctxt, IErrorContext *err_ctxt,
+			 BOOL *cancel)
+	: m_mp(mp),
+	  m_task_ctxt(task_ctxt),
+	  m_err_ctxt(err_ctxt),
+	  m_err_handle(nullptr),
+	  m_func(nullptr),
+	  m_arg(nullptr),
+	  m_res(nullptr),
+	  m_status(EtsInit),
+	  m_cancel(cancel),
+	  m_cancel_local(false),
+	  m_abort_suspend_count(false),
+	  m_reported(false)
 {
-	GPOS_ASSERT(NULL != mp);
-	GPOS_ASSERT(NULL != task_ctxt);
-	GPOS_ASSERT(NULL != err_ctxt);
+	GPOS_ASSERT(nullptr != mp);
+	GPOS_ASSERT(nullptr != task_ctxt);
+	GPOS_ASSERT(nullptr != err_ctxt);
 
-	if (NULL == cancel)
+	if (nullptr == cancel)
 	{
 		m_cancel = &m_cancel_local;
 	}
@@ -92,15 +87,11 @@ CTask::~CTask()
 //		Bind task to function and arguments
 //
 //---------------------------------------------------------------------------
-void 
-CTask::Bind
-	(
-	void *(*func)(void*),
-	void *arg
-	)
+void
+CTask::Bind(void *(*func)(void *), void *arg)
 {
-	GPOS_ASSERT(NULL != func);
-	
+	GPOS_ASSERT(nullptr != func);
+
 	m_func = func;
 	m_arg = arg;
 }
@@ -114,7 +105,7 @@ CTask::Bind
 //		Execution of task function; wrapped in asserts to prevent leaks
 //
 //---------------------------------------------------------------------------
-void 
+void
 CTask::Execute()
 {
 	GPOS_ASSERT(EtsDequeued == m_status);
@@ -141,7 +132,7 @@ CTask::Execute()
 #ifdef GPOS_DEBUG
 			// check interval since last CFA
 			GPOS_CHECK_ABORT;
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 			// task completed
 			ets = EtsCompleted;
@@ -153,7 +144,7 @@ CTask::Execute()
 		}
 		GPOS_CATCH_END;
 	}
-	
+
 	// signal end of task execution
 	SetStatus(ets);
 }
@@ -256,7 +247,7 @@ CTask::ResumeAbort()
 #ifdef GPOS_DEBUG
 	CWorker *worker = CWorker::Self();
 
-	GPOS_ASSERT(NULL != worker);
+	GPOS_ASSERT(nullptr != worker);
 #endif
 }
 
@@ -273,10 +264,7 @@ CTask::ResumeAbort()
 //
 //---------------------------------------------------------------------------
 BOOL
-CTask::CheckStatus
-	(
-	BOOL completed
-	)
+CTask::CheckStatus(BOOL completed)
 {
 	GPOS_ASSERT(!IsCanceled());
 	if (completed)
@@ -291,7 +279,6 @@ CTask::CheckStatus
 	}
 }
 
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 // EOF
-

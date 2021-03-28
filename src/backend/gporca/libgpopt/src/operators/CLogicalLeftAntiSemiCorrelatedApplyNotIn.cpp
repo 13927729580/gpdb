@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CLogicalLeftAntiSemiCorrelatedApplyNotIn.cpp
@@ -9,9 +9,9 @@
 //		Implementation of left anti semi correlated apply with NOT-IN/ANY semantics
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalLeftAntiSemiCorrelatedApplyNotIn.h"
+
+#include "gpos/base.h"
 
 using namespace gpopt;
 
@@ -24,14 +24,11 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CXformSet *
-CLogicalLeftAntiSemiCorrelatedApplyNotIn::PxfsCandidates
-	(
-	CMemoryPool *mp
-	)
-	const
+CLogicalLeftAntiSemiCorrelatedApplyNotIn::PxfsCandidates(CMemoryPool *mp) const
 {
 	CXformSet *xform_set = GPOS_NEW(mp) CXformSet(mp);
-	(void) xform_set->ExchangeSet(CXform::ExfImplementLeftAntiSemiCorrelatedApplyNotIn);
+	(void) xform_set->ExchangeSet(
+		CXform::ExfImplementLeftAntiSemiCorrelatedApplyNotIn);
 
 	return xform_set;
 }
@@ -45,18 +42,15 @@ CLogicalLeftAntiSemiCorrelatedApplyNotIn::PxfsCandidates
 //
 //---------------------------------------------------------------------------
 COperator *
-CLogicalLeftAntiSemiCorrelatedApplyNotIn::PopCopyWithRemappedColumns
-	(
-	CMemoryPool *mp,
-	UlongToColRefMap *colref_mapping,
-	BOOL must_exist
-	)
+CLogicalLeftAntiSemiCorrelatedApplyNotIn::PopCopyWithRemappedColumns(
+	CMemoryPool *mp, UlongToColRefMap *colref_mapping, BOOL must_exist)
 {
-	CColRefArray *pdrgpcrInner = CUtils::PdrgpcrRemap(mp, m_pdrgpcrInner, colref_mapping, must_exist);
+	CColRefArray *pdrgpcrInner =
+		CUtils::PdrgpcrRemap(mp, m_pdrgpcrInner, colref_mapping, must_exist);
 
-	return GPOS_NEW(mp) CLogicalLeftAntiSemiCorrelatedApplyNotIn(mp, pdrgpcrInner, m_eopidOriginSubq);
+	return GPOS_NEW(mp) CLogicalLeftAntiSemiCorrelatedApplyNotIn(
+		mp, pdrgpcrInner, m_eopidOriginSubq);
 }
 
 
 // EOF
-

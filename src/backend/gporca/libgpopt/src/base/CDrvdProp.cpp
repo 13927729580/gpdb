@@ -9,26 +9,30 @@
 //		Implementation of derived properties
 //---------------------------------------------------------------------------
 
+#include "gpopt/base/CDrvdProp.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/base/CDrvdProp.h"
 #include "gpopt/operators/COperator.h"
 
 #ifdef GPOS_DEBUG
-#include "gpopt/base/COptCtxt.h"
 #include "gpos/error/CAutoTrace.h"
-#endif // GPOS_DEBUG
 
-namespace gpopt {
+#include "gpopt/base/COptCtxt.h"
+#endif	// GPOS_DEBUG
 
-	CDrvdProp::CDrvdProp()
-	{}
+FORCE_GENERATE_DBGSTR(gpopt::CDrvdProp);
 
-	IOstream &operator << (IOstream &os, const CDrvdProp &drvdprop)
-	{
-		return drvdprop.OsPrint(os);
-	}
+namespace gpopt
+{
+CDrvdProp::CDrvdProp() = default;
 
+IOstream &
+operator<<(IOstream &os, const CDrvdProp &drvdprop)
+{
+	return drvdprop.OsPrint(os);
 }
+
+}  // namespace gpopt
 
 // EOF

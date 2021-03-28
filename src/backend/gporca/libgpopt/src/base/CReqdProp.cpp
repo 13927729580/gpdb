@@ -9,17 +9,21 @@
 //		Implementation of required properties
 //---------------------------------------------------------------------------
 
+#include "gpopt/base/CReqdProp.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/base/CReqdProp.h"
 #include "gpopt/operators/COperator.h"
 
 #ifdef GPOS_DEBUG
 #include "gpos/error/CAutoTrace.h"
+
 #include "gpopt/base/COptCtxt.h"
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 using namespace gpopt;
+
+FORCE_GENERATE_DBGSTR(CReqdProp);
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -29,8 +33,7 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CReqdProp::CReqdProp()
-{}
+CReqdProp::CReqdProp() = default;
 
 
 //---------------------------------------------------------------------------
@@ -41,8 +44,7 @@ CReqdProp::CReqdProp()
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CReqdProp::~CReqdProp()
-{}
+CReqdProp::~CReqdProp() = default;
 
 
 // EOF

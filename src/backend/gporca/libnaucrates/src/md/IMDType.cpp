@@ -9,11 +9,12 @@
 //		Implementation
 //---------------------------------------------------------------------------
 
+#include "naucrates/md/IMDType.h"
+
 #include "gpos/string/CWStringConst.h"
 
 #include "naucrates/base/IDatum.h"
 #include "naucrates/dxl/xml/dxltokens.h"
-#include "naucrates/md/IMDType.h"
 #include "naucrates/statistics/CStatistics.h"
 
 using namespace gpdxl;
@@ -28,15 +29,14 @@ using namespace gpmd;
 //
 //---------------------------------------------------------------------------
 const CWStringConst *
-IMDType::GetCmpTypeStr
-	(
-	IMDType::ECmpType cmp_type
-	)
+IMDType::GetCmpTypeStr(IMDType::ECmpType cmp_type)
 {
 	GPOS_ASSERT(IMDType::EcmptOther >= cmp_type);
-	
-	Edxltoken dxl_token_array[] = {EdxltokenCmpEq, EdxltokenCmpNeq, EdxltokenCmpLt, EdxltokenCmpLeq, EdxltokenCmpGt, EdxltokenCmpGeq, EdxltokenCmpIDF, EdxltokenCmpOther};
-	
+
+	Edxltoken dxl_token_array[] = {
+		EdxltokenCmpEq, EdxltokenCmpNeq, EdxltokenCmpLt,  EdxltokenCmpLeq,
+		EdxltokenCmpGt, EdxltokenCmpGeq, EdxltokenCmpIDF, EdxltokenCmpOther};
+
 	GPOS_ASSERT(IMDType::EcmptOther + 1 == GPOS_ARRAY_SIZE(dxl_token_array));
 	return CDXLTokens::GetDXLTokenStr(dxl_token_array[cmp_type]);
 }
@@ -52,14 +52,11 @@ IMDType::GetCmpTypeStr
 //
 //---------------------------------------------------------------------------
 BOOL
-IMDType::StatsAreComparable
-	(
-	const IMDType *mdtype_first,
-	const IMDType *mdtype_second
-	)
+IMDType::StatsAreComparable(const IMDType *mdtype_first,
+							const IMDType *mdtype_second)
 {
-	GPOS_ASSERT(NULL != mdtype_first);
-	GPOS_ASSERT(NULL != mdtype_second);
+	GPOS_ASSERT(nullptr != mdtype_first);
+	GPOS_ASSERT(nullptr != mdtype_second);
 
 	const IDatum *datum_first = mdtype_first->DatumNull();
 	const IDatum *datum_second = mdtype_second->DatumNull();
@@ -78,14 +75,11 @@ IMDType::StatsAreComparable
 //
 //---------------------------------------------------------------------------
 BOOL
-IMDType::StatsAreComparable
-	(
-	const IMDType *mdtype_first,
-	const IDatum *datum_second
-	)
+IMDType::StatsAreComparable(const IMDType *mdtype_first,
+							const IDatum *datum_second)
 {
-	GPOS_ASSERT(NULL != mdtype_first);
-	GPOS_ASSERT(NULL != datum_second);
+	GPOS_ASSERT(nullptr != mdtype_first);
+	GPOS_ASSERT(nullptr != datum_second);
 
 	const IDatum *datum_first = mdtype_first->DatumNull();
 

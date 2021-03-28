@@ -9,9 +9,9 @@
 //		Implementation of inner apply operator
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalInnerApply.h"
+
+#include "gpos/base.h"
 
 using namespace gpopt;
 
@@ -24,14 +24,9 @@ using namespace gpopt;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CLogicalInnerApply::CLogicalInnerApply
-	(
-	CMemoryPool *mp
-	)
-	:
-	CLogicalApply(mp)
+CLogicalInnerApply::CLogicalInnerApply(CMemoryPool *mp) : CLogicalApply(mp)
 {
-	GPOS_ASSERT(NULL != mp);
+	GPOS_ASSERT(nullptr != mp);
 
 	m_fPattern = true;
 }
@@ -45,14 +40,10 @@ CLogicalInnerApply::CLogicalInnerApply
 //		ctor
 //
 //---------------------------------------------------------------------------
-CLogicalInnerApply::CLogicalInnerApply
-	(
-	CMemoryPool *mp,
-	CColRefArray *pdrgpcrInner,
-	EOperatorId eopidOriginSubq
-	)
-	:
-	CLogicalApply(mp, pdrgpcrInner, eopidOriginSubq)
+CLogicalInnerApply::CLogicalInnerApply(CMemoryPool *mp,
+									   CColRefArray *pdrgpcrInner,
+									   EOperatorId eopidOriginSubq)
+	: CLogicalApply(mp, pdrgpcrInner, eopidOriginSubq)
 {
 	GPOS_ASSERT(0 < pdrgpcrInner->Size());
 }
@@ -67,8 +58,7 @@ CLogicalInnerApply::CLogicalInnerApply
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CLogicalInnerApply::~CLogicalInnerApply()
-{}
+CLogicalInnerApply::~CLogicalInnerApply() = default;
 
 
 //---------------------------------------------------------------------------
@@ -80,12 +70,8 @@ CLogicalInnerApply::~CLogicalInnerApply()
 //
 //---------------------------------------------------------------------------
 CMaxCard
-CLogicalInnerApply::DeriveMaxCard
-	(
-	CMemoryPool *, // mp
-	CExpressionHandle &exprhdl
-	)
-	const
+CLogicalInnerApply::DeriveMaxCard(CMemoryPool *,  // mp
+								  CExpressionHandle &exprhdl) const
 {
 	return CLogical::Maxcard(exprhdl, 2 /*ulScalarIndex*/, MaxcardDef(exprhdl));
 }
@@ -99,18 +85,15 @@ CLogicalInnerApply::DeriveMaxCard
 //
 //---------------------------------------------------------------------------
 CXformSet *
-CLogicalInnerApply::PxfsCandidates
-	(
-	CMemoryPool *mp
-	) 
-	const
+CLogicalInnerApply::PxfsCandidates(CMemoryPool *mp) const
 {
 	CXformSet *xform_set = GPOS_NEW(mp) CXformSet(mp);
-	
+
 	(void) xform_set->ExchangeSet(CXform::ExfInnerApply2InnerJoin);
-	(void) xform_set->ExchangeSet(CXform::ExfInnerApply2InnerJoinNoCorrelations);
+	(void) xform_set->ExchangeSet(
+		CXform::ExfInnerApply2InnerJoinNoCorrelations);
 	(void) xform_set->ExchangeSet(CXform::ExfInnerApplyWithOuterKey2InnerJoin);
-	
+
 	return xform_set;
 }
 
@@ -124,17 +107,14 @@ CLogicalInnerApply::PxfsCandidates
 //
 //---------------------------------------------------------------------------
 COperator *
-CLogicalInnerApply::PopCopyWithRemappedColumns
-	(
-	CMemoryPool *mp,
-	UlongToColRefMap *colref_mapping,
-	BOOL must_exist
-	)
+CLogicalInnerApply::PopCopyWithRemappedColumns(CMemoryPool *mp,
+											   UlongToColRefMap *colref_mapping,
+											   BOOL must_exist)
 {
-	CColRefArray *pdrgpcrInner = CUtils::PdrgpcrRemap(mp, m_pdrgpcrInner, colref_mapping, must_exist);
+	CColRefArray *pdrgpcrInner =
+		CUtils::PdrgpcrRemap(mp, m_pdrgpcrInner, colref_mapping, must_exist);
 
 	return GPOS_NEW(mp) CLogicalInnerApply(mp, pdrgpcrInner, m_eopidOriginSubq);
 }
 
 // EOF
-

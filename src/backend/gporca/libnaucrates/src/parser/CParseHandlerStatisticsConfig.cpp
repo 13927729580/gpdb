@@ -10,15 +10,13 @@
 //		configuration
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/parser/CParseHandlerManager.h"
-#include "naucrates/dxl/parser/CParseHandlerFactory.h"
 #include "naucrates/dxl/parser/CParseHandlerStatisticsConfig.h"
 
-#include "naucrates/dxl/operators/CDXLOperatorFactory.h"
-
-#include "naucrates/dxl/xml/dxltokens.h"
-
 #include "gpopt/engine/CStatisticsConfig.h"
+#include "naucrates/dxl/operators/CDXLOperatorFactory.h"
+#include "naucrates/dxl/parser/CParseHandlerFactory.h"
+#include "naucrates/dxl/parser/CParseHandlerManager.h"
+#include "naucrates/dxl/xml/dxltokens.h"
 
 using namespace gpdxl;
 using namespace gpopt;
@@ -33,15 +31,11 @@ XERCES_CPP_NAMESPACE_USE
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CParseHandlerStatisticsConfig::CParseHandlerStatisticsConfig
-	(
-	CMemoryPool *mp,
-	CParseHandlerManager *parse_handler_mgr,
-	CParseHandlerBase *parse_handler_root
-	)
-	:
-	CParseHandlerBase(mp, parse_handler_mgr, parse_handler_root),
-	m_stats_conf(NULL)
+CParseHandlerStatisticsConfig::CParseHandlerStatisticsConfig(
+	CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+	CParseHandlerBase *parse_handler_root)
+	: CParseHandlerBase(mp, parse_handler_mgr, parse_handler_root),
+	  m_stats_conf(nullptr)
 {
 }
 
@@ -67,26 +61,43 @@ CParseHandlerStatisticsConfig::~CParseHandlerStatisticsConfig()
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerStatisticsConfig::StartElement
-	(
-	const XMLCh* const , //element_uri,
-	const XMLCh* const element_local_name,
-	const XMLCh* const , //element_qname,
-	const Attributes& attrs
-	)
+CParseHandlerStatisticsConfig::StartElement(
+	const XMLCh *const,	 //element_uri,
+	const XMLCh *const element_local_name,
+	const XMLCh *const,	 //element_qname,
+	const Attributes &attrs)
 {
-	if (0 != XMLString::compareString(CDXLTokens::XmlstrToken(EdxltokenStatisticsConfig), element_local_name))
+	if (0 != XMLString::compareString(
+				 CDXLTokens::XmlstrToken(EdxltokenStatisticsConfig),
+				 element_local_name))
 	{
-		CWStringDynamic *str = CDXLUtils::CreateDynamicStringFromXMLChArray(m_parse_handler_mgr->GetDXLMemoryManager(), element_local_name);
-		GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiDXLUnexpectedTag, str->GetBuffer());
+		CWStringDynamic *str = CDXLUtils::CreateDynamicStringFromXMLChArray(
+			m_parse_handler_mgr->GetDXLMemoryManager(), element_local_name);
+		GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiDXLUnexpectedTag,
+				   str->GetBuffer());
 	}
 
 	// parse statistics configuration options
-	CDouble damping_factor_filter = CDXLOperatorFactory::ExtractConvertAttrValueToDouble(m_parse_handler_mgr->GetDXLMemoryManager(), attrs, EdxltokenDampingFactorFilter, EdxltokenStatisticsConfig);
-	CDouble damping_factor_join = CDXLOperatorFactory::ExtractConvertAttrValueToDouble(m_parse_handler_mgr->GetDXLMemoryManager(), attrs, EdxltokenDampingFactorJoin, EdxltokenStatisticsConfig);
-	CDouble damping_factor_groupby = CDXLOperatorFactory::ExtractConvertAttrValueToDouble(m_parse_handler_mgr->GetDXLMemoryManager(), attrs, EdxltokenDampingFactorGroupBy, EdxltokenStatisticsConfig);
+	CDouble damping_factor_filter =
+		CDXLOperatorFactory::ExtractConvertAttrValueToDouble(
+			m_parse_handler_mgr->GetDXLMemoryManager(), attrs,
+			EdxltokenDampingFactorFilter, EdxltokenStatisticsConfig);
+	CDouble damping_factor_join =
+		CDXLOperatorFactory::ExtractConvertAttrValueToDouble(
+			m_parse_handler_mgr->GetDXLMemoryManager(), attrs,
+			EdxltokenDampingFactorJoin, EdxltokenStatisticsConfig);
+	CDouble damping_factor_groupby =
+		CDXLOperatorFactory::ExtractConvertAttrValueToDouble(
+			m_parse_handler_mgr->GetDXLMemoryManager(), attrs,
+			EdxltokenDampingFactorGroupBy, EdxltokenStatisticsConfig);
+	ULONG max_stats_buckets =
+		CDXLOperatorFactory::ExtractConvertAttrValueToUlong(
+			m_parse_handler_mgr->GetDXLMemoryManager(), attrs,
+			EdxltokenMaxStatsBuckets, EdxltokenStatisticsConfig);
 
-	m_stats_conf = GPOS_NEW(m_mp) CStatisticsConfig(m_mp, damping_factor_filter, damping_factor_join, damping_factor_groupby);
+	m_stats_conf = GPOS_NEW(m_mp)
+		CStatisticsConfig(m_mp, damping_factor_filter, damping_factor_join,
+						  damping_factor_groupby, max_stats_buckets);
 }
 
 //---------------------------------------------------------------------------
@@ -98,20 +109,22 @@ CParseHandlerStatisticsConfig::StartElement
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerStatisticsConfig::EndElement
-	(
-	const XMLCh* const, // element_uri,
-	const XMLCh* const element_local_name,
-	const XMLCh* const // element_qname
-	)
+CParseHandlerStatisticsConfig::EndElement(const XMLCh *const,  // element_uri,
+										  const XMLCh *const element_local_name,
+										  const XMLCh *const  // element_qname
+)
 {
-	if (0 != XMLString::compareString(CDXLTokens::XmlstrToken(EdxltokenStatisticsConfig), element_local_name))
+	if (0 != XMLString::compareString(
+				 CDXLTokens::XmlstrToken(EdxltokenStatisticsConfig),
+				 element_local_name))
 	{
-		CWStringDynamic *str = CDXLUtils::CreateDynamicStringFromXMLChArray(m_parse_handler_mgr->GetDXLMemoryManager(), element_local_name);
-		GPOS_RAISE( gpdxl::ExmaDXL, gpdxl::ExmiDXLUnexpectedTag, str->GetBuffer());
+		CWStringDynamic *str = CDXLUtils::CreateDynamicStringFromXMLChArray(
+			m_parse_handler_mgr->GetDXLMemoryManager(), element_local_name);
+		GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiDXLUnexpectedTag,
+				   str->GetBuffer());
 	}
 
-	GPOS_ASSERT(NULL != m_stats_conf);
+	GPOS_ASSERT(nullptr != m_stats_conf);
 	GPOS_ASSERT(0 == this->Length());
 
 	// deactivate handler

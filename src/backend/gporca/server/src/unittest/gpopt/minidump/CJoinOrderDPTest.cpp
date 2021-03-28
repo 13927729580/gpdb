@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2016 Pivotal Software
+//	Copyright (C) 2016 VMware, Inc. or its affiliates
 //
 //	@filename:
 //		CJoinOrderDPTest.cpp
@@ -9,6 +9,7 @@
 //		Testing guc for disabling dynamic join order algorithm
 //---------------------------------------------------------------------------
 #include "unittest/gpopt/minidump/CJoinOrderDPTest.h"
+
 #include "unittest/gpopt/CTestUtils.h"
 
 
@@ -24,22 +25,14 @@
 gpos::GPOS_RESULT
 CJoinOrderDPTest::EresUnittest()
 {
-
 	ULONG ulTestCounter = 0;
-	const CHAR *rgszFileNames[] =
-	{
-			"../data/dxl/minidump/CJoinOrderDPTest/JoinOrderWithDP.mdp",
-			"../data/dxl/minidump/CJoinOrderDPTest/JoinOrderWithOutDP.mdp",
-			"../data/dxl/minidump/JoinOptimizationLevelQuery3WayHashJoinPartTbl.mdp"
-	};
+	const CHAR *rgszFileNames[] = {
+		"../data/dxl/minidump/CJoinOrderDPTest/JoinOrderWithDP.mdp",
+		"../data/dxl/minidump/CJoinOrderDPTest/JoinOrderWithOutDP.mdp",
+		"../data/dxl/minidump/JoinOptimizationLevelQuery3WayHashJoinPartTbl.mdp"};
 
-	return CTestUtils::EresUnittest_RunTestsWithoutAdditionalTraceFlags
-				(
-					rgszFileNames,
-					&ulTestCounter,
-					GPOS_ARRAY_SIZE(rgszFileNames),
-					true,
-					true
-				);
+	return CTestUtils::EresUnittest_RunTestsWithoutAdditionalTraceFlags(
+		rgszFileNames, &ulTestCounter, GPOS_ARRAY_SIZE(rgszFileNames), true,
+		true);
 }
 // EOF

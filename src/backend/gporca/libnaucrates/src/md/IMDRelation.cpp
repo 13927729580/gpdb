@@ -9,9 +9,10 @@
 //		Implementation
 //---------------------------------------------------------------------------
 
+#include "naucrates/md/IMDRelation.h"
+
 #include "gpos/string/CWStringDynamic.h"
 
-#include "naucrates/md/IMDRelation.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpdxl;
@@ -26,10 +27,7 @@ using namespace gpmd;
 //
 //---------------------------------------------------------------------------
 const CWStringConst *
-IMDRelation::GetDistrPolicyStr
-	(
-	Ereldistrpolicy rel_distr_policy
-	)
+IMDRelation::GetDistrPolicyStr(Ereldistrpolicy rel_distr_policy)
 {
 	switch (rel_distr_policy)
 	{
@@ -42,7 +40,7 @@ IMDRelation::GetDistrPolicyStr
 		case EreldistrReplicated:
 			return CDXLTokens::GetDXLTokenStr(EdxltokenRelDistrReplicated);
 		default:
-			return NULL;
+			return nullptr;
 	}
 }
 
@@ -55,27 +53,27 @@ IMDRelation::GetDistrPolicyStr
 //
 //---------------------------------------------------------------------------
 const CWStringConst *
-IMDRelation::GetStorageTypeStr
-	(
-	IMDRelation::Erelstoragetype rel_storage_type
-	)
+IMDRelation::GetStorageTypeStr(IMDRelation::Erelstoragetype rel_storage_type)
 {
 	switch (rel_storage_type)
 	{
 		case ErelstorageHeap:
 			return CDXLTokens::GetDXLTokenStr(EdxltokenRelStorageHeap);
 		case ErelstorageAppendOnlyCols:
-			return CDXLTokens::GetDXLTokenStr(EdxltokenRelStorageAppendOnlyCols);
+			return CDXLTokens::GetDXLTokenStr(
+				EdxltokenRelStorageAppendOnlyCols);
 		case ErelstorageAppendOnlyRows:
-			return CDXLTokens::GetDXLTokenStr(EdxltokenRelStorageAppendOnlyRows);
+			return CDXLTokens::GetDXLTokenStr(
+				EdxltokenRelStorageAppendOnlyRows);
 		case ErelstorageAppendOnlyParquet:
-			return CDXLTokens::GetDXLTokenStr(EdxltokenRelStorageAppendOnlyParquet);
+			return CDXLTokens::GetDXLTokenStr(
+				EdxltokenRelStorageAppendOnlyParquet);
 		case ErelstorageExternal:
 			return CDXLTokens::GetDXLTokenStr(EdxltokenRelStorageExternal);
 		case ErelstorageVirtual:
 			return CDXLTokens::GetDXLTokenStr(EdxltokenRelStorageVirtual);
 		default:
-			return NULL;
+			return nullptr;
 	}
 }
 
@@ -88,11 +86,7 @@ IMDRelation::GetStorageTypeStr
 //
 //---------------------------------------------------------------------------
 CWStringDynamic *
-IMDRelation::ColumnsToStr
-	(
-	CMemoryPool *mp,
-	ULongPtrArray *colid_array
-	)
+IMDRelation::ColumnsToStr(CMemoryPool *mp, ULongPtrArray *colid_array)
 {
 	CWStringDynamic *str = GPOS_NEW(mp) CWStringDynamic(mp);
 
@@ -107,21 +101,12 @@ IMDRelation::ColumnsToStr
 		}
 		else
 		{
-			str->AppendFormat(GPOS_WSZ_LIT("%d%ls"), id, CDXLTokens::GetDXLTokenStr(EdxltokenComma)->GetBuffer());
+			str->AppendFormat(
+				GPOS_WSZ_LIT("%d%ls"), id,
+				CDXLTokens::GetDXLTokenStr(EdxltokenComma)->GetBuffer());
 		}
 	}
 
 	return str;
 }
-
-// check if index is partial given its mdid
-BOOL
-IMDRelation::IsPartialIndex
-	(
-	IMDId * // mdid
-	) const
-{
-	return false;
-}
-
 // EOF

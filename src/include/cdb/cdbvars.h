@@ -4,7 +4,7 @@
  *	  definitions for Greenplum-specific global variables
  *
  * Portions Copyright (c) 2003-2010, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -20,7 +20,7 @@
 #define CDBVARS_H
 
 #include "access/xlogdefs.h"  /*XLogRecPtr*/
-#include "catalog/gp_segment_config.h" /* MASTER_CONTENT_ID */
+#include "catalog/gp_segment_configuration.h" /* MASTER_CONTENT_ID */
 
 /*
  * ----- Declarations of Greenplum-specific global variables ------
@@ -248,6 +248,9 @@ extern int	gp_fts_probe_retries; /* GUC var - specifies probe number of retries 
 extern int	gp_fts_probe_timeout; /* GUC var - specifies probe timeout for FTS */
 extern int	gp_fts_probe_interval; /* GUC var - specifies polling interval for FTS */
 extern int gp_fts_mark_mirror_down_grace_period;
+extern int	gp_fts_replication_attempt_count; /* GUC var - specifies replication max attempt count for FTS */
+extern int  gp_dtx_recovery_interval;
+extern int  gp_dtx_recovery_prepared_period;
 
 extern int gp_gang_creation_retry_count; /* How many retries ? */
 extern int gp_gang_creation_retry_timer; /* How long between retries */
@@ -279,9 +282,12 @@ typedef enum GpVars_Interconnect_Type
 {
 	INTERCONNECT_TYPE_TCP = 0,
 	INTERCONNECT_TYPE_UDPIFC,
+	INTERCONNECT_TYPE_PROXY,
 } GpVars_Interconnect_Type;
 
 extern int Gp_interconnect_type;
+
+extern char *gp_interconnect_proxy_addresses;
 
 typedef enum GpVars_Interconnect_Method
 {
@@ -555,12 +561,6 @@ extern bool gp_enable_dqa_pruning;
  */
 extern bool gp_enable_preunique;
 
-/* If gp_enable_preunique is true, then  apply the associated optimzation
- * in an "eager" fashion.  In effect, this setting overrides the cost-
- * based decision whether to use a 2-phase approach to duplicate removal.
- */
-extern bool gp_eager_preunique;
-
 /* May Greenplum dump statistics for all segments as a huge ugly string
  * during EXPLAIN ANALYZE?
  *
@@ -585,30 +585,12 @@ extern bool gp_enable_sort_limit;
  *
  * The code does not currently use planner estimates for this.  If enabled,
  * the tactic is used whenever possible.
+ *
+ * GPDB_12_MERGE_FIXME: Resurrect this
  */
 extern bool gp_enable_sort_distinct;
 
-/* Greenplum MK Sort */
-extern bool gp_enable_mk_sort;
-
-#ifdef USE_ASSERT_CHECKING
-extern bool gp_mk_sort_check;
-#endif
-
 extern bool trace_sort;
-
-/* Generic Greenplum sort flag for testing.
- *
- *
- */
-extern int gp_sort_flags;
-
-/* If Greenplum is discarding duplicate rows in sort, switch back to
- * standard sort if the number of distinct values exceeds max_distinct.
- * (If the number of distinct values is too large the behavior of the
- * insertion sort is inferior to the heapsort)
- */
-extern int gp_sort_max_distinct;
 
 /**
  * Enable dynamic pruning of partitions based on join condition.
@@ -639,6 +621,9 @@ extern bool 	gp_statistics_pullup_from_child_partition;
 
 /* Extract numdistinct from foreign key relationship */
 extern bool		gp_statistics_use_fkeys;
+
+/* Allow user to force tow stage agg */
+extern bool     gp_eager_two_phase_agg;
 
 /* Analyze tools */
 extern int gp_motion_slice_noop;
@@ -720,7 +705,12 @@ typedef struct GpId
  * Global variable declaration for the data for the single row of gp_id table
  */
 extern GpId GpIdentity;
-extern int get_dbid_string_length(void);
+
+/*
+ * Maximum length of string representation of 'dbid' (same as max length of an int4)
+ */
+#define MAX_DBID_STRING_LENGTH  11
+
 #define UNINITIALIZED_GP_IDENTITY_VALUE (-10000)
 #define IS_QUERY_DISPATCHER() (GpIdentity.segindex == MASTER_CONTENT_ID)
 

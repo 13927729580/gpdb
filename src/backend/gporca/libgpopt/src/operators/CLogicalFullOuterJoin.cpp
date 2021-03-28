@@ -9,13 +9,13 @@
 //		Implementation of full outer join operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CLogicalFullOuterJoin.h"
+
 #include "gpos/base.h"
 
 #include "gpopt/base/CColRefSet.h"
 #include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CExpressionHandle.h"
-
-#include "gpopt/operators/CLogicalFullOuterJoin.h"
 
 using namespace gpopt;
 
@@ -28,14 +28,9 @@ using namespace gpopt;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CLogicalFullOuterJoin::CLogicalFullOuterJoin
-	(
-	CMemoryPool *mp
-	)
-	:
-	CLogicalJoin(mp)
+CLogicalFullOuterJoin::CLogicalFullOuterJoin(CMemoryPool *mp) : CLogicalJoin(mp)
 {
-	GPOS_ASSERT(NULL != mp);
+	GPOS_ASSERT(nullptr != mp);
 }
 
 
@@ -48,14 +43,9 @@ CLogicalFullOuterJoin::CLogicalFullOuterJoin
 //
 //---------------------------------------------------------------------------
 CMaxCard
-CLogicalFullOuterJoin::DeriveMaxCard
-	(
-	CMemoryPool *, // mp
-	CExpressionHandle &exprhdl
-	)
-	const
+CLogicalFullOuterJoin::DeriveMaxCard(CMemoryPool *,	 // mp
+									 CExpressionHandle &exprhdl) const
 {
-
 	CMaxCard left_child_maxcard = exprhdl.DeriveMaxCard(0);
 	CMaxCard right_child_maxcard = exprhdl.DeriveMaxCard(1);
 
@@ -83,11 +73,7 @@ CLogicalFullOuterJoin::DeriveMaxCard
 //
 //---------------------------------------------------------------------------
 CXformSet *
-CLogicalFullOuterJoin::PxfsCandidates
-	(
-	CMemoryPool *mp
-	)
-	const
+CLogicalFullOuterJoin::PxfsCandidates(CMemoryPool *mp) const
 {
 	CXformSet *xform_set = GPOS_NEW(mp) CXformSet(mp);
 	(void) xform_set->ExchangeSet(CXform::ExfExpandFullOuterJoin);
@@ -96,4 +82,3 @@ CLogicalFullOuterJoin::PxfsCandidates
 }
 
 // EOF
-

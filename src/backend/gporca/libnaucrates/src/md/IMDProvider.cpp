@@ -10,6 +10,7 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/md/IMDProvider.h"
+
 #include "naucrates/md/CMDIdGPDB.h"
 
 using namespace gpmd;
@@ -23,21 +24,18 @@ using namespace gpmd;
 //
 //---------------------------------------------------------------------------
 IMDId *
-IMDProvider::GetGPDBTypeMdid
-	(
-	CMemoryPool *mp,
-	CSystemId
+IMDProvider::GetGPDBTypeMdid(CMemoryPool *mp,
+							 CSystemId
 #ifdef GPOS_DEBUG
-	sysid
-#endif // GPOS_DEBUG
-	,
-	IMDType::ETypeInfo type_info
-	)
+								 sysid
+#endif	// GPOS_DEBUG
+							 ,
+							 IMDType::ETypeInfo type_info)
 {
 	GPOS_ASSERT(IMDId::EmdidGPDB == sysid.MdidType());
 	GPOS_ASSERT(IMDType::EtiGeneric > type_info);
 
-	switch(type_info)
+	switch (type_info)
 	{
 		case IMDType::EtiInt2:
 			return GPOS_NEW(mp) CMDIdGPDB(GPDB_INT2);
@@ -55,7 +53,7 @@ IMDProvider::GetGPDBTypeMdid
 			return GPOS_NEW(mp) CMDIdGPDB(GPDB_OID);
 
 		default:
-			return NULL;
+			return nullptr;
 	}
 }
 

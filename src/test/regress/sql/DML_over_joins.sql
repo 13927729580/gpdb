@@ -23,6 +23,8 @@ create table r (a int4, b int4) distributed by (a);
 create table s (a int4, b int4) distributed by (a);
 insert into r select generate_series(1, 10000), generate_series(1, 10000) * 3;
 insert into s select generate_series(1, 100), generate_series(1, 100) * 4;
+analyze r;
+analyze s;
 update r set b = r.b + 1 from s where r.a = s.a;
 
 update r set b = r.b + 1 from s where r.a in (select a from s);
@@ -358,12 +360,8 @@ update s set b = b + 1 where exists (select 1 from r where s.a = r.b);
 delete from s where exists (select 1 from r where s.a = r.b);
 
 
--- ----------------------------------------------------------------------
--- Test: unsupported_cases1.sql
--- ----------------------------------------------------------------------
-
 ------------------------------------------------------------
--- Update with Motion: unsupported cases
+-- Update with Motion:
 --     	Updating the distribution key
 ------------------------------------------------------------
 
@@ -384,27 +382,23 @@ insert into p select generate_series(1,10000), generate_series(1,10000)*3, gener
 
 update s set a = r.a from r where r.b = s.b;
 
-
 ------------------------------------------------------------
 --	Statement contains correlated subquery
 ------------------------------------------------------------
 update s set b = (select min(a) from r where b = s.b);
-
 delete from s where b = (select min(a) from r where b = s.b);
-
 
 ------------------------------------------------------------
 --	Update partition key (requires moving tuples from one partition to another)
 ------------------------------------------------------------
 update p set c = c + 1 where c = 0;
-
 update p set c = c + 1 where b in (select b from s) and c = 0;
--- ----------------------------------------------------------------------
--- Test: unsupported_cases2.sql
--- ----------------------------------------------------------------------
+
+select tableoid::regclass, c, count(*) from p group by 1, 2;
+
 
 ------------------------------------------------------------
--- Update with Motion: unsupported cases
+-- Update with Motion:
 --     	Updating the distribution key
 ------------------------------------------------------------
 
@@ -425,28 +419,23 @@ insert into p select generate_series(1,10000), generate_series(1,10000)*3, gener
 
 update s set a = r.a from r where r.b = s.b;
 
-
 ------------------------------------------------------------
 --	Statement contains correlated subquery
 ------------------------------------------------------------
 update s set b = (select min(a) from r where b = s.b);
-
 delete from s where b = (select min(a) from r where b = s.b);
-
 
 ------------------------------------------------------------
 --	Update partition key (requires moving tuples from one partition to another)
 ------------------------------------------------------------
-
 update p set c = c + 1 where c = 0;
-
 update p set c = c + 1 where b in (select b from s where b = 36);
--- ----------------------------------------------------------------------
--- Test: unsupported_cases3.sql
--- ----------------------------------------------------------------------
+
+select tableoid::regclass, c, count(*) from p group by 1, 2;
+
 
 ------------------------------------------------------------
--- Update with Motion: unsupported cases
+-- Update with Motion:
 --     	Updating the distribution key
 ------------------------------------------------------------
 
@@ -467,27 +456,23 @@ insert into p select generate_series(1,10000), generate_series(1,10000)*3, gener
 
 update s set a = r.a from r where r.b = s.b;
 
-
 ------------------------------------------------------------
 --	Statement contains correlated subquery
 ------------------------------------------------------------
 update s set b = (select min(a) from r where b = s.b);
-
 delete from s where b = (select min(a) from r where b = s.b);
-
 
 ------------------------------------------------------------
 --	Update partition key (requires moving tuples from one partition to another)
 ------------------------------------------------------------
 update p set c = c + 1 where c = 0;
-
 update p set c = c + 1 where b in (select b from s) and c = 0;
--- ----------------------------------------------------------------------
--- Test: unsupported_cases4.sql
--- ----------------------------------------------------------------------
+
+select tableoid::regclass, c, count(*) from p group by 1, 2;
+
 
 ------------------------------------------------------------
--- Update with Motion: unsupported cases
+-- Update with Motion:
 --     	Updating the distribution key
 ------------------------------------------------------------
 
@@ -508,29 +493,23 @@ insert into p select generate_series(1,10000), generate_series(1,10000)*3, gener
 
 update s set a = r.a from r where r.b = s.b;
 
-
 ------------------------------------------------------------
 --	Statement contains correlated subquery
 ------------------------------------------------------------
 update s set b = (select min(a) from r where b = s.b);
-
 delete from s where b = (select min(a) from r where b = s.b);
-
 
 ------------------------------------------------------------
 --	Update partition key (requires moving tuples from one partition to another)
 ------------------------------------------------------------
 update p set c = c + 1 where c = 0;
-
 update p set c = c + 1 where b in (select b from s) and c = 0;
 
+select tableoid::regclass, c, count(*) from p group by 1, 2;
 
--- ----------------------------------------------------------------------
--- Test: unsupported_cases5.sql
--- ----------------------------------------------------------------------
 
 ------------------------------------------------------------
--- Update with Motion: unsupported cases
+-- Update with Motion:
 --     	Updating the distribution key
 ------------------------------------------------------------
 
@@ -551,21 +530,20 @@ insert into p select generate_series(1,10000), generate_series(1,10000)*3, gener
 
 update s set a = r.a from r where r.b = s.b;
 
-
 ------------------------------------------------------------
 --	Statement contains correlated subquery
 ------------------------------------------------------------
 update s set b = (select min(a) from r where b = s.b);
-
 delete from s where b = (select min(a) from r where b = s.b);
-
 
 ------------------------------------------------------------
 --	Update partition key (requires moving tuples from one partition to another)
 ------------------------------------------------------------
 update p set c = c + 1 where c = 0;
-
 update p set c = c + 1 where b in (select b from s) and c = 0;
+
+select tableoid::regclass, c, count(*) from p group by 1, 2;
+
 
 -- ----------------------------------------------------------------------
 -- Test: partition_motion1.sql
@@ -1106,9 +1084,7 @@ SELECT InsertManyIntoSales(20,'sales_par');
 
 -- update partition key
 select sales_par.* from sales_par where id in (select s.b from s, r where s.a = r.b) and day in (select a from r);
--- start_ignore
 update sales_par set region = 'new_region' where id in (select s.b from s, r where s.a = r.b) and day in (select a from r);
--- end_ignore
 select sales_par.* from sales_par where id in (select s.b from s, r where s.a = r.b) and day in (select a from r);
 
 select sales_par.* from sales_par,s,r where sales_par.id = s.b and sales_par.month = r.b+1;
@@ -1292,6 +1268,7 @@ create table tab3 (a int, b int) distributed by (b);
 insert into tab1 values (1, 1);
 insert into tab2 values (1, 1);
 insert into tab3 values (1, 1);
+analyze tab3;
 
 -- we must not write the WHERE condition as `relname='tab2'`, it matches tables
 -- in all the schemas, which will cause problems in other tests; we should use

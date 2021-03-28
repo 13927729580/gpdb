@@ -9,21 +9,20 @@
 //		Specification of singleton distribution
 //---------------------------------------------------------------------------
 
-#include "naucrates/traceflags/traceflags.h"
-#include "gpopt/base/CDistributionSpecHashed.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
+
+#include "gpopt/base/CDistributionSpecHashed.h"
+#include "gpopt/base/COptCtxt.h"
 #include "gpopt/operators/CPhysicalMotionGather.h"
+#include "naucrates/traceflags/traceflags.h"
 
 
 using namespace gpopt;
 
 
 // initialization of static variables
-const CHAR *CDistributionSpecSingleton::m_szSegmentType[EstSentinel] =
-{
-	"master",
-	"segment"
-};
+const CHAR *CDistributionSpecSingleton::m_szSegmentType[EstSentinel] = {
+	"master", "segment"};
 
 
 //---------------------------------------------------------------------------
@@ -34,12 +33,8 @@ const CHAR *CDistributionSpecSingleton::m_szSegmentType[EstSentinel] =
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CDistributionSpecSingleton::CDistributionSpecSingleton
-	(
-	ESegmentType est
-	)
-	:
-	m_est(est)
+CDistributionSpecSingleton::CDistributionSpecSingleton(ESegmentType est)
+	: m_est(est)
 {
 	GPOS_ASSERT(EstSentinel != est);
 }
@@ -63,17 +58,13 @@ CDistributionSpecSingleton::CDistributionSpecSingleton()
 //
 //---------------------------------------------------------------------------
 BOOL
-CDistributionSpecSingleton::FSatisfies
-	(
-	const CDistributionSpec *pds
-	)
-	const
-{	
+CDistributionSpecSingleton::FSatisfies(const CDistributionSpec *pds) const
+{
 	if (Matches(pds))
 	{
 		// exact match implies satisfaction
 		return true;
-	 }
+	}
 
 	if (EdtNonSingleton == pds->Edt())
 	{
@@ -86,7 +77,7 @@ CDistributionSpecSingleton::FSatisfies
 		// a singleton distribution satisfies "any" distributions
 		return true;
 	}
-	
+
 	if (EdtHashed == pds->Edt() &&
 		CDistributionSpecHashed::PdsConvert(pds)->FSatisfiedBySingleton())
 	{
@@ -94,7 +85,8 @@ CDistributionSpecSingleton::FSatisfies
 		return true;
 	}
 
-	return (EdtSingleton == pds->Edt() && m_est == ((CDistributionSpecSingleton *) pds)->Est());
+	return (EdtSingleton == pds->Edt() &&
+			m_est == ((CDistributionSpecSingleton *) pds)->Est());
 }
 
 
@@ -107,22 +99,20 @@ CDistributionSpecSingleton::FSatisfies
 //
 //---------------------------------------------------------------------------
 void
-CDistributionSpecSingleton::AppendEnforcers
-	(
-	CMemoryPool *mp,
-	CExpressionHandle &, // exprhdl
-	CReqdPropPlan *prpp,
-	CExpressionArray *pdrgpexpr,
-	CExpression *pexpr
-	)
+CDistributionSpecSingleton::AppendEnforcers(CMemoryPool *mp,
+											CExpressionHandle &,  // exprhdl
+											CReqdPropPlan *prpp,
+											CExpressionArray *pdrgpexpr,
+											CExpression *pexpr)
 {
-	GPOS_ASSERT(NULL != mp);
-	GPOS_ASSERT(NULL != prpp);
-	GPOS_ASSERT(NULL != pdrgpexpr);
-	GPOS_ASSERT(NULL != pexpr);
+	GPOS_ASSERT(nullptr != mp);
+	GPOS_ASSERT(nullptr != prpp);
+	GPOS_ASSERT(nullptr != pdrgpexpr);
+	GPOS_ASSERT(nullptr != pexpr);
 	GPOS_ASSERT(!GPOS_FTRACE(EopttraceDisableMotions));
-	GPOS_ASSERT(this == prpp->Ped()->PdsRequired() &&
-	            "required plan properties don't match enforced distribution spec");
+	GPOS_ASSERT(
+		this == prpp->Ped()->PdsRequired() &&
+		"required plan properties don't match enforced distribution spec");
 
 
 	if (GPOS_FTRACE(EopttraceDisableMotionGather))
@@ -132,27 +122,19 @@ CDistributionSpecSingleton::AppendEnforcers
 	}
 
 	pexpr->AddRef();
-	CExpression *pexprMotion = GPOS_NEW(mp) CExpression
-										(
-										mp,
-										GPOS_NEW(mp) CPhysicalMotionGather(mp, m_est),
-										pexpr
-										);
+	CExpression *pexprMotion = GPOS_NEW(mp)
+		CExpression(mp, GPOS_NEW(mp) CPhysicalMotionGather(mp, m_est), pexpr);
 	pdrgpexpr->Append(pexprMotion);
 
 	if (!prpp->Peo()->PosRequired()->IsEmpty() &&
-	    CDistributionSpecSingleton::EstMaster == m_est)
+		CDistributionSpecSingleton::EstMaster == m_est)
 	{
 		COrderSpec *pos = prpp->Peo()->PosRequired();
 		pos->AddRef();
 		pexpr->AddRef();
-		
-		CExpression *pexprGatherMerge = GPOS_NEW(mp) CExpression
-													(
-													mp,
-													GPOS_NEW(mp) CPhysicalMotionGather(mp, m_est, pos),
-													pexpr
-													);
+
+		CExpression *pexprGatherMerge = GPOS_NEW(mp) CExpression(
+			mp, GPOS_NEW(mp) CPhysicalMotionGather(mp, m_est, pos), pexpr);
 		pdrgpexpr->Append(pexprGatherMerge);
 	}
 }
@@ -167,15 +149,10 @@ CDistributionSpecSingleton::AppendEnforcers
 //
 //---------------------------------------------------------------------------
 IOstream &
-CDistributionSpecSingleton::OsPrint
-	(
-	IOstream &os
-	)
-	const
+CDistributionSpecSingleton::OsPrint(IOstream &os) const
 {
 	return os << "SINGLETON (" << m_szSegmentType[m_est] << ")";
 }
 
 
 // EOF
-

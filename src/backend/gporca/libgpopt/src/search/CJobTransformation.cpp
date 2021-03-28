@@ -9,12 +9,13 @@
 //		Implementation of group expression transformation job
 //---------------------------------------------------------------------------
 
+#include "gpopt/search/CJobTransformation.h"
+
 #include "gpopt/engine/CEngine.h"
 #include "gpopt/operators/CLogical.h"
 #include "gpopt/search/CGroup.h"
 #include "gpopt/search/CGroupExpression.h"
 #include "gpopt/search/CJobFactory.h"
-#include "gpopt/search/CJobTransformation.h"
 #include "gpopt/search/CScheduler.h"
 #include "gpopt/search/CSchedulerContext.h"
 
@@ -34,34 +35,26 @@ using namespace gpopt;
 // |  estCompleted   |
 // +-----------------+
 //
-const CJobTransformation::EEvent rgeev[CJobTransformation::estSentinel][CJobTransformation::estSentinel] =
-{
-	{ // estInitialized
-		CJobTransformation::eevSentinel,
-		CJobTransformation::eevCompleted
-	},
-	{ // estCompleted
-		CJobTransformation::eevSentinel,
-		CJobTransformation::eevSentinel
-	},
+const CJobTransformation::EEvent
+	rgeev[CJobTransformation::estSentinel][CJobTransformation::estSentinel] = {
+		{// estInitialized
+		 CJobTransformation::eevSentinel, CJobTransformation::eevCompleted},
+		{// estCompleted
+		 CJobTransformation::eevSentinel, CJobTransformation::eevSentinel},
 };
 
 #ifdef GPOS_DEBUG
 
 // names for states
-const WCHAR rgwszStates[CJobTransformation::estSentinel][GPOPT_FSM_NAME_LENGTH] =
-{
-	GPOS_WSZ_LIT("initialized"),
-	GPOS_WSZ_LIT("completed")
-};
+const WCHAR rgwszStates[CJobTransformation::estSentinel]
+					   [GPOPT_FSM_NAME_LENGTH] = {GPOS_WSZ_LIT("initialized"),
+												  GPOS_WSZ_LIT("completed")};
 
 // names for events
-const WCHAR rgwszEvents[CJobTransformation::eevSentinel][GPOPT_FSM_NAME_LENGTH] =
-{
-	GPOS_WSZ_LIT("transforming")
-};
+const WCHAR rgwszEvents[CJobTransformation::eevSentinel]
+					   [GPOPT_FSM_NAME_LENGTH] = {GPOS_WSZ_LIT("transforming")};
 
-#endif //GPOS_DEBUG
+#endif	//GPOS_DEBUG
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -71,8 +64,7 @@ const WCHAR rgwszEvents[CJobTransformation::eevSentinel][GPOPT_FSM_NAME_LENGTH] 
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CJobTransformation::CJobTransformation()
-{}
+CJobTransformation::CJobTransformation() = default;
 
 
 //---------------------------------------------------------------------------
@@ -83,8 +75,7 @@ CJobTransformation::CJobTransformation()
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CJobTransformation::~CJobTransformation()
-{}
+CJobTransformation::~CJobTransformation() = default;
 
 
 //---------------------------------------------------------------------------
@@ -96,28 +87,21 @@ CJobTransformation::~CJobTransformation()
 //
 //---------------------------------------------------------------------------
 void
-CJobTransformation::Init
-	(
-	CGroupExpression *pgexpr,
-	CXform *pxform
-	)
+CJobTransformation::Init(CGroupExpression *pgexpr, CXform *pxform)
 {
 	GPOS_ASSERT(!FInit());
-	GPOS_ASSERT(NULL != pgexpr);
-	GPOS_ASSERT(NULL != pxform);
+	GPOS_ASSERT(nullptr != pgexpr);
+	GPOS_ASSERT(nullptr != pxform);
 
 	m_pgexpr = pgexpr;
 	m_xform = pxform;
 
-	m_jsm.Init
-		(
-		rgeev
+	m_jsm.Init(rgeev
 #ifdef GPOS_DEBUG
-		,
-		rgwszStates,
-		rgwszEvents
-#endif // GPOS_DEBUG
-		);
+			   ,
+			   rgwszStates, rgwszEvents
+#endif	// GPOS_DEBUG
+	);
 
 	// set job actions
 	m_jsm.SetAction(estInitialized, EevtTransform);
@@ -136,11 +120,7 @@ CJobTransformation::Init
 //
 //---------------------------------------------------------------------------
 CJobTransformation::EEvent
-CJobTransformation::EevtTransform
-	(
-	CSchedulerContext *psc,
-	CJob *pjOwner
-	)
+CJobTransformation::EevtTransform(CSchedulerContext *psc, CJob *pjOwner)
 {
 	// get a job pointer
 	CJobTransformation *pjt = PjConvert(pjOwner);
@@ -153,8 +133,10 @@ CJobTransformation::EevtTransform
 	CXformResult *pxfres = GPOS_NEW(pmpGlobal) CXformResult(pmpGlobal);
 	ULONG ulElapsedTime = 0;
 	ULONG ulNumberOfBindings = 0;
-	pgexpr->Transform(pmpGlobal, pmpLocal, pxform, pxfres, &ulElapsedTime, &ulNumberOfBindings);
-	psc->Peng()->InsertXformResult(pgexpr->Pgroup(), pxfres, pxform->Exfid(), pgexpr, ulElapsedTime, ulNumberOfBindings);
+	pgexpr->Transform(pmpGlobal, pmpLocal, pxform, pxfres, &ulElapsedTime,
+					  &ulNumberOfBindings);
+	psc->Peng()->InsertXformResult(pgexpr->Pgroup(), pxfres, pxform->Exfid(),
+								   pgexpr, ulElapsedTime, ulNumberOfBindings);
 	pxfres->Release();
 
 	return eevCompleted;
@@ -170,10 +152,7 @@ CJobTransformation::EevtTransform
 //
 //---------------------------------------------------------------------------
 BOOL
-CJobTransformation::FExecute
-	(
-	CSchedulerContext *psc
-	)
+CJobTransformation::FExecute(CSchedulerContext *psc)
 {
 	GPOS_ASSERT(FInit());
 
@@ -190,13 +169,9 @@ CJobTransformation::FExecute
 //
 //---------------------------------------------------------------------------
 void
-CJobTransformation::ScheduleJob
-	(
-	CSchedulerContext *psc,
-	CGroupExpression *pgexpr,
-	CXform *pxform,
-	CJob *pjParent
-	)
+CJobTransformation::ScheduleJob(CSchedulerContext *psc,
+								CGroupExpression *pgexpr, CXform *pxform,
+								CJob *pjParent)
 {
 	CJob *pj = psc->Pjf()->PjCreate(CJob::EjtTransformation);
 
@@ -217,16 +192,12 @@ CJobTransformation::ScheduleJob
 //
 //---------------------------------------------------------------------------
 IOstream &
-CJobTransformation::OsPrint
-	(
-	IOstream &os
-	)
+CJobTransformation::OsPrint(IOstream &os) const
 {
 	return m_jsm.OsHistory(os);
 }
 
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 
 // EOF
-

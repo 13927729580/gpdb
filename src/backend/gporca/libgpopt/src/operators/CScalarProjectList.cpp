@@ -9,15 +9,15 @@
 //		Implementation of scalar projection list operator
 //---------------------------------------------------------------------------
 
+#include "gpopt/operators/CScalarProjectList.h"
+
 #include "gpos/base.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 
-#include "gpopt/base/CDrvdPropScalar.h"
 #include "gpopt/base/CColRefSet.h"
-
-#include "gpopt/operators/CScalarProjectList.h"
-#include "gpopt/operators/CScalarWindowFunc.h"
+#include "gpopt/base/CDrvdPropScalar.h"
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CScalarWindowFunc.h"
 #include "gpopt/xforms/CXformUtils.h"
 
 
@@ -32,16 +32,11 @@ using namespace gpopt;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CScalarProjectList::CScalarProjectList
-	(
-	CMemoryPool *mp
-	)
-	:
-	CScalar(mp)
+CScalarProjectList::CScalarProjectList(CMemoryPool *mp) : CScalar(mp)
 {
 }
 
-	
+
 //---------------------------------------------------------------------------
 //	@function:
 //		CScalarProjectList::Matches
@@ -51,11 +46,7 @@ CScalarProjectList::CScalarProjectList
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarProjectList::Matches
-	(
-	COperator *pop
-	)
-	const
+CScalarProjectList::Matches(COperator *pop) const
 {
 	return (pop->Eopid() == Eopid());
 }
@@ -85,15 +76,16 @@ CScalarProjectList::FInputOrderSensitive() const
 //
 //---------------------------------------------------------------------------
 ULONG
-CScalarProjectList::UlDistinctAggs
-	(
-	CExpressionHandle &exprhdl
-	)
+CScalarProjectList::UlDistinctAggs(CExpressionHandle &exprhdl)
 {
-	CExpression *pexprPrjList =  exprhdl.PexprScalar();
+	// We make do with an inexact representative expression returned by exprhdl.PexprScalarRep(),
+	// knowing that at this time, aggregate functions are accurately contained in it. What's not
+	// exact are subqueries. This is better than just returning 0 for project lists with subqueries.
+	CExpression *pexprPrjList = exprhdl.PexprScalarRep();
 
-	GPOS_ASSERT(NULL != pexprPrjList);
-	GPOS_ASSERT(COperator::EopScalarProjectList == pexprPrjList->Pop()->Eopid());
+	GPOS_ASSERT(nullptr != pexprPrjList);
+	GPOS_ASSERT(COperator::EopScalarProjectList ==
+				pexprPrjList->Pop()->Eopid());
 
 	ULONG ulDistinctAggs = 0;
 	const ULONG arity = pexprPrjList->Arity();
@@ -105,7 +97,8 @@ CScalarProjectList::UlDistinctAggs
 
 		if (COperator::EopScalarAggFunc == eopidChild)
 		{
-			CScalarAggFunc *popScAggFunc = CScalarAggFunc::PopConvert(pexprChild->Pop());
+			CScalarAggFunc *popScAggFunc =
+				CScalarAggFunc::PopConvert(pexprChild->Pop());
 			if (popScAggFunc->IsDistinct())
 			{
 				ulDistinctAggs++;
@@ -113,7 +106,8 @@ CScalarProjectList::UlDistinctAggs
 		}
 		else if (COperator::EopScalarWindowFunc == eopidChild)
 		{
-			CScalarWindowFunc *popScWinFunc = CScalarWindowFunc::PopConvert(pexprChild->Pop());
+			CScalarWindowFunc *popScWinFunc =
+				CScalarWindowFunc::PopConvert(pexprChild->Pop());
 			if (popScWinFunc->IsDistinct() && popScWinFunc->FAgg())
 			{
 				ulDistinctAggs++;
@@ -137,24 +131,25 @@ CScalarProjectList::UlDistinctAggs
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarProjectList::FHasMultipleDistinctAggs
-	(
-	CExpressionHandle &exprhdl
-	)
+CScalarProjectList::FHasMultipleDistinctAggs(CExpressionHandle &exprhdl)
 {
-	CExpression *pexprPrjList = exprhdl.PexprScalar();
+	// We make do with an inexact representative expression returned by exprhdl.PexprScalarRep(),
+	// knowing that at this time, aggregate functions are accurately contained in it. What's not
+	// exact are subqueries. This is better than just returning false for project lists with subqueries.
+	CExpression *pexprPrjList = exprhdl.PexprScalarRep();
 
-	GPOS_ASSERT(NULL != pexprPrjList);
-	GPOS_ASSERT(COperator::EopScalarProjectList == pexprPrjList->Pop()->Eopid());
+	GPOS_ASSERT(COperator::EopScalarProjectList ==
+				pexprPrjList->Pop()->Eopid());
 	if (0 == UlDistinctAggs(exprhdl))
 	{
 		return false;
 	}
 
 	CAutoMemoryPool amp;
-	ExprToExprArrayMap *phmexprdrgpexpr = NULL;
+	ExprToExprArrayMap *phmexprdrgpexpr = nullptr;
 	ULONG ulDifferentDQAs = 0;
-	CXformUtils::MapPrjElemsWithDistinctAggs(amp.Pmp(), pexprPrjList, &phmexprdrgpexpr, &ulDifferentDQAs);
+	CXformUtils::MapPrjElemsWithDistinctAggs(
+		amp.Pmp(), pexprPrjList, &phmexprdrgpexpr, &ulDifferentDQAs);
 	phmexprdrgpexpr->Release();
 
 	return (1 < ulDifferentDQAs);
@@ -162,4 +157,3 @@ CScalarProjectList::FHasMultipleDistinctAggs
 
 
 // EOF
-

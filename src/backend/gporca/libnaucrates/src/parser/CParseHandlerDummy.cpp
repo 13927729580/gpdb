@@ -10,6 +10,7 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/parser/CParseHandlerDummy.h"
+
 #include "naucrates/dxl/operators/CDXLOperatorFactory.h"
 #include "naucrates/dxl/parser/CParseHandlerFactory.h"
 #include "naucrates/dxl/xml/CDXLMemoryManager.h"
@@ -27,13 +28,10 @@ XERCES_CPP_NAMESPACE_USE
 //		Constructor
 //
 //---------------------------------------------------------------------------
-CParseHandlerDummy::CParseHandlerDummy
-	(
-	CDXLMemoryManager *dxl_memory_manager
-	)
-	:
-	m_dxl_memory_manager(dxl_memory_manager)
-{}
+CParseHandlerDummy::CParseHandlerDummy(CDXLMemoryManager *dxl_memory_manager)
+	: m_dxl_memory_manager(dxl_memory_manager)
+{
+}
 
 
 
@@ -46,12 +44,10 @@ CParseHandlerDummy::CParseHandlerDummy
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerDummy::error
-	(
-	const SAXParseException &sax_parse_ex
-	)
+CParseHandlerDummy::error(const SAXParseException &sax_parse_ex)
 {
-	CHAR *message = XMLString::transcode(sax_parse_ex.getMessage(), m_dxl_memory_manager);
+	CHAR *message =
+		XMLString::transcode(sax_parse_ex.getMessage(), m_dxl_memory_manager);
 	GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiDXLValidationError, message);
 }
 

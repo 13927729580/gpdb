@@ -9,13 +9,12 @@
 //		Tests for CAutoP
 //---------------------------------------------------------------------------
 
-#include "gpos/base.h"
+#include "unittest/gpos/common/CAutoPTest.h"
 
+#include "gpos/base.h"
 #include "gpos/common/CAutoP.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/test/CUnittest.h"
-
-#include "unittest/gpos/common/CAutoPTest.h"
 
 using namespace gpos;
 
@@ -31,10 +30,7 @@ using namespace gpos;
 GPOS_RESULT
 CAutoPTest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
-		GPOS_UNITTEST_FUNC(CAutoPTest::EresUnittest_Basics)
-		};
+	CUnittest rgut[] = {GPOS_UNITTEST_FUNC(CAutoPTest::EresUnittest_Basics)};
 
 	return CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 }
@@ -74,13 +70,13 @@ CAutoPTest::EresUnittest_Basics()
 #ifdef GPOS_DEBUG
 	CHAR *szBack = asz3.Value();
 	GPOS_ASSERT(szBack == sz2);
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 	// deref
 	GPOS_ASSERT(*sz2 == *asz3);
 
 	// wipe out asz2 to prevent double free
-	asz2 = NULL;
+	asz2 = nullptr;
 
 	// unhooking of object
 	GPOS_DELETE(asz3.Reset());
@@ -102,4 +98,3 @@ CAutoPTest::EresUnittest_Basics()
 }
 
 // EOF
-

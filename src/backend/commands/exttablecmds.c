@@ -4,7 +4,7 @@
  *	  Commands for creating and altering external tables
  *
  * Portions Copyright (c) 2005-2010, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  * Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -88,7 +88,6 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 	char	   *locationUris = NULL;
 	char	   *locationExec = NULL;
 	char	   *commandString = NULL;
-	char	   *customProtName = NULL;
 	char		rejectlimittype = '\0';
 	char		formattype;
 	int			rejectlimit = -1;
@@ -272,7 +271,7 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 							 RELKIND_FOREIGN_TABLE,
 							 InvalidOid,
 							 NULL,
-							 RELSTORAGE_FOREIGN,
+							 NULL,
 							 false, /* dispatch */
 							 true,
 							 NULL);
@@ -329,9 +328,6 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 									GetAssignedOidsForDispatch(),
 									NULL);
 	}
-
-	if (customProtName)
-		pfree(customProtName);
 }
 
 /*
@@ -525,10 +521,10 @@ transformExecOnClause(List *on_clause)
 				/* result: "PER_HOST" */
 				exec_location_str = "PER_HOST";
 			}
-			else if (strcmp(defel->defname, "master") == 0)
+			else if (strcmp(defel->defname, "coordinator") == 0)
 			{
-				/* result: "MASTER_ONLY" */
-				exec_location_str = "MASTER_ONLY";
+				/* result: "COORDINATOR_ONLY" */
+				exec_location_str = "COORDINATOR_ONLY";
 			}
 			else if (strcmp(defel->defname, "segment") == 0)
 			{
@@ -619,8 +615,12 @@ transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswrita
 {
 	List 	   *cslist = NIL;
 	ListCell   *option;
+	ParseState *pstate;
 
 	CopyState cstate = palloc0(sizeof(CopyStateData));
+
+	pstate = make_parsestate(NULL);
+	pstate->p_sourcetext = NULL;
 
 	Assert(fmttype_is_custom(formattype) ||
 		   fmttype_is_text(formattype) ||
@@ -658,43 +658,70 @@ transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswrita
 		if (fmttype_is_csv(formattype))
 		{
 			formatOpts = list_copy(formatOpts);
-			formatOpts = lappend(formatOpts, makeDefElem("format", (Node *) makeString("csv")));
+			formatOpts = lappend(formatOpts, makeDefElem("format", (Node *) makeString("csv"), -1));
 
-			cslist = lappend(cslist, makeDefElem("format", (Node *) makeString("csv")));
+			cslist = lappend(cslist, makeDefElem("format", (Node *) makeString("csv"), -1));
 		}
 		else
-			cslist = lappend(cslist, makeDefElem("format", (Node *) makeString("text")));
+			cslist = lappend(cslist, makeDefElem("format", (Node *) makeString("text"), -1));
 
 		/* verify all user supplied control char combinations are legal */
-		ProcessCopyOptions(cstate,
+		ProcessCopyOptions(pstate,
+						   cstate,
 						   !iswritable, /* is_from */
-						   formatOpts,
-						   numcols,
-						   false /* is_copy */);
+						   formatOpts);
+
+		if (cstate->delim_off)
+		{
+			if (numcols != 1)
+				ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("using no delimiter is only possible for a single column table")));
+		}
+
+		if (cstate->header_line)
+		{
+			if (Gp_role == GP_ROLE_DISPATCH)
+			{
+				if (!iswritable)
+				{
+					/* RET */
+					ereport(NOTICE,
+							(errmsg("HEADER means that each one of the data files has a header row")));
+				}
+				else
+				{
+					/* WET */
+					ereport(ERROR,
+							(errcode(ERRCODE_GP_FEATURE_NOT_YET),
+							errmsg("HEADER is not yet supported for writable external tables")));
+				}
+			}
+		}
 
 		/* keep the same order with the original pg_exttable catalog's fmtopt field */
-		cslist = lappend(cslist, makeDefElem("delimiter", (Node *) makeString(cstate->delim)));
-		cslist = lappend(cslist, makeDefElem("null", (Node *) makeString(cstate->null_print)));
-		cslist = lappend(cslist, makeDefElem("escape", (Node *) makeString(cstate->escape)));
+		cslist = lappend(cslist, makeDefElem("delimiter", (Node *) makeString(cstate->delim), -1));
+		cslist = lappend(cslist, makeDefElem("null", (Node *) makeString(cstate->null_print), -1));
+		cslist = lappend(cslist, makeDefElem("escape", (Node *) makeString(cstate->escape), -1));
 		if (fmttype_is_csv(formattype))
-			cslist = lappend(cslist, makeDefElem("quote", (Node *) makeString(cstate->quote)));
+			cslist = lappend(cslist, makeDefElem("quote", (Node *) makeString(cstate->quote), -1));
 		if (cstate->header_line)
-			cslist = lappend(cslist, makeDefElem("header", (Node *) makeString("true")));
+			cslist = lappend(cslist, makeDefElem("header", (Node *) makeString("true"), -1));
 		if (cstate->fill_missing)
-			cslist = lappend(cslist, makeDefElem("fill_missing_fields", (Node *) makeString("true")));
+			cslist = lappend(cslist, makeDefElem("fill_missing_fields", (Node *) makeString("true"), -1));
 
 		/* Re-construct the FORCE NOT NULL list string */
 		if (cstate->force_notnull)
-			cslist = lappend(cslist, makeDefElem("force_not_null", (Node *) makeString(list_join(cstate->force_notnull, ','))));
+			cslist = lappend(cslist, makeDefElem("force_not_null", (Node *) makeString(list_join(cstate->force_notnull, ',')), -1));
 
 		/* Re-construct the FORCE QUOTE list string */
 		if (cstate->force_quote)
-			cslist = lappend(cslist, makeDefElem("force_quote", (Node *) makeString(list_join(cstate->force_quote, ','))));
+			cslist = lappend(cslist, makeDefElem("force_quote", (Node *) makeString(list_join(cstate->force_quote, ',')), -1));
 		else if (cstate->force_quote_all)
-			cslist = lappend(cslist, makeDefElem("force_quote", (Node *) makeString("*")));
+			cslist = lappend(cslist, makeDefElem("force_quote", (Node *) makeString("*"), -1));
 
 		if (cstate->eol_str)
-			cslist = lappend(cslist, makeDefElem("newline", (Node *) makeString(cstate->eol_str)));
+			cslist = lappend(cslist, makeDefElem("newline", (Node *) makeString(cstate->eol_str), -1));
 	}
 	else
 	{
@@ -721,7 +748,7 @@ transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswrita
 					 errmsg("no formatter function specified")));
 
 		cslist = list_copy(formatOpts);
-		cslist = lappend(cslist, makeDefElem("format", (Node *) makeString("custom")));
+		cslist = lappend(cslist, makeDefElem("format", (Node *) makeString("custom"), -1));
 	}
 
 	return cslist;
@@ -732,7 +759,7 @@ InvokeProtocolValidation(Oid procOid, char *procName, bool iswritable, List *loc
 {
 	ExtProtocolValidatorData *validator_data;
 	FmgrInfo   *validator_udf;
-	FunctionCallInfoData fcinfo;
+	LOCAL_FCINFO(fcinfo, FUNC_MAX_ARGS);
 
 	validator_data = (ExtProtocolValidatorData *) palloc0(sizeof(ExtProtocolValidatorData));
 	validator_udf = palloc(sizeof(FmgrInfo));
@@ -744,7 +771,7 @@ InvokeProtocolValidation(Oid procOid, char *procName, bool iswritable, List *loc
 	validator_data->direction = (iswritable ? EXT_VALIDATE_WRITE :
 								 EXT_VALIDATE_READ);
 
-	InitFunctionCallInfoData( /* FunctionCallInfoData */ fcinfo,
+	InitFunctionCallInfoData( /* FunctionCallInfoData */ *fcinfo,
 							  /* FmgrInfo */ validator_udf,
 							  /* nArgs */ 0,
 							  /* Collation */ InvalidOid, 
@@ -752,12 +779,12 @@ InvokeProtocolValidation(Oid procOid, char *procName, bool iswritable, List *loc
 							  /* ResultSetInfo */ NULL);
 
 	/* invoke validator. if this function returns - validation passed */
-	FunctionCallInvoke(&fcinfo);
+	FunctionCallInvoke(fcinfo);
 
 	/* We do not expect a null result */
-	if (fcinfo.isnull)
+	if (fcinfo->isnull)
 		elog(ERROR, "validator function %u returned NULL",
-			 fcinfo.flinfo->fn_oid);
+			 fcinfo->flinfo->fn_oid);
 
 	pfree(validator_data);
 	pfree(validator_udf);
@@ -804,30 +831,30 @@ GenerateExtTableEntryOptions(Oid 	tbloid,
 {
 	List		*entryOptions = NIL;
 
-	entryOptions = lappend(entryOptions, makeDefElem("format_type", (Node *)makeString(psprintf("%c", formattype))));
+	entryOptions = lappend(entryOptions, makeDefElem("format_type", (Node *) makeString(psprintf("%c", formattype)), -1));
 
 	if (commandString)
 	{
 		/* EXECUTE type table - store command and command location */
-		entryOptions = lappend(entryOptions, makeDefElem("command", (Node *)makeString(pstrdup(commandString))));
-		entryOptions = lappend(entryOptions, makeDefElem("execute_on", (Node *)makeString(pstrdup(locationExec))));
+		entryOptions = lappend(entryOptions, makeDefElem("command", (Node *) makeString(pstrdup(commandString)), -1));
+		entryOptions = lappend(entryOptions, makeDefElem("execute_on", (Node *) makeString(pstrdup(locationExec)), -1));
 	}
 	else
 	{
 		/* LOCATION type table - store uri locations. command is NULL */
-		entryOptions = lappend(entryOptions, makeDefElem("location_uris", (Node *)makeString(pstrdup(locationUris))));
-		entryOptions = lappend(entryOptions, makeDefElem("execute_on", (Node *)makeString(pstrdup(locationExec))));
+		entryOptions = lappend(entryOptions, makeDefElem("location_uris", (Node *) makeString(pstrdup(locationUris)), -1));
+		entryOptions = lappend(entryOptions, makeDefElem("execute_on", (Node *) makeString(pstrdup(locationExec)), -1));
 	}
 
 	if (issreh)
 	{
-		entryOptions = lappend(entryOptions, makeDefElem("reject_limit", (Node *)makeString(psprintf("%d", rejectlimit))));
-		entryOptions = lappend(entryOptions, makeDefElem("reject_limit_type", (Node *)makeString(psprintf("%c", rejectlimittype))));
+		entryOptions = lappend(entryOptions, makeDefElem("reject_limit", (Node *) makeString(psprintf("%d", rejectlimit)), -1));
+		entryOptions = lappend(entryOptions, makeDefElem("reject_limit_type", (Node *) makeString(psprintf("%c", rejectlimittype)), -1));
 	}
 
-	entryOptions = lappend(entryOptions, makeDefElem("log_errors", (Node *)makeString(psprintf("%c", logerrors))));
-	entryOptions = lappend(entryOptions, makeDefElem("encoding", (Node *)makeString(psprintf("%d", encoding))));
-	entryOptions = lappend(entryOptions, makeDefElem("is_writable", (Node *)makeString(iswritable ? pstrdup("true") : pstrdup("false"))));
+	entryOptions = lappend(entryOptions, makeDefElem("log_errors", (Node *) makeString(psprintf("%c", logerrors)), -1));
+	entryOptions = lappend(entryOptions, makeDefElem("encoding", (Node *) makeString(psprintf("%d", encoding)), -1));
+	entryOptions = lappend(entryOptions, makeDefElem("is_writable", (Node *) makeString(iswritable ? pstrdup("true") : pstrdup("false")), -1));
 
 	/*
 	 * Add the dependency of custom external table

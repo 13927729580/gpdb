@@ -10,6 +10,8 @@ GPDB_BIN_FILENAME=${GPDB_BIN_FILENAME:="bin_gpdb.tar.gz"}
 GREENPLUM_CL_INSTALL_DIR=/usr/local/greenplum-clients-devel
 GPDB_CL_FILENAME=${GPDB_CL_FILENAME:="gpdb-clients-${TARGET_OS}${TARGET_OS_VERSION}.tar.gz"}
 
+source "${CWDIR}/common.bash"
+
 function expand_glob_ensure_exists() {
   local -a glob=($*)
   [ -e "${glob[0]}" ]
@@ -48,6 +50,21 @@ function prep_env() {
   esac
 }
 
+function install_libuv() {
+  local includedir=/usr/include
+  local libdir
+
+  case "${TARGET_OS}" in
+    centos | sles) libdir=/usr/lib64 ;;
+    ubuntu) libdir=/usr/lib/x86_64-linux-gnu ;;
+    *) return ;;
+  esac
+  # provided by build container
+  cp -a /usr/local/include/uv* ${includedir}/
+  cp -a /usr/local/lib/libuv* ${libdir}/
+}
+
+
 function install_deps_for_centos_or_sles() {
   rpm -i libquicklz-installer/libquicklz-*.rpm
   rpm -i libquicklz-devel-installer/libquicklz-*.rpm
@@ -62,6 +79,7 @@ function install_deps() {
     centos | sles) install_deps_for_centos_or_sles;;
     ubuntu) install_deps_for_ubuntu;;
   esac
+  install_libuv
 }
 
 function generate_build_number() {
@@ -140,6 +158,21 @@ function include_quicklz() {
   popd
 }
 
+function include_libuv() {
+  local includedir=/usr/include
+  local libdir
+  case "${TARGET_OS}" in
+    centos | sles) libdir=/usr/lib64 ;;
+    ubuntu) libdir=/usr/lib/x86_64-linux-gnu ;;
+    *) return ;;
+  esac
+  pushd ${GREENPLUM_INSTALL_DIR}
+    # need to include both uv.h and uv/*.h
+    cp -a ${includedir}/uv* include
+    cp -a ${libdir}/libuv.so* lib
+  popd
+}
+
 function export_gpdb() {
   TARBALL="${GPDB_ARTIFACTS_DIR}/${GPDB_BIN_FILENAME}"
   local server_version
@@ -150,7 +183,7 @@ function export_gpdb() {
 
   pushd ${GREENPLUM_INSTALL_DIR}
     source greenplum_path.sh
-    python -m compileall -q -x test .
+    python3 -m compileall -q -x test .
     chmod -R 755 .
     tar -czf "${TARBALL}" ./*
   popd
@@ -199,23 +232,17 @@ function build_xerces()
     rm -rf build
 }
 
-function test_orca()
-{
-    OUTPUT_DIR="../../../../gpAux/ext/${BLD_ARCH}"
-    pushd ${GPDB_SRC_PATH}/src/backend/gporca
-    concourse/build_and_test.py --build_type=RelWithDebInfo --output_dir=${OUTPUT_DIR}
-    concourse/build_and_test.py --build_type=Debug --output_dir=${OUTPUT_DIR}
-    popd
-}
-
 function _main() {
+
+  ## Add CCache Support (?)
+  add_ccache_support "${TARGET_OS}"
+
   mkdir gpdb_src/gpAux/ext
 
   case "${TARGET_OS}" in
     centos|ubuntu|sles)
       prep_env
       build_xerces
-      test_orca
       install_deps
       ;;
     win32)
@@ -243,13 +270,14 @@ function _main() {
   build_gpdb "${BLD_TARGET_OPTION[@]}"
   git_info
 
-  if [ "${TARGET_OS}" != "win32" ] ; then
+  if [[ "${TARGET_OS}" != "win32" ]] && [[ -z "${SKIP_UNITTESTS}" ]]; then
       # Don't unit test when cross compiling. Tests don't build because they
       # require `./configure --with-zlib`.
       unittest_check_gpdb
   fi
   include_zstd
   include_quicklz
+  include_libuv
   export_gpdb
   export_gpdb_extensions
   export_gpdb_win32_ccl
@@ -258,6 +286,9 @@ function _main() {
   then
       export_gpdb_clients
   fi
+
+  ## Display CCache Stats
+  display_ccache_stats
 }
 
 _main "$@"

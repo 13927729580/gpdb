@@ -1,6 +1,6 @@
 from mock import *
 import os
-from gp_unittest import *
+from .gp_unittest import *
 from gpcheckcat_modules.repair import Repair
 import tempfile
 import shutil
@@ -15,11 +15,11 @@ class RepairTestCase(GpTestCase):
         self.context.report_cfg = {0: {'segname': 'seg1', 'hostname': 'somehost', 'port': 25432},
                                    1: {'segname': 'seg2', 'hostname': 'somehost', 'port': 25433},
                                    2: {'segname': 'seg3', 'hostname': 'somehost', 'port': 25434},
-                                   -1: {'segname': 'master', 'hostname': 'somehost', 'port': 15432}}
+                                   -1: {'segname': 'coordinator', 'hostname': 'somehost', 'port': 15432}}
         self.context.cfg = {0: {'content': 0, 'dbid': 0, 'segname': 'seg1', 'hostname': 'somehost', 'port': 25432},
                             1: {'content': 1, 'dbid': 1, 'segname': 'seg2', 'hostname': 'somehost', 'port': 25433},
                             2: {'content': 2, 'dbid': 2, 'segname': 'seg3', 'hostname': 'somehost', 'port': 25434},
-                            3: {'content': -1, 'dbid': 3, 'segname': 'master', 'hostname': 'somehost', 'port': 15432}}
+                            3: {'content': -1, 'dbid': 3, 'segname': 'coordinator', 'hostname': 'somehost', 'port': 15432}}
         self.context.dbname = "somedb"
 
         self.subject = Repair(self.context, "issuetype", "some desc")
@@ -42,7 +42,7 @@ class RepairTestCase(GpTestCase):
         self.verify_repair_dir_contents("somedb_issuetype_timestamp.sql", sql_contents)
         self.verify_repair_dir_contents("runsql_timestamp.sh", bash_contents)
 
-    @patch('gpcheckcat_modules.repair.RepairMissingExtraneous', autospec=True)
+    @patch('gpcheckcat_modules.repair.RepairMissingExtraneous')
     def test_create_repair_extra__normal(self, mock_repair):
         self.subject = Repair(self.context, "extra", "some desc")
         catalog_table_obj = Mock()
@@ -83,7 +83,7 @@ class RepairTestCase(GpTestCase):
         self.subject = Repair(self.context, "orphan_toast_tables", "some desc")
 
         segments_with_repair_statements = []
-        for segment in self.context.cfg.values():
+        for segment in list(self.context.cfg.values()):
             if segment['content'] != -1:
                 segment['repair_statements'] = ['UPDATE pg_class']
                 segments_with_repair_statements.append(segment)
@@ -136,7 +136,7 @@ class RepairTestCase(GpTestCase):
         with open(file_path) as f:
             file_contents = f.readlines()
 
-        self.assertEqual(file_contents, contents)
+        self.assertCountEqual(file_contents, contents)
 
     def tearDown(self):
         shutil.rmtree(self.repair_dir_path)
